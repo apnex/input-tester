@@ -9,7 +9,7 @@ Its current architecture is empty: no code exists yet, and `docs/ARCHITECTURE.md
 
 Written in the present tense of a system that exists.\
 It contains no plan, order or estimate; those belong to a board and to deltas.\
-A section marked provisional describes the system as this draft proposes it, resting on the decisions owed in section 11, each at its recommendation; it changes with the ruling.
+Every section is approved; each reopens on the trigger section 1 names for it.
 
 ---
 
@@ -17,20 +17,20 @@ A section marked provisional describes the system as this draft proposes it, res
 
 Authored by the architect, ratified by the director per section; approval is aggregate-only.\
 Revision 4, 2026-10-24, folding in the first three readings (section 12).\
-Nothing here is ratified yet, except what the programme's rulings `H26-12` and `H26-13`, each as amended, already settled; the table says where.
+Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26-14`), every decision of section 11 at its recommendation, on top of what `H26-12` and `H26-13`, each as amended, had settled; recorded as this repository's own ruling `0001` in `docs/DECISIONS.md`.
 
 | Section | Maturity | Reopens on |
 |---|---|---|
-| 2 Identity, scope, non-goals | approved in part: the repository, the name, the address, the touchpad in scope and the non-goals are `H26-12`'s and `H26-13`'s; the covered browsers await IT-D12; the rest provisional | A ruling that changes scope, or an input a person can make that the scope leaves out |
-| 3 Justification chain | provisional | A ruling recorded in `docs/DECISIONS.md`, or an amendment of `VISION.md` |
-| 4 Axiom alignment | provisional | A change to the tester's traits, or a tension discharged or found |
-| 5 Anchored core | provisional | A duty with no owner, owned twice, or held here that a shared part should hold |
-| 6 Entities, data, interfaces | provisional | A shown thing with no entity behind it |
-| 7 Run time | provisional | A sequence of inputs whose picture is not listed |
-| 8 Verification | provisional | A success dimension, or a claim, with no check |
-| 9 Delivery and hosting | approved in part: the buckets, the two hosts, IAP left out, a deploy that copies one release to the lab first, and a browser rule in the response headers are `H26-13`'s as amended; the rest provisional | A change of host, or a deploy that is not a copy of one release |
-| 10 Owed and open | provisional | Any row closed or added |
-| 11 Decisions owed | provisional | Any decision taken |
+| 2 Identity, scope, non-goals | approved: the repository, the name, the address, the touchpad in scope and the non-goals by `H26-12` and `H26-13`; the rest, the covered browsers among it (IT-D12), by `H26-14` | A ruling that changes scope, or an input a person can make that the scope leaves out |
+| 3 Justification chain | approved (`H26-14`) | A ruling recorded in `docs/DECISIONS.md`, or an amendment of `VISION.md` |
+| 4 Axiom alignment | approved (`H26-14`) | A change to the tester's traits, or a tension discharged or found |
+| 5 Anchored core | approved (`H26-14`) | A duty with no owner, owned twice, or held here that a shared part should hold |
+| 6 Entities, data, interfaces | approved (`H26-14`) | A shown thing with no entity behind it |
+| 7 Run time | approved (`H26-14`) | A sequence of inputs whose picture is not listed |
+| 8 Verification | approved (`H26-14`) | A success dimension, or a claim, with no check |
+| 9 Delivery and hosting | approved: the buckets, the two hosts, IAP left out, a deploy that copies one release to the lab first, and a browser rule in the response headers by `H26-13` as amended; the rest by `H26-14` | A change of host, or a deploy that is not a copy of one release |
+| 10 Owed and open | approved (`H26-14`) | Any row closed or added |
+| 11 Decisions | approved, each at its recommendation (`H26-14`) | A ruling that changes one |
 | 12 Readings | a record | A reading |
 
 | Field | Value |
@@ -104,7 +104,7 @@ Every mark on the screen traces to one fact the browser delivered or one outcome
 **Decisions.**\
 Ruled by the programme: `H26-1`, the tester at `input.apnex.io`, a keyboard and a mouse drawn and every gesture highlighted live, built from the four parts alone; `H26-12` as amended, a sovereign application in `apnex/input-tester` with its own vision and architecture, composing the four through their releases, the parts' gaps fixed in the parts before it is built, and a guide to using the four together with the tester as its worked example; `H26-13` as amended, the vision ratified, the touchpad's scroll and pinch in scope, the page served from a public bucket behind the existing load balancer, its lab at `input-lab.apnex.io`, both outside IAP, a deploy that copies one release to the lab, checks it, then production, and a browser rule in the response headers that the page sends nothing.\
 Answered by the shared parts' releases: IT-D3, the routing between capture and binding, now `input-binding`'s `resolvePress`.\
-Owed: IT-D1, IT-D2 and IT-D4 to IT-D12 (section 11).
+Taken: IT-D1, IT-D2 and IT-D4 to IT-D12, each at its recommendation (section 11, `H26-14`).
 
 **Model.**\
 One stream through single-duty parts: a platform event becomes one fact (`input-capture`); the router traces it against the table, matches it and passes it through the session (`input-binding`), giving one verdict that holds every step in order; the picture state takes the verdict; and the painter describes the picture to the scene (`vector-scene`), which brings the page to it; the keyboard and the mouse are placed on a grid (`snap-grid`).
@@ -394,9 +394,9 @@ There is no server logic.
 
 ---
 
-## 11. Decisions owed
+## 11. Decisions
 
-Each is asked of the director one at a time, its options and their costs stated, and a recommendation given apart.
+Each with its options and their costs, and a recommendation given apart; the director ratified every one at its recommendation, 2026-10-24 (`H26-14`, this repository's `0001`).
 
 **IT-D1 -- Language, build and how the parts are imported.**
 
