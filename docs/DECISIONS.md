@@ -14,7 +14,7 @@ This file holds the tester's own.
 **Affects:** `docs/ARCHITECTURE-TARGET.md`, and everything built from it.
 
 **Ruling.**\
-`docs/ARCHITECTURE-TARGET.md`, revision 4, is ratified, every section approved and every decision of its section 11, IT-D1 to IT-D12, at its recommendation.
+`docs/ARCHITECTURE-TARGET.md`, revision 4, is ratified, every section approved and every decision of its section 11, IT-D1 to IT-D12, at its recommendation.\
 The four shared parts' next releases it composes -- `input-capture`, `input-binding` and `vector-scene` at `0.2.0`, `snap-grid` at `0.1.1` -- were ratified with it, in the programme's design of those releases.
 
 **Why.**\
