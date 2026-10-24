@@ -1,6 +1,6 @@
 # input-tester - Vision
 
-**Status: draft, for the director's ratification; not in force until ratified.**\
+**Status: ratified by the director as written, 2026-10-24 (ruling `H26-13`, in draw's `dev/DECISIONS.md`, where the programme that made this tester keeps its rulings); enduring.**\
 This document states why input-tester exists and what it will never be.\
 It carries no current state, no roadmap, and no schedule; where the tester is now belongs to its derived architecture, and what it does next to its board.
 
