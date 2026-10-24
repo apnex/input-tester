@@ -3,7 +3,7 @@
 One ruling per entry, append-only.\
 A ruling is never edited; a later one supersedes it and says so.
 
-Rulings of the programme that made this tester are held in the programme's records, `apnex/drawv2` (`dev/DECISIONS.md`), and cited here by their ids, `H26-12` and the like.
+Rulings of the programme that made this tester are held in the programme's records, `apnex/drawv2` (`dev/DECISIONS.md`), and cited here by their ids, `H26-12` and the like.\
 This file holds the tester's own.
 
 ---
