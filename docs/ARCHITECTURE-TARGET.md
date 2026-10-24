@@ -16,7 +16,7 @@ A section marked provisional describes the system as this draft proposes it, res
 ## 1. Status and authority
 
 Authored by the architect, ratified by the director per section; approval is aggregate-only.\
-Revision 3, 2026-10-24, folding in the first two readings (section 12).\
+Revision 4, 2026-10-24, folding in the first three readings (section 12).\
 Nothing here is ratified yet, except what the programme's rulings `H26-12` and `H26-13`, each as amended, already settled; the table says where.
 
 | Section | Maturity | Reopens on |
@@ -73,7 +73,7 @@ Its repository is `apnex/input-tester`, public.
 
 **Domain.**\
 A browser reports a keyboard through the UI Events `KeyboardEvent`: `code` names the physical key whatever characters the keyboard prints (the UI Events KeyboardEvent code values), `key` the character or action it produced, `repeat` an automatic repeat, and modifiers as booleans.\
-An input method composes only into an editable element: composition injected over the DevTools protocol reached no listener while the body or a focusable `<svg>` held focus, and reached a focused text field (measured in Chrome), so a page with nothing editable receives typing as key events.\
+Composition injected over the DevTools protocol reached no listener while the body or a focusable `<svg>` held focus, and reached a focused text field (measured in Chrome); what a native input method delivers to a page with nothing editable is not measured.\
 It reports a mouse through Pointer Events: one pointer per mouse, a press of any button while another is held arriving as a `pointermove`, so a chord's presses and releases after the first are moves, and `pointerup` comes only when the last button is released (measured in Chrome: left pressed, right pressed, left released, right released gives `pointerdown` 0, `pointermove` 2, `pointermove` 0, `pointerup` 2).\
 A move with no change of button carries `button` -1, so a chord's moves are told from a drag's by `button` alone (measured in Chrome, under a trusted-input driver that names the held button on every move); a double click is a `MouseEvent`, carrying no pointer type.\
 It reports a wheel and a touchpad's two-finger scroll as `wheel` events with a delta and its unit, pixels, lines or pages, and a touchpad's pinch as a `wheel` with `ctrlKey` set (measured in Chrome with a pinch synthesized as a touchpad sends it; real hardware not measured).\
@@ -151,7 +151,7 @@ From the empty current instant to this target: the shared parts' releases -- `in
 - GT2: every put for an input happens inside that input's delivery, held by a test.
 - GT3: each shared part's files are served byte-identical to its release, held by the deploy check.
 - GT4: no workaround row is open while the release named to retire it is installed, held by the gate.
-- GT5: every row of the table is matched at least once by the gate's trusted input, no two rows hit together over the rows' whole cross-product, and a plain drag of every button matches no chord row.
+- GT5: every row the browser can produce is matched by the gate's trusted input and every other row by a synthetic fixture, as section 6 names each; no two rows hit together over the rows' whole cross-product; and a plain drag of every button matches no chord row.
 - GT6: the browser rule is one text, in every response's header, the same for every release, sent by the backends and by the gate's own server, with no report endpoint.
 - GT7: the source holds none of the words the shared parts' vocabulary check refuses on behalf of their first consumer, held by running that check here.
 - GT8: every shape the painter puts is within its allowlist (section 6, Shape), and the stylesheet holds no `url(` and no `@import`, held by a test.
@@ -209,35 +209,44 @@ The tester composes `input-capture`, `input-binding` and `vector-scene` at their
 `threshold` 4 and the gestures `press-0` to `press-4`, `engaged` false, and `drag-0` to `drag-4`, `engaged` true, each declaring its button; the threshold is in drawing units, the units of capture's `at`, which the scene's `toDrawing` gives, a quarter key being 10 of them, so a press is a drag once it travels more than a tenth of a key, as the status line says.
 
 **The table's rows.**\
-Terms: a *keyed* fact is a key fact whose `code` is a non-empty string that is not one of the browser's own keys -- `F5`, `F11`, `F12`, `BrowserRefresh`, `ZoomToggle`, `KeyR` with Ctrl or Meta, and `KeyI`, `KeyJ` or `KeyC` with Ctrl and Shift or with Meta and Alt; a *fresh press* is a keyed `key-down` whose `repeat` is false; the *modifier codes* are `ShiftLeft`, `ShiftRight`, `ControlLeft`, `ControlRight`, `AltLeft`, `AltRight`, `MetaLeft` and `MetaRight`; a *chord modifier* is Ctrl, Alt or Meta held.\
+Terms: a *keyed* fact is a key fact whose `code` is a non-empty string that is not one of the browser's own keys, the union of the table below, so no platform is detected and a combination that is the browser's on one platform is left unclaimed on all; a *fresh press* is a keyed `key-down` whose `repeat` is false; the *modifier codes* are `ShiftLeft`, `ShiftRight`, `ControlLeft`, `ControlRight`, `AltLeft`, `AltRight`, `MetaLeft` and `MetaRight`; a *chord modifier* is Ctrl, Alt or Meta held.\
 Shift makes no chord: Shift's own press is a modifier press, and a key pressed with Shift held is that key's first press or roll-over, its `key` the shifted character.\
 Since a row's claim does not depend on its `when` (IB7), every claiming row's `on` refuses the browser's own keys.
 
-| Row | `on` | `when` | Claims |
-|---|---|---|---|
-| a modifier press | a fresh press of a modifier code | -- | yes |
-| a modifier chord | a fresh press of another code, a chord modifier held | -- | yes |
-| a first press | a fresh press of another code, no chord modifier held | not `otherHeld` | yes |
-| a roll-over press | likewise | `otherHeld` | yes |
-| a repeat | a keyed `key-down` whose `repeat` is true | -- | yes |
-| a release | a keyed `key-up` | `wasHeld` | yes |
-| a release whose press was not seen | a keyed `key-up` | not `wasHeld` | yes |
-| a key with no identity | a key fact whose `code` is `''` or `null` | -- | yes |
-| left to the browser | a key fact of one of the browser's own keys | -- | no |
-| a press of button b, for b from 0 to 4 | a `down` whose `pointerType` is `mouse` and `button` b; opens `press-b` | -- | yes |
-| a release of button b | an `up` whose `pointerType` is `mouse` and `button` b | -- | yes |
-| a chorded press, a chorded release | a `move` whose `pointerType` is `mouse`, `button` 0 to 4 and `buttons` an integer, that button's bit set, or clear | -- | yes |
-| a chorded change, buttons not reported | the same with `buttons` `null` | -- | no |
-| a button beyond the five | a `down`, `up` or `move` whose `pointerType` is `mouse` and `button` above 4 | -- | no |
-| a double click | a `double`, whatever its pointer type -- the platform's carries none | -- | yes |
-| a click of button b, a drag of button b | a derived `commit` of `press-b`, or of `drag-b` | -- | no |
-| the wheel up, down, sideways, still | a `wheel` with `ctrlKey` false and `deltaY` below 0; above 0; 0 with `deltaX` not 0; both 0 | -- | yes |
-| Ctrl and wheel, or a touchpad pinch | a `wheel` with `ctrlKey` true, IT-D8's sentence beside it: the browser does not tell them apart | -- | yes |
-| the context menu | a `context-menu`, whatever its pointer type | -- | yes |
-| a touch or a pen pointer | a `down`, `up`, `move`, `over`, `out`, `leave` or `cancel` whose `pointerType` is `touch` or `pen` | -- | no |
-| focus lost | a `blur` | -- | yes |
+| Platform | The browser's own keys -- reload, fullscreen, developer tools -- that reach a page | Source, not measured on the platform |
+|---|---|---|
+| Windows, Linux, ChromeOS | `F5`, with or without Ctrl or Shift; `KeyR` with Ctrl, with or without Shift; `F11`; `F12`; `KeyI`, `KeyJ` and `KeyC` with Ctrl and Shift; on Linux `BrowserRefresh` too | Chromium's accelerator table (`accelerator_table.cc`); Chrome's keyboard-shortcut help |
+| ChromeOS, beside those | `BrowserRefresh` and `ZoomToggle`, should the Chromebook acceptance find them reaching a page: Chromium reserves the Refresh, Back and Forward keys, which never reach one, and leaves the keys from Fullscreen up to the system | Chromium's `browser_command_controller.cc` |
+| macOS | `KeyR` with Meta, with or without Shift; `KeyF` with Control and Meta, the fullscreen shortcut, which Chromium also marks with the Fn key no fact carries; `KeyI`, `KeyJ` and `KeyC` with Meta and Alt; `KeyC` with Meta and Shift | Chromium's `accelerators_cocoa.mm` and `global_keyboard_shortcuts_mac.mm`; Chrome's help naming Fn and F the fullscreen key |
 
-Composed by the released `input-binding` and run through its overlap check over every key fact's type, repeat flag, code class and sixteen modifier states with the four contexts, and every pointer, wheel, `blur` and derived fact, these 42 rows hit no two together, and no fact of a browser's own key is claimed; revision 2's rows, run the same way, hit Ctrl and A twice (measured).
+Headless Chrome delivers each of these over the protocol to the page without acting on it (measured), so the gate proves they match the unclaimed row, not what each browser then does; the browser's reserved shortcuts -- a new or closed tab or window, switching tabs -- never reach a page, and are among what no page can know (IT-D8).
+
+| Row | `on` | `when` | Claims | Proved by |
+|---|---|---|---|---|
+| a modifier press | a fresh press of a modifier code | -- | yes | trusted |
+| a modifier chord | a fresh press of another code, a chord modifier held | -- | yes | trusted |
+| a first press | a fresh press of another code, no chord modifier held | not `otherHeld` | yes | trusted |
+| a roll-over press | likewise | `otherHeld` | yes | trusted |
+| a repeat | a keyed `key-down` whose `repeat` is true | -- | yes | trusted |
+| a release | a keyed `key-up` | `wasHeld` | yes | trusted |
+| a release whose press was not seen | a keyed `key-up` | not `wasHeld` | yes | trusted |
+| a key with no identity | a key fact whose `code` is `''` or `null` | -- | yes | trusted for `''`, fixture for `null` |
+| left to the browser | a key fact of one of the browser's own keys | -- | no | trusted |
+| a press of button b, for b from 0 to 4 | a `down` whose `pointerType` is `mouse` and `button` b; opens `press-b` | -- | yes | trusted |
+| a release of button b | an `up` whose `pointerType` is `mouse` and `button` b | -- | yes | trusted |
+| a chorded press, a chorded release | a `move` whose `pointerType` is `mouse`, `button` 0 to 4 and `buttons` an integer, that button's bit set, or clear | -- | yes | trusted |
+| a chorded change, buttons not reported | the same with `buttons` `null` | -- | no | fixture |
+| a button beyond the five | a `down`, `up` or `move` whose `pointerType` is `mouse` and `button` above 4 | -- | no | fixture |
+| a double click | a `double`, whatever its pointer type -- the platform's carries none | -- | yes | trusted |
+| a click of button b, a drag of button b | a derived `commit` of `press-b`, or of `drag-b` | -- | no | trusted |
+| the wheel up, down, sideways, still | a `wheel` with `ctrlKey` false and `deltaY` below 0; above 0; 0 with `deltaX` not 0; both 0 | -- | yes | trusted |
+| Ctrl and wheel, or a touchpad pinch | a `wheel` with `ctrlKey` true, IT-D8's sentence beside it: the browser does not tell them apart | -- | yes | trusted |
+| the context menu | a `context-menu`, whatever its pointer type | -- | yes | trusted |
+| a touch or a pen pointer | a `down`, `up`, `move`, `over`, `out`, `leave` or `cancel` whose `pointerType` is `touch` or `pen` | -- | no | trusted |
+| focus lost | a `blur` | -- | yes | trusted |
+
+*Trusted* rows are driven by the gate's trusted input in `test/browser/rows.test.js` -- a wheel of no distance, a pen's and a touch's pointers and the browser's own keys among them, each measured reaching a page over the protocol; *fixture* rows, which Chromium never produces -- a `move` whose `buttons` is `null`, a button above 4, a `code` of `null` -- are driven in `test/rows-fixtures.test.js` by events handed to a capture opened over fakes, so each fact is the one capture makes; `test/table-overlaps.test.js` runs the overlap check over both.\
+Composed by the released `input-binding` and run through that check over every key fact's type, repeat flag, code class and sixteen modifier states with the four contexts, and every pointer, wheel, `blur` and derived fact -- 46,661 facts -- these 42 rows hit no two together, and no fact of a browser's own key is claimed; revision 2's rows, run the same way, hit Ctrl and A twice (measured).
 
 **Which facts change what.**
 - The mouse buttons drawn follow `buttons`, when not `null`, of a fact whose `pointerType` is `mouse` -- a mouse's `context-menu` among them -- and of a `wheel`; a `double`, which carries no pointer type, a `context-menu` invoked from the keyboard, whose pointer type is not `mouse`, and key, `blur`, touch and pen facts never change them.
@@ -253,7 +262,8 @@ The legend marks the delivered fact's hit row as the input and a derived fact's 
 | A left drag | at the `move` that crosses the threshold, none | `pointerMove`: `update`, `crossed`; `becomeGesture`: `become` `drag-0`; at the `up`, `pointerUp`: `commit` of `drag-0`, `drop`, meaning a drag of button 0 |
 | The right button pressed mid-drag, the left released, then the right | a chorded press; a chorded release; a release of button 2 | `pointerMove`: `update`, twice; `pointerUp`: `commit` of `drag-0`, meaning a drag of button 0 |
 | Ctrl and the wheel | Ctrl and wheel, or a touchpad pinch | none: claimed and drawn |
-| A press over a live gesture | a press of button b | `resolvePress`: `cancelled` the live gesture's `cancel`, then `start` of `press-b` |
+| A press of another button while a gesture is still live, its release unseen | a press of button b | `resolvePress`: `cancelled` the live gesture's `cancel`, then `start` of `press-b` |
+| A press of the live gesture's own button, its release unseen | a press of button b | `resolvePress`: `taken`, so `match` is never asked, nothing cancelled and nothing started; the gesture stays live |
 | Focus lost mid-drag | focus lost | `keysLost`; `pointerLost`: `cancel` of the drag, its release said not reported |
 
 **What is shown.**\
@@ -324,7 +334,7 @@ Its pointer facts arrive with their `pointerType`, match their one row and are l
 |---|---|
 | Fidelity | The gate opens the page in headless Chrome and drives trusted input over the DevTools protocol -- keys held and repeated, every button, chords in both release orders, plain drags of every button, presses travelling exactly the threshold and just beyond it, double clicks, wheels, a synthesized touchpad pinch, the context menu, a media key with no `code`, and focus lost by opening a second tab, once during a captured drag released in the other tab and returned to with no `up` or `cancel` -- and checks after each input that the picture record, the page and the verdict show exactly what section 6's worked verdicts give; a claimed pinch leaves `visualViewport.scale` 1, and with claiming disabled in a test build makes it 2, the positive control (measured) |
 | Immediacy | A test spies on the scene and finds every put for an input made inside that input's delivery (GT2); a harness around the composition root's `deliver` finds every delivery done within 10 ms in the gate's Chrome, a bound generous against one frame of 16.7 ms, and a planted build that waits 50 ms in its delivery fails it (GT9); the time from each fact's `time` to the end of its put is reported; on the director's Chromebook, typing fast, chords and a drag are watched for any lag a person sees, and the result recorded in `docs/DECISIONS.md`, not gated |
-| Coverage | Every row of the table is matched at least once, and the overlap check over the rows' whole cross-product finds none (GT5); every `code` in each plan is a UI Events code value or one of Chromium's, marked so; every input family in section 2's scope has a row; the fixed lines of what no page can know are shown, the Ctrl row's sentence among them (IT-D8); a page without `navigator.userAgentData` naming Chromium, simulated, shows its line; a `code` not drawn is logged as "not on the drawn keyboard" |
+| Coverage | Every row the browser can produce is matched by trusted input and every other by its fixture, and the overlap check over the rows' whole cross-product finds none (GT5); a native input method used on the director's Chromebook, the keys it delivers and any committed text the page did not receive recorded (IT-D12); every `code` in each plan is a UI Events code value or one of Chromium's, marked so; every input family in section 2's scope has a row; the fixed lines of what no page can know are shown, the Ctrl row's sentence among them (IT-D8); a page without `navigator.userAgentData` naming Chromium, simulated, shows its line; a `code` not drawn is logged as "not on the drawn keyboard" |
 | Containment | The gate watches every request from before navigation through teardown, input dispatched from the navigation's commit, before the load event, and finds the entry first, then each of the release's files once, and none after; planted leaks, each carrying a key in its address, each fail -- a same-origin script element, a dynamic import, a stylesheet and a prefetch, which the rule lets through, an image and a shape's `href`, which it refuses, and a navigation to the page's own origin, which no rule stops (each measured); the painter's shapes held to its allowlist (GT8); the source check (GT1); the gate's server and the deploy check find the rule in every response (GT6) |
 | Proof of reuse | The lockfile pins each part's release file by its hash; the deploy check finds each part's files byte-identical to its release (GT3); the gate holds GT4 against `docs/BACKLOG.md` |
 | Teachability | Every code example in the guide is run in the gate; a cold reader, given the guide and this repository alone, builds a small application from the four, and what they could not do is recorded (section 10, row 14) |
@@ -371,7 +381,7 @@ There is no server logic.
 | 2 | The Keyboard Map is offered by Chromium browsers (measured present in headless Chrome) | Where it is absent every label is the plan's printing, marked as assumed |
 | 3 | A real touchpad, keyboards other than the two plans, and Chromium browsers other than Chrome are not proved by the gate | Fidelity is proved for what Chrome delivers to synthesized input |
 | 4 | The Chromebook plan's action-key codes are Chromium's, not measured on a Chromebook | The director's keyboard, run on the page with what each key sends recorded, is the plan's acceptance; a code it sends that is not drawn is logged meanwhile |
-| 5 | A real input method on a page with nothing editable is not measured; injected composition reached no listener (measured) | Typing through one is shown as key events; the Chromebook acceptance includes it, should the director type through one |
+| 5 | What a native input method delivers to a page with nothing editable is not measured: injected composition reached no listener there, which says nothing of a native one's key events | Coverage of typing through one is not established until IT-D12's acceptance has been run on the director's Chromebook |
 | 6 | Caps Lock's and Num Lock's state is not shown: no shared part carries it | Lock state is not an input, so coverage holds |
 | 7 | The rule cannot stop a same-origin script, stylesheet or prefetch, or a navigation carrying data in its address (each measured in Chrome) | Those rest on GT1, the allowlist and the request monitor |
 | 8 | No telemetry, by containment | A failure in production is seen only by its visitor |
@@ -473,7 +483,7 @@ Under it, with no import map, the four parts' release files load by relative pat
 
 | Option | Cost |
 |---|---|
-| Every key, every button's press and release, every wheel, double click and context menu, except the browser's own keys -- reload, fullscreen, the developer tools, as section 6 lists them -- which match their own row, claim off, and no claiming row | The page keeps Tab, so focus never wanders, and a person can still reload; the browser still keeps what it never lets a page claim |
+| Every key, every button's press and release, every wheel, double click and context menu, except the browser's own keys -- reload, fullscreen, the developer tools, per platform as section 6 lists them -- which match their own row, claim off, and no claiming row | The page keeps Tab, so focus never wanders, and a person can still reload; the browser still keeps what it never lets a page claim |
 | Everything claimable | A person cannot reload by keyboard |
 | Nothing | Wheels scroll, pinches zoom, the back button leaves the page, Tab moves focus |
 
@@ -505,7 +515,7 @@ The vision's coverage asks that every input a person can make with a keyboard, a
 
 | Option | Cost |
 |---|---|
-| Chromium-based browsers covered, ChromeOS's among them, named in section 2; elsewhere the page says plainly that its coverage is not proved there; no composition facts, since a page with nothing editable receives an input method's typing as key events, which show | Safari's trackpad gesture events and other browsers' differences fall outside the scope; that a real input method sends key events to such a page rests on the injected measurement and on Chromium's handling, until the Chromebook acceptance |
+| Chromium-based browsers covered, ChromeOS's among them, named in section 2; elsewhere the page says plainly that its coverage is not proved there; no composition facts; and coverage of typing through an input method claimed only once a native one has been used on the director's Chromebook, the keys delivered recorded and any committed text the page did not receive named | Safari's trackpad gesture events and other browsers' differences fall outside the scope; that injected composition reaches no non-editable page (measured) says nothing of what a native input method delivers, so until the acceptance that part of coverage is owed, not met |
 | The same, and composition as an `input-capture` family, the tester's key source an editable element | A hidden field kept focused, text inserted unless cancelled, an on-screen keyboard opening on a touch screen, the input method's window over the picture; feasible -- injected composition reached a focused text field with its `data` (measured) |
 | Every browser covered, Safari's gesture events a family of their own | A family no browser in the gate delivers, unmeasured |
 | The vision amended to admit a delivered input left unshown | A ratified success dimension weakened |
@@ -547,3 +557,13 @@ Read by the same three; 32 findings across both documents, one reader's twelve r
 | Section 8: the cross-product, the threshold's boundary, the drag left by focus loss, planted leaks, a load between deploy steps | o:F1, o:F10, o:F8, o:F12, x:F3 |
 | Section 9: headers measured at the lab before production, the URL map's header action the alternative; partial for o:F11, whose claim that backend-bucket headers need an edge cache the provider's documentation does not bear out | o:F11 |
 | IT-D8: one list, "not shown" withdrawn | o:F13 |
+
+**Reading 3 -- 2026-10-24, of revision 3 at `1a537cc`, confirming.**\
+Read by two of the three; one found nothing to raise, the other six findings, each supported by the first.
+
+| Where revision 4 changed | Findings |
+|---|---|
+| Section 4, GT5, and section 6: rows the browser produces proved by trusted input, the rest by named fixtures, the overlap check over both | o:F1 |
+| Section 6: the second press over a live gesture, of its own button, taken with nothing cancelled or started | o:F4 |
+| Section 3, section 10 and IT-D12: the composition measurement stated as only that, a native input method's acceptance a condition of the coverage claim | o:F5 |
+| Section 6 and IT-D9: the browser's own keys per platform, with their sources, macOS's fullscreen shortcut among them | o:F6 |
