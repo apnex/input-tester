@@ -72,22 +72,23 @@ The first build stands as the nearest faithful reading of revision 4, with the c
 
 **Mutants planted, and what failed each, as measured.**\
 Every check is able to fail.\
-Planted builds are part of the gate itself, each run by every gate: seven leaks, each carrying a key in its address -- a same-origin script element, a dynamic import, a stylesheet, a prefetch, an image, a shape's href and a navigation to the page's own origin -- each failing the containment monitor; a delivery waiting 50 ms, failing the immediacy bound; the router's claim taken away, the pinch's positive control, zooming the page to 2; and an inline script in the entry, refused by the rule.\
-Beside them, 40 mutants of the code and of the gate's own checks were planted by `tools/run-mutants.mjs`, each edit applied in place, the site rebuilt, the named tests run and the edit taken back; all 40 were killed.
+Planted builds are part of the gate itself, each run by every gate: seven leaks, each carrying a key in its address -- a same-origin script element, a dynamic import, a stylesheet, a prefetch, an image, a shape's href and a navigation to the page's own origin -- each failing the containment monitor; deliveries waiting 50 ms and 12 ms, each failing the immediacy bound; the router's claim taken away, the pinch's positive control, zooming the page to 2; and an inline script in the entry, refused by the rule.\
+Beside them, the mutants of `tools/run-mutants.mjs`, each edit applied in place, the site rebuilt, the named tests run and the edit taken back: the first build's 40; review A's 15, `MU1` to `MU15`, which its gate let survive, two of them run again against trusted input; review B's deploy mutants; and one for each other finding folded.\
+In the run after the reviews, 76 of the 77 were killed at once, and the one that survived, `B-N`, was killed once its test was made to refuse the object's reading alone.
 
 | Mutant | What it breaks | Failed by |
 |---|---|---|
 | `M1` | the first press ignores another key held | `test/table-overlaps.test.js`, 1 failing |
-| `M2` | a browser's own key is a keyed fact | `test/table-overlaps.test.js`, 2 failing |
-| `M3` | F5 with Alt held is the browser's own | `test/table-overlaps.test.js`, 1 failing |
+| `M2` | a browser's own key is a keyed fact | `test/table-overlaps.test.js`, 3 failing |
+| `M3` | F5 with Alt held is the browser's own | `test/table-overlaps.test.js`, 4 failing |
 | `M4` | a chorded press reads its button's bit clear | `test/table-overlaps.test.js`, 1 failing |
-| `M5` | a button's release is not claimed | `test/browser/rows.test.js`, 4 failing |
+| `M5` | a button's release is not claimed | `test/browser/rows.test.js`, 6 failing |
 | `M6` | the threshold is 5 drawing units | `test/browser/rows.test.js`, 2 failing |
 | `M7` | the drag is become from the move's point | `test/worked-verdicts.test.js`, 2 failing |
 | `M8` | a mouse press takes no pointer | `test/worked-verdicts.test.js`, 1 failing |
 | `M9` | nothing is claimed | `test/worked-verdicts.test.js`, 3 failing |
 | `M10` | focus lost leaves the gesture live | `test/worked-verdicts.test.js`, 1 failing |
-| `M11` | a modifier held makes another key's press a roll-over | `test/browser/rows.test.js`, 4 failing |
+| `M11` | a modifier held makes another key's press a roll-over | `test/browser/rows.test.js`, 5 failing |
 | `M12` | repeats are not counted | `test/picture-state.test.js`, 2 failing |
 | `M13` | the repeat interval is taken from the first fact | `test/picture-state.test.js`, 1 failing |
 | `M14` | wheel facts of another unit are alike | `test/picture-state.test.js`, 1 failing |
@@ -102,7 +103,7 @@ Beside them, 40 mutants of the code and of the gate's own checks were planted by
 | `M23` | a Chromium code marked a UI Events code value | `test/keyboard-plans.test.js`, 2 failing |
 | `M24` | a key's rect one position short | `test/keyboard-plans.test.js`, 1 failing |
 | `M25` | a reported label marked assumed | `test/keyboard-plans.test.js`, 1 failing |
-| `M26` | the entry copied before the folder | `test/browser/deploy-sequence.test.js`, 2 failing |
+| `M26` | the entry copied before the folder | `test/browser/deploy-sequence.test.js`, 5 failing |
 | `M27` | a differing object replaced | `test/browser/deploy-sequence.test.js`, 1 failing |
 | `M28` | the rule's headers not checked through the host | `test/browser/deploy-sequence.test.js`, 1 failing |
 | `M29` | the source check lets fetch through | `test/tools/gate-checks.test.js`, 2 failing |
@@ -111,11 +112,48 @@ Beside them, 40 mutants of the code and of the gate's own checks were planted by
 | `M32` | the monitor ignores a request the rule refused | `test/browser/containment.test.js`, 6 failing |
 | `M33` | an inline script in the entry | `test/release-layout.test.js`, 1 failing |
 | `M34` | the rule without script-src | `test/browser/containment.test.js`, 10 failing |
-| `M35` | the browser's own keys claimed | `test/table-overlaps.test.js`, 1 failing |
+| `M35` | the browser's own keys claimed | `test/table-overlaps.test.js`, 4 failing |
 | `M36` | the vendoring check passes any bytes | `test/tools/gate-checks.test.js`, 1 failing |
 | `M37` | a pen's press routed to the session | `test/picture-state.test.js`, 1 failing |
 | `M38` | a held key never relit | `test/browser/rows.test.js`, 4 failing |
 | `M39` | a delivery slower than the bound by 12 ms | `test/browser/immediacy.test.js`, 1 failing |
+| `MU1` | buttons drawn ignore a mouse cancel's buttons | `test/picture-state.test.js`, 1 failing |
+| `MU2` | a mouse cancel never reaches pointerLost | `test/picture-state.test.js`, 1 failing |
+| `MU3` | otherHeld counts the fact's own code | `test/picture-state.test.js`, 1 failing |
+| `MU4` | wheel lines ignore the sign of deltaX | `test/picture-state.test.js`, 1 failing |
+| `MU5` | macOS Meta+Alt+J dropped from the browser's own keys | `test/table-overlaps.test.js`, 4 failing |
+| `MU6` | Meta is no chord modifier | `test/table-overlaps.test.js`, 1 failing |
+| `MU7` | the wheel sideways only rightward | `test/table-overlaps.test.js`, 1 failing |
+| `MU8` | the context menu not claimed | `test/table-overlaps.test.js`, 2 failing |
+| `MU8c` | the context menu not claimed, against trusted input | `test/browser/rows.test.js`, 1 failing |
+| `MU9` | a chorded press not claimed | `test/table-overlaps.test.js`, 2 failing |
+| `MU10` | the status line not repainted when only the buttons change | `test/picture-state.test.js`, 1 failing |
+| `MU11` | the item under the pointer never updates | `test/picture-state.test.js`, 1 failing |
+| `MU12` | MetaRight no modifier code | `test/table-overlaps.test.js`, 1 failing |
+| `MU13` | a chord naming button 4 matches no chord row | `test/table-overlaps.test.js`, 1 failing |
+| `MU14` | a commit's derived fact always a click | `test/worked-verdicts.test.js`, 1 failing |
+| `MU15` | hit without IT-D4's itemAt fallback | `test/picture-state.test.js`, 1 failing |
+| `MU15c` | hit without IT-D4's itemAt fallback, against trusted input | `test/browser/rows.test.js`, 2 failing |
+| `R1` | the browser's own keys matched by code alone, not by the letter a key prints | `test/table-overlaps.test.js`, 3 failing |
+| `R2` | view source not among the browser's own keys | `test/table-overlaps.test.js`, 4 failing |
+| `R3` | a touch's or a pen's fact changes the item under the pointer | `test/picture-state.test.js`, 1 failing |
+| `R4` | held keys past three dropped unsaid | `test/picture-state.test.js`, 1 failing |
+| `R5` | a threshold shown that is not the session's | `test/picture-state.test.js`, 1 failing |
+| `R6` | GT9 judged at the maximum | `test/browser/immediacy.test.js`, 1 failing |
+| `R7` | the gate's failure blocks without their YAML | `test/tools/run-gate.test.js`, 1 failing |
+| `B-L` | the deploy's byte check through the host disabled | `test/browser/deploy-sequence.test.js`, 3 failing |
+| `B-G` | the deploy's Cache-Control check disabled | `test/browser/deploy-sequence.test.js`, 1 failing |
+| `B-A` | the entry copied before the folder is checked | `test/browser/deploy-sequence.test.js`, 3 failing |
+| `B-B` | production's folder unchecked | `test/browser/deploy-sequence.test.js`, 2 failing |
+| `B-Q` | every object copied text/plain | `test/browser/deploy-sequence.test.js`, 3 failing |
+| `B-C` | the entry copied as a folder object is, never replacing | `test/browser/deploy-sequence.test.js`, 1 failing |
+| `B-D` | the gcloud wrapper copies under --no-clobber | `test/browser/deploy-cli.test.js`, 3 failing |
+| `B-N` | any gcloud error taken as a missing object | survived the first run; killed by `test/browser/deploy-cli.test.js`, 1 failing, once its stand-in refused the read alone |
+| `B-T` | the release not checked against its tag's attached manifest | `test/browser/deploy-cli.test.js`, 2 failing |
+| `B-O` | the release directory read only as the first argument | `test/browser/deploy-cli.test.js`, 3 failing |
+| `B-6` | a missing object's 404 not checked for the rule | `test/browser/deploy-sequence.test.js`, 1 failing |
+| `B-M` | the archive's file modes left to the umask | `test/tools/pack-release.test.js`, 1 failing |
+| `B-P` | the public-text check lets a hex identifier stand anywhere in a workflow | `test/tools/gate-checks.test.js`, 1 failing |
 | `M40` | the overlap space without the fixtures' facts | `test/table-overlaps.test.js`, 1 failing |
 
 **Amended, 2026-10-25, after two reviews of the first release, each of which failed it.**\
