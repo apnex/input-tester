@@ -74,7 +74,7 @@ The first build stands as the nearest faithful reading of revision 4, with the c
 Every check is able to fail.\
 Planted builds are part of the gate itself, each run by every gate: seven leaks, each carrying a key in its address -- a same-origin script element, a dynamic import, a stylesheet, a prefetch, an image, a shape's href and a navigation to the page's own origin -- each failing the containment monitor; deliveries waiting 50 ms and 12 ms, each failing the immediacy bound; the router's claim taken away, the pinch's positive control, zooming the page to 2; and an inline script in the entry, refused by the rule.\
 Beside them, the mutants of `tools/run-mutants.mjs`, each edit applied in place, the site rebuilt, the named tests run and the edit taken back: the first build's 40; review A's 15, `MU1` to `MU15`, which its gate let survive, two of them run again against trusted input; review B's deploy mutants; and one for each other finding folded.\
-In the run after the reviews, 76 of the 77 were killed at once, and the one that survived, `B-N`, was killed once its test was made to refuse the object's reading alone.
+In the run after the reviews, 76 of the 77 were killed at once, and the one that survived, `B-N`, was killed once its test was made to refuse the object's reading alone; in the final run before the driver's correction below, `MU15c` survived, and in the final run after it all 77 were killed, as the table gives.
 
 | Mutant | What it breaks | Failed by |
 |---|---|---|
@@ -133,7 +133,7 @@ In the run after the reviews, 76 of the 77 were killed at once, and the one that
 | `MU13` | a chord naming button 4 matches no chord row | `test/table-overlaps.test.js`, 1 failing |
 | `MU14` | a commit's derived fact always a click | `test/worked-verdicts.test.js`, 1 failing |
 | `MU15` | hit without IT-D4's itemAt fallback | `test/picture-state.test.js`, 1 failing |
-| `MU15c` | hit without IT-D4's itemAt fallback, against trusted input | `test/browser/rows.test.js`, 2 failing |
+| `MU15c` | hit without IT-D4's itemAt fallback, against trusted input | `test/browser/rows.test.js`, 1 failing |
 | `R1` | the browser's own keys matched by code alone, not by the letter a key prints | `test/table-overlaps.test.js`, 3 failing |
 | `R2` | view source not among the browser's own keys | `test/table-overlaps.test.js`, 4 failing |
 | `R3` | a touch's or a pen's fact changes the item under the pointer | `test/picture-state.test.js`, 1 failing |
@@ -148,7 +148,7 @@ In the run after the reviews, 76 of the 77 were killed at once, and the one that
 | `B-Q` | every object copied text/plain | `test/browser/deploy-sequence.test.js`, 3 failing |
 | `B-C` | the entry copied as a folder object is, never replacing | `test/browser/deploy-sequence.test.js`, 1 failing |
 | `B-D` | the gcloud wrapper copies under --no-clobber | `test/browser/deploy-cli.test.js`, 3 failing |
-| `B-N` | any gcloud error taken as a missing object | survived the first run; killed by `test/browser/deploy-cli.test.js`, 1 failing, once its stand-in refused the read alone |
+| `B-N` | any gcloud error taken as a missing object | `test/browser/deploy-cli.test.js`, 1 failing |
 | `B-T` | the release not checked against its tag's attached manifest | `test/browser/deploy-cli.test.js`, 2 failing |
 | `B-O` | the release directory read only as the first argument | `test/browser/deploy-cli.test.js`, 3 failing |
 | `B-6` | a missing object's 404 not checked for the rule | `test/browser/deploy-sequence.test.js`, 1 failing |
