@@ -1,5 +1,5 @@
 /* input-tester's looks, every one by class: the browser rule refuses a style attribute written by script
-   (docs/ARCHITECTURE-TARGET.md IT-D5), and this sheet holds no url( and no @import (GT8). */
+   (docs/ARCHITECTURE-TARGET.md IT-D5), and this sheet names no address and imports no other sheet (GT8). */
 html, body { margin: 0; background: #f6f6f4; color: #222; font-family: system-ui, sans-serif; }
 header { padding: 8px 16px; }
 header h1 { display: inline; font-size: 18px; margin-right: 12px; }
