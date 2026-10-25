@@ -16,7 +16,7 @@ https://input.apnex.io/?plan=ansi
 https://input.apnex.io/?plan=chromebook
 ```
 
-The page claims every key, button, wheel, double click and context menu, so the browser does nothing with them, but leaves reload, fullscreen and the developer tools to the browser.\
+The page claims every key, button, wheel, double click and context menu, so the browser does nothing with them, but leaves reload, fullscreen, the developer tools and view source to the browser, whatever letters your keyboard prints.\
 What no page can know -- shortcuts the system keeps, a pinch told from Ctrl and the wheel, which keyboard you hold -- is listed on the page, never guessed.
 
 To run it on your own machine, build it (below) and serve the site with the browser rule every response carries:

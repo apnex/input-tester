@@ -69,7 +69,7 @@ export const NOT_REPORTED_LINES: readonly string[] = Object.freeze([
 ]);
 
 /** What the tester claims, shown always (IT-D9). */
-export const CLAIMS_LINE = "Every key, button, wheel, double click and context menu is claimed, so the browser does nothing with it -- but the browser's own keys (reload, fullscreen, developer tools), left to the browser.";
+export const CLAIMS_LINE = "Every key, button, wheel, double click and context menu is claimed, so the browser does nothing with it -- but the browser's own keys (reload, fullscreen, the developer tools, view source), left to the browser whatever letters your keyboard prints.";
 
 /** The line shown outside a Chromium-based browser (IT-D12). */
 export const UNCOVERED_BROWSER_LINE = "This browser names no Chromium: input-tester's coverage is proved in Chromium-based browsers, ChromeOS's among them, and is not proved here.";

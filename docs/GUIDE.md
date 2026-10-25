@@ -308,7 +308,7 @@ export async function inChrome(send, at) {
 ```
 
 Two more things Chrome does that a test, and a picture, must not mistake.\
-A press whose pointer is taken is followed by boundary facts, `out`, `leave` and `over`, as the pointer's target becomes the `<svg>`; with trusted input they carried `buttons` 1 while only button 1 was held, so the tester's buttons drawn follow a mouse's press, move, release, cancel and context menu, never its boundary facts (`BUTTONS_REPORTED_BY` in `src/picture-state.ts`).\
+A press whose pointer is taken is followed by boundary facts, `out`, `leave` and `over`, as the pointer's target becomes the `<svg>`; with trusted input they carried `buttons` 1 while only button 1 was held, and `buttons` 0 while only button 2 was, so the tester's buttons drawn follow a mouse's press, move, release, cancel and context menu, never its boundary facts (`BUTTONS_REPORTED_BY` in `src/picture-state.ts`).\
 A captured pointer's release is followed by boundary facts too, so the latest fact after a release is seldom the release itself: the tester's gate reads a release's verdict from the log, where boundary facts, which hit no row, leave no line.
 
 The gate's other proofs are each one file in `test/browser/`: every row the browser can produce matched by trusted input, `rows.test.js`; every request watched from before navigation through teardown, with planted leaks failing it, `containment.test.js`; and the deploy loading the page between every pair of its steps, `deploy-sequence.test.js`.

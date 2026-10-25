@@ -132,11 +132,12 @@ test("a release whose manifest is not the SHA256SUMS attached to its tag, or who
 
 test("an object is taken as missing only on gcloud's `not found: 404.`: any other error stops the deploy, nothing copied", TEST, async () => {
 	fs.mkdirSync(path.join(scratch, "denied"), { recursive: true });
-	fs.writeFileSync(path.join(scratch, "denied", "gcloud"), "#!/bin/sh\necho 'ERROR: (gcloud.storage.objects.describe) HTTPError 403: caller does not have storage.objects.get access' >&2\nexit 1\n", { mode: 0o755 });
+	fs.writeFileSync(path.join(scratch, "denied", "gcloud"), `#!/bin/sh\nif [ "$1 $2 $3" = "storage objects describe" ]; then echo 'ERROR: (gcloud.storage.objects.describe) HTTPError 403: caller does not have storage.objects.get access' >&2; exit 1; fi\nexec "${path.join(fakeBin, "gcloud")}" "$@"\n`, { mode: 0o755 });
 	const denied = localBucket(path.join(state, "buckets", "denied-cli"), "gs://denied-cli");
 	const refused = await deploy([releaseA.dir, "--tag", "v0.1.0", "--lab-only", "--lab-bucket", denied.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"], { PATH: `${path.join(scratch, "denied")}:${fakeBin}:${process.env.PATH}` });
 	assert.notEqual(refused.status, 0);
 	assert.match(refused.output, /HTTPError 403/);
+	assert.deepEqual(refused.calls.filter((c) => c[1] === "cp"), [], "no copy attempted, though gcloud would have made it");
 	assert.deepEqual(fs.readdirSync(denied.dir), []);
 });
 

@@ -22,7 +22,7 @@ export const MODIFIERS = Object.freeze({ alt: 1, ctrl: 2, meta: 4, shift: 8 });
 
 /** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`. */
 export const BUTTON_NAMES = Object.freeze(["left", "middle", "right", "back", "forward"]);
-export const BUTTON_BITS = Object.freeze([1, 4, 2, 8, 16]);
+export { SPEC_BUTTON_BITS as BUTTON_BITS } from "../support/architecture-section-6.js";
 
 /**
  * Watches every request a Chrome session makes, from the moment it is called: each `Network.requestWillBeSent`,
