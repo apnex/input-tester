@@ -138,8 +138,9 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		problems.push(`the capture refused its declaration: ${JSON.stringify(openedCapture.problems)}`);
 		paintWholePage(scene, view, picture);
 	}
+	let closed = false;
 	void askKeyboardMap(platform.browser).then((map) => {
-		if (map === null) return;
+		if (map === null || closed) return;
 		view = { ...view, labels: labelsFromKeyboardMap(plan, map) };
 		paintEveryKey(scene, view, picture);
 	});
@@ -153,6 +154,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		plan: plan.name,
 		problems: Object.freeze(problems),
 		close: () => {
+			closed = true;
 			if (openedCapture.ok) openedCapture.capture.close();
 			scene.close();
 		},

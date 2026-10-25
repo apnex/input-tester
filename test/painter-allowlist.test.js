@@ -91,3 +91,21 @@ test("the labels' answer, which is no input, paints every key again with the per
 	assert.ok(texts.some((e) => e.text === "Shift" && e.attributes.get("class") === "key-label label-assumed"), "a key the map does not name keeps the plan's label, assumed");
 	assert.equal(page.problems.length, 0);
 });
+
+test("a page closed before the Keyboard Map answers paints nothing when it does: the answer, which is no input, finds the page closed", async () => {
+	const platform = fakePlatform({ keyboardMap: { KeyQ: "a" } });
+	const page = composeTesterPage(platform);
+	const rejections = [];
+	const onRejection = (reason) => rejections.push(reason);
+	process.on("unhandledRejection", onRejection);
+	try {
+		page.close();
+		const closedAt = platform.writes.length;
+		await new Promise((resolve) => setImmediate(resolve));
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.deepEqual(rejections, []);
+		assert.equal(platform.writes.length, closedAt, "no write after close");
+	} finally {
+		process.off("unhandledRejection", onRejection);
+	}
+});
