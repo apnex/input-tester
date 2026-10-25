@@ -25,6 +25,20 @@ A row is added here, and the gap fixed in the part, the moment one is.
 
 ---
 
+## What the parts' documents left to guess
+
+Building the tester from the four parts' published documents alone, these were not said, or said wrongly; none needed a workaround, and each belongs to its part's next release.
+
+| id | finding | evidence | revival trigger |
+|---|---|---|---|
+| D1 | `snap-grid`'s `README.md` says "the guide below gives the conservative scale to pass", but no part's document holds the recipe or its counterexamples: the guide is this repository's, written with this build, and the smaller singular value and the three naive scales that crowd were derived here | `docs/GUIDE.md` section 3, its example run by the gate | A release of `snap-grid` whose `README.md` states the recipe, or names the guide by its address |
+| D2 | `input-capture`'s `README.md` says `takePointer` answers `false` for a synthetic event; in headless Chrome it answered `true` for a synthetic `pointerdown` naming pointer 1, the mouse's own, with no button down, and `false` for pointer 9 | `docs/GUIDE.md` section 5, its example run by the gate | A release of `input-capture` whose `README.md` corrects the trap |
+| D3 | No part's documents say that a taken pointer's press and release are followed by boundary facts, `out`, `leave` and `over`, nor that Chrome sends them with `buttons` 1 while only button 1 is held; the tester met both at its gate, its picture and its tests each reading past them | `docs/DECISIONS.md` 0002, erratum 1; `test/browser/rows.test.js`, `releaseLines` | A release of `input-capture` whose traps name boundary facts after `takePointer` |
+| D4 | The vocabulary list the parts refuse on behalf of their first consumer, which GT7 runs here, is held only in each part's repository, `tools/consumer-vocabulary.json`, in no published document or release file; the tester copied it from there | `tools/consumer-vocabulary.json` | A part's release file or `README.md` carries the list, or mission-kit holds it |
+| D5 | `vector-scene`'s scene is generic in the root's kind of element, so a painter written for any scene types its target as `Scene["put"]` and `Scene["remove"]`, which hold for every kind; no document says those two do not depend on it, and it was found by compiling | `src/picture-painter.ts`, `PaintTarget` | A release of `vector-scene` whose `README.md` shows a function written over any scene |
+
+---
+
 ## Open
 
 | id | finding | evidence | revival trigger |
