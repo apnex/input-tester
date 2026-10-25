@@ -283,11 +283,12 @@ page.close();
 
 ## 8. Proving it in a real browser
 
-A synthetic event is not a person's: the platform holds no pointer for it, so it cannot be taken, and its defaults are not the browser's own.\
-The tester's gate drives headless Chrome with trusted input over the DevTools protocol's `Input` domain, and the trap is the held buttons: Chrome takes each mouse event's `buttons` at its word, so a move that names no button held reports none held, mid-drag.\
-Name every held button on every move: `buttons: 1` while the left is held, `3` once the right joins it.
+A synthetic event is not a person's: its defaults are not the browser's own, and its pointer is taken only when the platform happens to hold one of that number (section 5).\
+The tester's gate drives headless Chrome with trusted input over the DevTools protocol's `Input` domain, and the trap is the held button: a real mouse's move carries the buttons held, and the protocol's move must say so twice, in `buttons` and in `button`.\
+A move that sets the held bits in `buttons` but names `button` `"none"` still reports the buttons held, but Chrome takes the pointer to have no button down and drops the capture at once, so the move targets whatever lies under it, not the `<svg>` -- and every test of a taken pointer then tests something else.\
+Name the held button on every move: `button: "left"` and `buttons: 1` while the left is held, `buttons: 3` once the right joins it.
 
-A drag over the tester's page, each move naming the held button, then one that does not:
+A drag over the tester's page, each move naming the held button, the pointer still taken; then a move naming none, the pointer lost:
 ```mjs
 async function evaluate(send, expression) {
   const { result } = await send("Runtime.evaluate", { expression, returnByValue: true });
@@ -295,14 +296,16 @@ async function evaluate(send, expression) {
 }
 
 export async function inChrome(send, at) {
-  const mouse = (type, x, buttons, button = "none") => send("Input.dispatchMouseEvent", { type, x, y: at.y, button, buttons, clickCount: type === "mouseMoved" ? 0 : 1 });
-  await mouse("mouseMoved", at.x, 0);
+  const mouse = (type, x, buttons, button) => send("Input.dispatchMouseEvent", { type, x, y: at.y, button, buttons, clickCount: type === "mouseMoved" ? 0 : 1 });
+  const taken = () => evaluate(send, "document.getElementById('input-surface').hasPointerCapture(1)");
+  await mouse("mouseMoved", at.x, 0, "none");
   await mouse("mousePressed", at.x, 1, "left");
-  await mouse("mouseMoved", at.x + 20, 1);
-  if ((await evaluate(send, "inputTester.picture.buttons")) !== 1) throw new Error("a move naming the held button showed it held");
+  await mouse("mouseMoved", at.x + 20, 1, "left");
+  if (!(await taken())) throw new Error("a move naming its held button lost the pointer");
+  if ((await evaluate(send, "inputTester.picture.buttons")) !== 1) throw new Error("the held button was not drawn held");
   if ((await evaluate(send, "inputTester.picture.gesture.name")) !== "drag-0") throw new Error("the press became no drag");
-  await mouse("mouseMoved", at.x + 30, 0);
-  if ((await evaluate(send, "inputTester.picture.buttons")) !== 0) throw new Error("expected Chrome to report a move naming no button as none held");
+  await mouse("mouseMoved", at.x + 30, 1, "none");
+  if (await taken()) throw new Error("expected Chrome to drop the pointer of a move naming no held button");
   await mouse("mouseReleased", at.x + 30, 0, "left");
 }
 ```
@@ -325,4 +328,4 @@ The gate's other proofs are each one file in `test/browser/`: every row the brow
 - `takePointer` refuses a synthetic event's pointer only when the platform holds no such pointer; the mouse's own pointer was taken for a synthetic event (section 5).
 - Two rows that hit together mean nothing: prove none do with `findOverlaps` in your gate (section 6).
 - The press is one call, `resolvePress`; become the drag without a `from`, or its release turns into a click (section 6).
-- Name every held button on every move of trusted input, and do not read a captured pointer's boundary facts as its presses or releases (section 8).
+- Name the held button on every move of trusted input, in `button` as well as in `buttons`, or Chrome drops the taken pointer; and do not read a captured pointer's boundary facts as its presses or releases (section 8).

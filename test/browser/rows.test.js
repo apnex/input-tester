@@ -236,15 +236,33 @@ test("every button's drag: a move of exactly the threshold is no crossing, a mov
 test("IT-D4: while the pointer is taken every fact targets the svg, and the item under the pointer is itemAt the fact's screen point -- the key it is over, then the next", TEST, async () => {
 	const from = t.keyCentre("KeyG");
 	const to = t.keyCentre("KeyH");
+	await t.chrome.evaluate("window.moveTargets = []; document.getElementById('input-surface').addEventListener('pointermove', (e) => moveTargets.push(e.target.localName), true)");
 	await t.mouse("mouseMoved", from);
 	await t.mouse("mousePressed", from, { button: "left", buttons: 1 });
 	assert.equal(await t.chrome.evaluate("document.getElementById('input-surface').hasPointerCapture(1)"), true, "the press took the pointer");
 	assert.equal(await t.page("inputTester.picture.under.key"), "key KeyG");
+	await t.chrome.evaluate("moveTargets.length = 0");
 	await t.mouse("mouseMoved", to, { buttons: 1 });
+	assert.deepEqual(await t.page("[moveTargets, document.getElementById('input-surface').hasPointerCapture(1)]"), [["svg"], true], "the pointer still taken: the move targets the svg, for which itemOf answers nothing");
 	assert.deepEqual(await t.page("[inputTester.latestVerdict.fact.hit.key, inputTester.picture.under.key]"), ["key KeyH", "key KeyH"]);
 	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .status-line').textContent"), /under the pointer: key KeyH \(keys\)/);
 	await t.mouse("mouseReleased", to, { button: "left", buttons: 0 });
 	await t.settle();
+});
+
+test("trusted input: a move that names its held button keeps the taken pointer; one that names none, its bit held, loses it at once, and its fact targets what lies under it (0002, the driver's correction)", TEST, async () => {
+	const from = t.keyCentre("KeyJ");
+	const to = t.keyCentre("KeyK");
+	const captured = () => t.chrome.evaluate("document.getElementById('input-surface').hasPointerCapture(1)");
+	for (const [named, kept] of [[undefined, true], ["none", false]]) {
+		await t.mouse("mouseMoved", from);
+		await t.mouse("mousePressed", from, { button: "left", buttons: 1 });
+		assert.equal(await captured(), true);
+		await t.mouse("mouseMoved", to, { buttons: 1, ...(named === undefined ? {} : { button: named }) });
+		assert.equal(await captured(), kept, `a move naming ${named ?? "its held button"}`);
+		await t.mouse("mouseReleased", to, { button: "left", buttons: 0 });
+		await t.settle();
+	}
 });
 
 test("section 7, resize: nothing is repainted when the page is resized, and the next press lands on the key under it, each conversion following the root's screen transform as it stands", TEST, async () => {
@@ -284,8 +302,9 @@ test("chords in both release orders: during a drag the right pressed, the left r
 	let v = await verdict();
 	assert.deepEqual([v.type, v.button, v.buttons, v.hits, v.steps], ["move", 0, 2, ["chorded-release"], [{ operation: "pointerMove", phase: "update", gesture: "drag-0", crossed: false }]]);
 	await t.mouse("mouseReleased", { x: at.x + 30, y: at.y }, { button: "right", buttons: 0 });
-	v = await verdict();
-	assert.deepEqual([v.hits, v.steps], [["button-2-release"], [{ operation: "pointerUp", phase: "commit", gesture: "drag-0", trigger: "drop", meaning: ["button-0-drag"] }]]);
+	await t.settle();
+	const drop = await releaseLines();
+	assert.deepEqual([drop.release, drop.notes, drop.meaning], [["up", ["button-2-release"], true], ["committed drag-0, a drop"], ["button-0-drag"]]);
 	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
 	await t.mouse("mousePressed", at, { button: "right", buttons: 3 });
 	await t.mouse("mouseReleased", at, { button: "right", buttons: 1 });

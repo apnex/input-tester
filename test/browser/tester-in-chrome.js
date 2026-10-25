@@ -22,7 +22,19 @@ export const MODIFIERS = Object.freeze({ alt: 1, ctrl: 2, meta: 4, shift: 8 });
 
 /** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`. */
 export const BUTTON_NAMES = Object.freeze(["left", "middle", "right", "back", "forward"]);
-export { SPEC_BUTTON_BITS as BUTTON_BITS } from "../support/architecture-section-6.js";
+import { SPEC_BUTTON_BITS } from "../support/architecture-section-6.js";
+
+export const BUTTON_BITS = SPEC_BUTTON_BITS;
+
+/**
+ * The protocol's name for the lowest-numbered button a `buttons` value holds, or "none". Chrome keeps a taken
+ * pointer only while the protocol's move names a held button in `button` as well as in `buttons`: a move naming
+ * none, its bits held, loses the capture at once (measured; docs/DECISIONS.md 0002, the driver's correction).
+ */
+export function heldButtonName(buttons) {
+	const i = BUTTON_BITS.findIndex((bit) => (buttons & bit) !== 0);
+	return i === -1 ? "none" : BUTTON_NAMES[i];
+}
 
 /**
  * Watches every request a Chrome session makes, from the moment it is called: each `Network.requestWillBeSent`,
@@ -110,8 +122,12 @@ function makeHelpers(chrome, server, requests) {
 			const s = tester.screenOf({ x: b.rect.x + b.rect.w / 2, y: b.rect.y + b.rect.h / 2 });
 			return { x: Math.round(s.x), y: Math.round(s.y) };
 		},
-		/** A trusted mouse event; `buttons` names every button held after it, as Chrome needs on every move to keep a drag. */
-		mouse: (type, { x, y }, { button = "none", buttons = 0, clickCount, modifiers = 0, pointerType = "mouse" } = {}) => chrome.send("Input.dispatchMouseEvent", { type, x, y, button, buttons, clickCount: clickCount ?? (type === "mouseMoved" ? 0 : 1), modifiers, pointerType }),
+		/**
+		 * A trusted mouse event; `buttons` names every button held after it. A move names a held button in `button` too,
+		 * the lowest-numbered held unless `button` is given, as a real mouse's move does and as Chrome needs to keep a
+		 * taken pointer.
+		 */
+		mouse: (type, { x, y }, { button, buttons = 0, clickCount, modifiers = 0, pointerType = "mouse" } = {}) => chrome.send("Input.dispatchMouseEvent", { type, x, y, button: button ?? (type === "mouseMoved" ? heldButtonName(buttons) : "none"), buttons, clickCount: clickCount ?? (type === "mouseMoved" ? 0 : 1), modifiers, pointerType }),
 		/** A trusted key event. */
 		key: (type, key, code, { modifiers = 0, autoRepeat = false, text, windowsVirtualKeyCode } = {}) => chrome.send("Input.dispatchKeyEvent", { type, key, code, modifiers, autoRepeat, ...(text === undefined ? {} : { text }), ...(windowsVirtualKeyCode === undefined ? {} : { windowsVirtualKeyCode }) }),
 		/** A trusted wheel turn at a screen point. */
