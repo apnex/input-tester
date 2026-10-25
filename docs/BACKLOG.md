@@ -1,0 +1,59 @@
+# input-tester - backlog
+
+The record of what the tester has not done, and of every workaround it ever needed (`docs/ARCHITECTURE-TARGET.md`, IT-D7).\
+A row is never deleted: it is retired with its reason.\
+The board, where one exists, is the plan; this is the record.
+
+---
+
+## Adding a row
+
+A row is required for every deferral of the tester's own -- a decision's recommendation held, an acceptance owed, a measurement not made -- and for every workaround the tester needed because a shared part lacked something.\
+Each row cites its evidence, a file and line or a command run, and every row not retired carries a revival trigger: an observable condition, never a date or "later" (mission-kit `RU3`).\
+A workaround row names the shared part's release that retires it, as `` `part` `version` ``, and `tools/check-backlog.mjs` fails the gate when a workaround is open while that release, or a later one, is pinned (GT4).\
+Revival re-triages a row; it does not resume it.
+
+---
+
+## Workarounds
+
+No workaround was needed: the tester is built from the four parts as published, through their documented interfaces alone.\
+A row is added here, and the gap fixed in the part, the moment one is.
+
+| id | workaround | evidence | retired by | state |
+|---|---|---|---|---|
+
+---
+
+## Open
+
+| id | finding | evidence | revival trigger |
+|---|---|---|---|
+| B1 | The Chromebook plan's action-key codes are Chromium's, and the Search key's `MetaLeft` is the architecture's; none is measured on a Chromebook, so each is marked unmeasured on the page | `src/keyboard-plans.ts`, `CHROMEBOOK_PLAN`; `docs/ARCHITECTURE-TARGET.md` section 10, row 4 | The director's Chromebook is run on the page in the lab and what each top-row key sends is recorded in `docs/DECISIONS.md` |
+| B2 | Typing through a native input method is not covered: injected composition reached no listener, which says nothing of a native one's key events (IT-D12) | `docs/ARCHITECTURE-TARGET.md` section 10, row 5 | The director uses a native input method on the page on their Chromebook and the keys delivered are recorded |
+| B3 | A real touchpad's scroll and pinch, and a mouse wheel's page zoom with Ctrl, are proved only as Chrome delivers synthesized input; headless Chrome makes no page zoom for Ctrl and the wheel, claimed or not | `test/browser/rows.test.js`, the wheel and pinch tests; section 10, rows 3 and 9 | The director's Chromebook acceptance pinches and turns a wheel with Ctrl held on the page in the lab |
+| B4 | Immediacy on real hardware rests on an acceptance, not the gate: the gate measured every delivery within 3.5 ms in headless Chrome | `test/browser/immediacy.test.js`; section 10, row 12 | The director watches fast typing, chords and a drag on their Chromebook and records whether any lag is seen |
+| B5 | Old release folders accumulate in both buckets, since no deploy step deletes | `tools/deploy-steps.mjs`, `deploySteps`; section 10, row 10 | A bucket's size or listing becomes a cost |
+| B6 | The trusted-input driver is the fifth copy of one harness; each shared part keeps its own | `test/browser/chrome-driver.js`; section 10, row 11 | A change must be made in more than one copy of the driver |
+| B7 | The guide's cold reading is owed: a newcomer, given the guide and this repository alone, builds a small application from the four parts | `docs/GUIDE.md`; section 10, row 14 | A reader with no part in the build is available to the programme, or a newcomer reports trying to build from the guide |
+| B8 | Keyboards other than the two plans are not drawn | `src/keyboard-plans.ts`; IT-D2 | A person on another physical keyboard reports a key drawn wrong or missing |
+| B9 | Caps Lock's and Num Lock's state is not shown: no shared part carries it | section 10, row 6; `input-capture`'s fit criteria, "composition and lock state" | A shared part carries lock state as facts |
+| B10 | Browsers that are not Chromium-based are not covered; the page says so (IT-D12) | `src/composition-root.ts`, `isChromiumBrowser`; `test/browser/rows.test.js` | A person reports using the tester in a browser that is not Chromium-based |
+| B11 | The Keyboard Map is asked once, at load: a keyboard layout switched while the page is open leaves the labels of the layout the page loaded with | `src/composition-root.ts`, `askKeyboardMap`; `src/key-labels.ts` | A person reports a label that did not follow a layout they switched to |
+| B12 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured; the browser rule refuses an image either way | `page/index.html`; `test/browser/containment.test.js` | The lab's smoke run, or the director's acceptance in a headful browser, sees a request for an icon |
+| B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured | `docs/DECISIONS.md` 0002; `src/picture-state.ts`, `BUTTONS_REPORTED_BY` | A real mouse, on the director's acceptance, shows a boundary fact's `buttons` disagreeing with the press before it, or agreeing |
+| B14 | `tools/deploy` has never run against the buckets: it is the operator's, run with their own credentials, and the lab's measurement of the backends' headers (IT-D5) is owed with it | `tools/deploy`; `test/browser/deploy-sequence.test.js` | The first deploy of a release to the lab |
+
+---
+
+## Parked
+
+| id | finding | evidence | revival trigger |
+|---|---|---|---|
+
+---
+
+## Retired
+
+| id | finding | reason retired | revives on |
+|---|---|---|---|
