@@ -1,9 +1,12 @@
 // immediacy - each input shows while it happens (docs/ARCHITECTURE-TARGET.md section 8, P3, GT2, GT9): a
 // harness set into the page before its own scripts wraps every listener the capture adds, so each delivery is
-// timed from the listener's start to its end, the composition root's delivery and every put inside it; every
-// delivery completes within 10 ms in the gate's Chrome, a bound generous against one frame of 16.7 ms, and a
-// planted build that waits 50 ms in its delivery fails it. The same harness finds every write to the page made
-// inside an input's delivery (GT2), and the time from each fact's `time` to the end of its put is reported.
+// timed from the listener's start to its end, the composition root's delivery and every put inside it. By the
+// recorder's ruling (docs/DECISIONS.md 0002) the bound is judged at the 95th percentile of deliveries, which must
+// complete within 10 ms in the gate's Chrome, generous against one frame of 16.7 ms -- the maximum and the median
+// reported beside it, since one delivery delayed by another process on a loaded machine is no lag the page made --
+// and planted builds that wait 50 ms and 12 ms in every delivery each fail it. The same harness finds every write
+// to the page made inside an input's delivery (GT2), and the time from each fact's `time` to the end of its put is
+// reported.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -53,10 +56,23 @@ const HARNESS = `(() => {
 	Object.defineProperty(Node.prototype, "textContent", { ...text, set(value) { record.writes.push({ name: "textContent", inside: record.depth > 0 }); text.set.call(this, value); } });
 })();`;
 
-/** Every delivery that broke the bound, as words; empty when every one completed within it. */
+/** The q-th quantile of numbers by nearest rank: the smallest at or above that share of them. */
+export function nearestRank(values, q) {
+	const sorted = [...values].sort((a, b) => a - b);
+	return sorted[Math.max(0, Math.ceil(q * sorted.length) - 1)];
+}
+
+/** The deliveries' times: their 95th percentile, which the bound judges, and their maximum and median, reported beside it. */
+export function deliveryTimes(deliveries) {
+	const took = deliveries.map((d) => d.end - d.start);
+	return { p95: nearestRank(took, 0.95), max: Math.max(...took), median: nearestRank(took, 0.5), count: took.length };
+}
+
+/** Why the deliveries break the bound, as words; empty when their 95th percentile is within it. */
 export function immediacyProblems(deliveries, boundMs = DELIVERY_BOUND_MS) {
 	if (deliveries.length === 0) return ["no delivery was timed"];
-	return deliveries.filter((d) => d.end - d.start > boundMs).map((d) => `a ${d.type} delivery took ${(d.end - d.start).toFixed(2)} ms, beyond ${boundMs} ms`);
+	const { p95, max, median, count } = deliveryTimes(deliveries);
+	return p95 > boundMs ? [`the 95th percentile of ${count} deliveries took ${p95.toFixed(2)} ms, beyond ${boundMs} ms (maximum ${max.toFixed(2)}, median ${median.toFixed(2)})`] : [];
 }
 
 /** Typing fast, a chord, a drag of many moves, wheels and a pinch: the inputs a person makes quickly. */
@@ -97,17 +113,16 @@ async function openTimed(siteDir) {
 	}
 }
 
-test("GT9: every delivery, the composition root's routing, the picture state and every put inside it, completes within 10 ms; the time from each fact's time to the end of its put is reported", TEST, async (ctx) => {
+test("GT9: the deliveries -- each the composition root's routing, the picture state and every put inside it -- complete within 10 ms at their 95th percentile, the maximum and the median reported; the time from each fact's time to the end of its put is reported", TEST, async (ctx) => {
 	const t = await openTimed(siteRoot);
 	try {
 		await driveQuickly(t);
 		const deliveries = await t.page("deliveryHarness.deliveries");
 		assert.ok(deliveries.length > 80, `${deliveries.length} deliveries timed`);
 		assert.deepEqual(immediacyProblems(deliveries), []);
-		const took = deliveries.map((d) => d.end - d.start).sort((a, b) => a - b);
-		const latency = deliveries.map((d) => d.end - d.timeStamp).sort((a, b) => a - b);
-		const at = (list, q) => list[Math.min(list.length - 1, Math.floor(q * list.length))].toFixed(2);
-		ctx.diagnostic(`${deliveries.length} deliveries: each took at most ${at(took, 1)} ms (median ${at(took, 0.5)}, 95th percentile ${at(took, 0.95)}); from each fact's time to the end of its put, at most ${at(latency, 1)} ms (median ${at(latency, 0.5)})`);
+		const { p95, max, median } = deliveryTimes(deliveries);
+		const latency = deliveries.map((d) => d.end - d.timeStamp);
+		ctx.diagnostic(`${deliveries.length} deliveries: 95th percentile ${p95.toFixed(2)} ms, the bound's measure; maximum ${max.toFixed(2)} ms, median ${median.toFixed(2)} ms; from each fact's time to the end of its put, at most ${Math.max(...latency).toFixed(2)} ms (median ${nearestRank(latency, 0.5).toFixed(2)})`);
 	} finally {
 		await t.close();
 	}
@@ -125,18 +140,32 @@ test("GT2: once the page is composed and its labels painted, every write to the 
 	}
 });
 
-test("GT9: a planted build that waits 50 ms in its delivery fails the bound", TEST, async () => {
-	const planted = plantedSite([{ file: "app/composition-root.js", find: DELIVERY_OPENS, replace: `${DELIVERY_OPENS}\n        { const until = performance.now() + 50; while (performance.now() < until) { } }` }]);
-	let t;
-	try {
-		t = await openTimed(planted.dir);
-		await t.key("keyDown", "a", "KeyA", { text: "a", windowsVirtualKeyCode: 65 });
-		await t.key("keyUp", "a", "KeyA", { windowsVirtualKeyCode: 65 });
-		await t.settle();
-		const problems = immediacyProblems(await t.page("deliveryHarness.deliveries"));
-		assert.ok(problems.length >= 2 && problems.every((p) => /took (5\d|[6-9]\d|\d{3,})\.\d\d ms, beyond 10 ms/.test(p)), JSON.stringify(problems));
-	} finally {
-		await t?.close();
-		planted.remove();
-	}
+for (const wait of [50, 12]) {
+	test(`GT9: a planted build that waits ${wait} ms in every delivery fails the bound at its 95th percentile`, TEST, async () => {
+		const planted = plantedSite([{ file: "app/composition-root.js", find: DELIVERY_OPENS, replace: `${DELIVERY_OPENS}\n        { const until = performance.now() + ${wait}; while (performance.now() < until) { } }` }]);
+		let t;
+		try {
+			t = await openTimed(planted.dir);
+			for (let i = 0; i < 10; i++) {
+				await t.key("keyDown", "a", "KeyA", { text: "a", windowsVirtualKeyCode: 65 });
+				await t.key("keyUp", "a", "KeyA", { windowsVirtualKeyCode: 65 });
+			}
+			await t.settle();
+			const deliveries = await t.page("deliveryHarness.deliveries");
+			assert.ok(deliveries.length >= 20, `${deliveries.length} deliveries`);
+			const problems = immediacyProblems(deliveries);
+			assert.equal(problems.length, 1, JSON.stringify(problems));
+			assert.ok(deliveryTimes(deliveries).p95 >= wait, problems[0]);
+		} finally {
+			await t?.close();
+			planted.remove();
+		}
+	});
+}
+
+test("GT9's measure: the 95th percentile by nearest rank, so one slow delivery in twenty-one passes and two fail", () => {
+	const at = (ms) => ({ type: "keydown", start: 0, end: ms, timeStamp: 0 });
+	assert.deepEqual(immediacyProblems([...Array(20).fill(at(1)), at(40)]), [], "one delivery in twenty-one delayed by another process");
+	assert.equal(immediacyProblems([...Array(19).fill(at(1)), at(40), at(40)]).length, 1, "two in twenty-one");
+	assert.equal(nearestRank([5, 1, 3], 0.5), 3);
 });
