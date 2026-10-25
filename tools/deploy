@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+// deploy - the operator's deploy (docs/ARCHITECTURE-TARGET.md section 9, IT-D10): copies one release, as its
+// GitHub release attached it and as extracted, to the lab bucket and then to production, exactly as section 9
+// lists -- the folder first, each object's Cache-Control `public, max-age=31536000, immutable`, refusing to
+// replace an object whose bytes differ; every object's bytes and headers checked through the host; the entry
+// last, `no-store`, and the deploy's checks there, the backend's edge cache and the gate's smoke run among them --
+// production only once the lab's checks passed, and never deleting anything. The steps are tools/deploy-steps.mjs.
+//
+// It is run by an operator, with their own cloud credentials, never by CI; it needs `gcloud`, authenticated, a
+// Node.js the package names, and `google-chrome` (or $CHROME) for the smoke run.
+//
+// Usage:
+//   tools/deploy RELEASE_DIR --lab-bucket gs://B --lab-host H --lab-backend NAME --prod-bucket gs://B --prod-host H --prod-backend NAME
+// Each option may come instead from the environment: LAB_BUCKET, LAB_HOST, LAB_BACKEND, PROD_BUCKET, PROD_HOST, PROD_BACKEND.
+// With --lab-only, production is left untouched.
+import { execFile } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+
+import { readRelease, runDeploy } from "./deploy-steps.mjs";
+import { smokeRunAt } from "./smoke-run.mjs";
+
+const run = promisify(execFile);
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** The deploy's options, each from its flag or its environment variable; every one but --lab-only required. */
+export function readOptions(args, env) {
+	const flag = (name) => {
+		const i = args.indexOf(`--${name}`);
+		return i === -1 ? undefined : args[i + 1];
+	};
+	const options = {
+		release: args.find((a, i) => !a.startsWith("--") && (i === 0 || !args[i - 1].startsWith("--"))),
+		labBucket: flag("lab-bucket") ?? env.LAB_BUCKET,
+		labHost: flag("lab-host") ?? env.LAB_HOST,
+		labBackend: flag("lab-backend") ?? env.LAB_BACKEND,
+		prodBucket: flag("prod-bucket") ?? env.PROD_BUCKET,
+		prodHost: flag("prod-host") ?? env.PROD_HOST,
+		prodBackend: flag("prod-backend") ?? env.PROD_BACKEND,
+		labOnly: args.includes("--lab-only"),
+	};
+	const missing = Object.entries(options).filter(([key, value]) => value === undefined && key !== "labOnly" && !(options.labOnly && key.startsWith("prod"))).map(([key]) => key);
+	if (missing.length) throw new Error(`deploy: missing ${missing.join(", ")}; see the usage at the top of tools/deploy`);
+	for (const bucket of [options.labBucket, options.prodBucket].filter(Boolean)) if (!/^gs:\/\/[a-z0-9._-]+$/.test(bucket)) throw new Error(`deploy: ${bucket} is no gs:// bucket`);
+	return options;
+}
+
+/** The bucket's storage through `gcloud storage`: an object's bytes or null, and a copy that never replaces. */
+const gcloudStorage = {
+	async read(bucket, name) {
+		try {
+			await run("gcloud", ["storage", "objects", "describe", `${bucket}/${name}`, "--format=value(name)"]);
+		} catch (error) {
+			if (/not found|no urls matched|404/i.test(`${error.stderr ?? ""}${error.message}`)) return null;
+			throw error;
+		}
+		const { stdout } = await run("gcloud", ["storage", "cat", `${bucket}/${name}`], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+		return stdout;
+	},
+	async copy(bucket, name, file, { cacheControl, contentType }) {
+		await run("gcloud", ["storage", "cp", "--no-clobber", `--cache-control=${cacheControl}`, `--content-type=${contentType}`, file, `${bucket}/${name}`]);
+	},
+};
+
+/** A host, read over HTTPS with nothing cached: each response's status, headers by lower-case name, and bytes. */
+const httpsHost = {
+	async get(host, name) {
+		const response = await fetch(`https://${host}/${name === "index.html" ? "" : name}`, { cache: "no-store", redirect: "manual" });
+		return { status: response.status, headers: Object.fromEntries([...response.headers].map(([k, v]) => [k.toLowerCase(), v])), body: Buffer.from(await response.arrayBuffer()) };
+	},
+};
+
+/** Whether a backend bucket's edge cache is on, as `gcloud compute backend-buckets describe` reports it. */
+async function edgeCacheOn(backend) {
+	const { stdout } = await run("gcloud", ["compute", "backend-buckets", "describe", backend, "--format=json"]);
+	return JSON.parse(stdout).enableCdn === true;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	try {
+		const options = readOptions(process.argv.slice(2), process.env);
+		const release = readRelease(path.resolve(options.release));
+		const rule = JSON.parse(fs.readFileSync(path.join(here, "response-headers.json"), "utf8"));
+		const targets = [{ name: "lab", bucket: options.labBucket, host: options.labHost, backend: options.labBackend }];
+		if (!options.labOnly) targets.push({ name: "production", bucket: options.prodBucket, host: options.prodHost, backend: options.prodBackend });
+		const steps = await runDeploy({ release, targets, storage: gcloudStorage, host: httpsHost, edgeCacheOn, smokeRun: (host) => smokeRunAt(`https://${host}`, release.dir), rule, log: (line) => console.log(`  ${line}`) });
+		console.log(`deploy: PASS -- ${release.folder}: ${steps} step(s) done, ${targets.map((t) => `${t.name} at ${t.host}`).join(" then ")}`);
+	} catch (error) {
+		console.log(error.message);
+		console.log("deploy: FAIL");
+		process.exit(1);
+	}
+}

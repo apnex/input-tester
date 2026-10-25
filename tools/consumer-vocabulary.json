@@ -1,0 +1,39 @@
+{
+  "about": "Words of another application's vocabulary that input-tester's own words must not hold (docs/ARCHITECTURE-TARGET.md GT7, P8): the list the four shared parts' vocabulary checks refuse on behalf of their first consumer, run here over src/, page/ and docs/GUIDE.md. Test data, never in src/ or a release. A word the tester genuinely needs is allowed by its exact text, named here and in docs/DECISIONS.md, never by loosening the match.",
+  "lists": {
+    "draw": [
+      "node",
+      "link",
+      "zone",
+      "pipe",
+      "waypoint",
+      "device",
+      "diagram",
+      "anchor",
+      "glyph",
+      "spawner",
+      "transit",
+      "layout",
+      "junction",
+      "drawv2"
+    ]
+  },
+  "allowed": [
+    {
+      "text": "getLayoutMap",
+      "why": "the Keyboard Map's own method, the platform's name, which the labels must call (docs/DECISIONS.md 0002)"
+    },
+    {
+      "text": "<link rel=\"stylesheet\"",
+      "why": "the HTML element the entry document names its stylesheet by, the platform's name; under the browser rule no other way loads a stylesheet (docs/DECISIONS.md 0002)"
+    },
+    {
+      "text": "<link rel=\"icon\"",
+      "why": "the HTML element by which the entry document asks for no favicon, the platform's name (docs/DECISIONS.md 0002)"
+    },
+    {
+      "text": "text-anchor",
+      "why": "the SVG presentation property by which the stylesheet centres a key's label, the platform's name (docs/DECISIONS.md 0002)"
+    }
+  ]
+}
