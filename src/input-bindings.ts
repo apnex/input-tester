@@ -57,8 +57,8 @@ export const MODIFIER_CODES: readonly string[] = Object.freeze(["ShiftLeft", "Sh
 /**
  * One of the browser's own keys that reaches a page (section 6): a code, and each modifier as it must be held --
  * `true` held, `false` not held, `null` either -- with the platform whose browser keeps it and what it does.
- * A key whose code is a letter's, `KeyR`, is the browser's on any keyboard layout, since Chrome matches its
- * shortcuts by the letter the layout prints (docs/DECISIONS.md 0002): Dvorak's Ctrl+R is `code` KeyO, `key` "r".
+ * A key whose code is a letter's, `KeyR`, is the browser's whatever letters the keyboard prints, since Chrome matches
+ * its shortcuts by the letter the key prints (docs/DECISIONS.md 0002): Dvorak's Ctrl+R is `code` KeyO, `key` "r".
  */
 export interface BrowsersOwnKey {
 	readonly code: string;
@@ -118,8 +118,8 @@ function isEntrysKey(entry: BrowsersOwnKey, fact: KeyFact<null>): boolean {
 }
 
 /**
- * Whether a fact is a key fact of one of the browser's own keys, on any platform and any layout: a key whose
- * physical identity is reported -- a non-empty `code` -- matched by its code or its layout's letter, with each
+ * Whether a fact is a key fact of one of the browser's own keys, on any platform and whatever letters the keyboard prints: a key whose
+ * physical identity is reported -- a non-empty `code` -- matched by its code or by the letter it prints, with each
  * modifier held as the entry asks.
  */
 export function isBrowsersOwnKey(fact: TesterFact): boolean {
@@ -271,7 +271,7 @@ function factOfCaptureForm(fields: Record<string, unknown>): DeliveredFact {
 
 /**
  * The keys the overlap proof gives each code: a letter no entry names; a letter of the browser's own letter keys
- * in lower case and another in upper, so a key matched by its layout's letter on any code meets every row; and none.
+ * in lower case and another in upper, so a key matched by the letter it prints on any code meets every row; and none.
  */
 export const OVERLAP_PROOF_KEYS: readonly (string | null)[] = Object.freeze(["x", "r", "U", null]);
 

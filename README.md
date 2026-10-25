@@ -74,14 +74,25 @@ The workflow refuses a tag that is not `v` and `package.json`'s version, and nev
 A deploy copies one release, as its GitHub release attached it, to the lab bucket, checks it there, and only then to production (`tools/deploy`, `docs/ARCHITECTURE-TARGET.md` section 9).\
 It is run by an operator with their own credentials, never by CI.
 
-Prerequisites: `gcloud`, authenticated with the right to write both buckets and read both backend buckets; `gh`, authenticated; Node.js and `google-chrome` as for the gate; and both backends already serving their buckets with their edge cache off and these custom response headers, exactly as `tools/response-headers.json` holds them:
+Prerequisites:
+- `gcloud`, authenticated with the right to write both buckets and read both backend buckets, and `gh`, authenticated;
+- Node.js and `google-chrome` as for the gate;
+- this repository checked out at the tag of the release being deployed -- a rollback's too, so the deploy run is that release's own -- and its packages installed with `npm ci`;
+- each bucket's main page set to `index.html`, which the recorder sets on the buckets, so its host answers `/` with the entry;
+- both backends serving their buckets with their edge cache off and these custom response headers, exactly as `tools/response-headers.json` holds them, on every response, a missing object's 404 among them:
 ```text
 Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'
 Referrer-Policy: no-referrer
 X-Content-Type-Options: nosniff
 ```
 
-Download the release, check its archive and every file in it, and extract it, writing the release's tag for `<tag>`:
+Check out the release's tag and install, writing the release's tag for `<tag>`:
+```bash
+git checkout <tag>
+npm ci
+```
+
+Download the release, check its archive and every file in it, and extract it:
 ```bash
 gh release download <tag> --repo apnex/input-tester --dir release-<tag>
 cd release-<tag>
@@ -98,13 +109,13 @@ export LAB_BUCKET=gs://input-lab-apnex-io LAB_HOST=input-lab.apnex.io LAB_BACKEN
 export PROD_BUCKET=gs://input-apnex-io PROD_HOST=input.apnex.io PROD_BACKEND=<production-backend-bucket>
 ```
 
-Deploy:
+Deploy, naming the tag again, since the deploy refuses a release whose manifest is not the `SHA256SUMS` attached to that tag's GitHub release:
 ```bash
-tools/deploy release-<tag>/release
+tools/deploy release-<tag>/release --tag <tag>
 ```
 
-For each bucket, the lab first, the deploy copies the release's folder, each object `Cache-Control: public, max-age=31536000, immutable`, refusing to replace an object whose bytes differ; checks every object's bytes and headers through the host; copies `index.html` last, `Cache-Control: no-store`; and checks it, the backend's edge cache and the gate's smoke run there.\
-A failed check stops the deploy before production, and nothing is ever deleted, so a tab open on an earlier release stays whole, and a rollback is the earlier release deployed again.
+For each bucket, the lab first, the deploy copies every object of the release's folder where no object is, `Cache-Control: public, max-age=31536000, immutable`, skips one already there with the same bytes, and refuses one with other bytes; checks every object's bytes, headers and content type through the host, and the rule on a missing object's 404; copies `index.html` last, `Cache-Control: no-store`, replacing the entry there -- the one object a deploy replaces, under the generation it read just before -- and checks it, the backend's edge cache and the gate's smoke run there.\
+A failed check stops the deploy before the entry it would have written, and before production, and nothing is ever deleted, so a tab open on an earlier release stays whole, and a rollback is the earlier release deployed again from its own tag, which finds its folder present and switches the entry back.
 
 ---
 

@@ -27,15 +27,14 @@ jobs:
     runs-on: ubuntu-latest
     # a backstop: a hang fails the run rather than holding a runner for hours
     timeout-minutes: 30
+    # GH_TOKEN is handed only to the steps that run gh; no other step, the gate's among them, holds it
     env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
       TAG: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
@@ -51,6 +50,9 @@ jobs:
       # A draft is not found by its tag -- GET /releases/tags/{tag} answers 404 for one -- so every release of the
       # tag is found by listing them all.
       - name: refuse a tag that already has a published release, and delete a draft of it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | [.id, .draft, .tag_name] | @tsv' > "$RUNNER_TEMP/releases.tsv"
           if awk -F'\t' -v tag="$TAG" '$3 == tag && $2 == "false" { found = 1 } END { exit !found }' "$RUNNER_TEMP/releases.tsv"; then
@@ -64,7 +66,7 @@ jobs:
 
       - run: npm ci
       - name: fetch the style rules (mission-kit at HEAD)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: apnex/mission-kit
           path: .mission-kit
@@ -77,11 +79,16 @@ jobs:
       - name: build the site with its folder named by the tag, and pack it with its manifest and its SHA-256
         run: |
           node tools/pack-release.mjs "$TAG" "$RUNNER_TEMP/packed"
+          # the packed release is the very build the gate just tested: its folder there, named by the tag, holds the same manifest
+          cmp "site/$TAG/SHA256SUMS" "$RUNNER_TEMP/packed/SHA256SUMS"
           cd "$RUNNER_TEMP/packed"
           sha256sum -c "input-tester-$TAG.tar.gz.sha256"
           ls -l
 
       - name: create a draft release holding the three files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$TAG" \
             --notes "input-tester ${TAG}: the entry index.html and the folder ${TAG}/, packed in input-tester-${TAG}.tar.gz, beside its SHA-256 and the manifest of every file's SHA-256, SHA256SUMS. Deploy it with tools/deploy (README.md, Deploy)." \
@@ -101,6 +108,9 @@ jobs:
       # A draft's public address answers 404, so the files come back through the authenticated API, by the draft's
       # id and each asset's id.
       - name: download the three back through the authenticated API, and compare them byte for byte
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           mkdir -p "$RUNNER_TEMP/downloaded"
           gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets" --jq '.[] | [.id, .name] | @tsv' > "$RUNNER_TEMP/assets.tsv"
@@ -119,4 +129,7 @@ jobs:
           sha256sum -c "input-tester-$TAG.tar.gz.sha256"
 
       - name: publish the draft, only now
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" -F draft=false --jq '.html_url'

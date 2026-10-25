@@ -3,7 +3,7 @@
 // SHA-256; the digest file names the archive's; packing the same build twice gives the same bytes; and the
 // archive, extracted, is a release tools/deploy reads.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { sha256Of } from "../../tools/build-site.mjs";
 import { readRelease } from "../../tools/deploy-steps.mjs";
 import { packRelease, releaseFileNames } from "../../tools/pack-release.mjs";
+import { repositoryRoot } from "../support/built-site.js";
 
 test("a release packs into an archive of the entry and its tag's folder, its digest and its manifest, the same bytes each time, and extracts to a release the deploy reads", { timeout: 120000 }, () => {
 	const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-pack-"));
@@ -31,6 +32,22 @@ test("a release packs into an archive of the entry and its tag's folder, its dig
 		assert.ok(fs.readFileSync(first.manifest).equals(fs.readFileSync(path.join(extracted, "v0.1.0", "SHA256SUMS"))), "the attached manifest is the folder's");
 		assert.match(fs.readFileSync(path.join(extracted, "index.html"), "utf8"), /href="v0\.1\.0\/input-tester\.css"/);
 		assert.throws(() => packRelease("latest", path.join(scratch, "bad")), /no v<major>/);
+	} finally {
+		fs.rmSync(scratch, { recursive: true, force: true });
+	}
+});
+
+test("a release packed under a umask of 077 and one of 022 is the same bytes, every file's mode set by the packing", { timeout: 180000 }, () => {
+	const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-umask-"));
+	try {
+		for (const mask of ["077", "022"]) {
+			const run = spawnSync("sh", ["-c", `umask ${mask} && "${process.execPath}" tools/pack-release.mjs v0.1.0 "${path.join(scratch, mask)}"`], { cwd: repositoryRoot, encoding: "utf8" });
+			assert.equal(run.status, 0, run.stdout + run.stderr);
+		}
+		const archive = (mask) => fs.readFileSync(path.join(scratch, mask, "input-tester-v0.1.0.tar.gz"));
+		assert.ok(archive("077").equals(archive("022")), "the same archive under both umasks");
+		const modes = execFileSync("tar", ["-tvzf", path.join(scratch, "077", "input-tester-v0.1.0.tar.gz")], { encoding: "utf8" }).trim().split("\n").map((l) => l.split(/\s+/)[0]);
+		assert.deepEqual([...new Set(modes)].sort(), ["-rw-r--r--", "drwxr-xr-x"]);
 	} finally {
 		fs.rmSync(scratch, { recursive: true, force: true });
 	}

@@ -38,7 +38,7 @@ The first build stands as the nearest faithful reading of revision 4, with the c
 **Errata against the architecture.**
 1. The buttons drawn do not follow boundary facts. [MEASURED]
    Section 6 has the buttons drawn follow the `buttons` of every fact whose `pointerType` is `mouse`.
-   In headless Chrome, under trusted input over the DevTools protocol, a middle press delivered `pointerdown` with `button` 1 and `buttons` 4, and once its pointer was taken the boundary events that followed, `pointerout`, `pointerleave` and `pointerover`, each carried `buttons` 1 -- the left button's bit, while only the middle was held; a pen's press made the mouse's boundary events carry `buttons` 1 likewise.
+   In headless Chrome, under trusted input over the DevTools protocol, a middle press delivered `pointerdown` with `button` 1 and `buttons` 4, and once its pointer was taken the boundary events that followed, `pointerout`, `pointerleave` and `pointerover`, each carried `buttons` 1 -- the left button's bit, while only the middle was held; a pen's press made the mouse's boundary events carry `buttons` 1 likewise; and a review measured the right button the same way, its press's `pointerdown` carrying `buttons` 2 and the boundary events after the capture `buttons` 0, while the right was held.
    Section 2 puts "events the browser derives from inputs already shown -- pointer capture changes -- drawn again" out of scope, so the nearest faithful reading is that the buttons drawn follow a mouse's `down`, `move`, `up`, `cancel` and `context-menu`, and every `wheel`, never `over`, `out` or `leave` (`BUTTONS_REPORTED_BY`, `src/picture-state.ts`; `test/picture-state.test.js`; `docs/BACKLOG.md` B13).
 2. The overlap proof's count. [MEASURED]
    Section 6 reports 46,661 facts; the text does not state how they were counted, so the space was built from its description -- every key fact's type, repeat flag and sixteen modifier states over 119 codes, both plans' and the browser's own keys' among them, `''` and `null` too, and every pointer, wheel, context-menu, `blur` and derived commit fact -- and is 17,291 facts with the four contexts, 69,164 combinations (`overlapProofFacts`, `src/input-bindings.ts`; `test/table-overlaps.test.js`).
@@ -64,10 +64,10 @@ The first build stands as the nearest faithful reading of revision 4, with the c
 - The entry asks for no favicon with an empty `data:` icon, which the rule refuses before any request; the viewport `meta` element is left out, since a phone is out of scope and its text holds another application's word.
 - The vocabulary check runs over `src/`, `page/` and `docs/GUIDE.md`, with the list the parts refuse on behalf of their first consumer; four texts that are the platform's own names are allowed by exact text: `getLayoutMap`, `<link rel="stylesheet"`, `<link rel="icon"` and `text-anchor` (`tools/consumer-vocabulary.json`).
 - The source check refuses free names and members by list, `navigator`'s members but `keyboard` and `userAgentData`, dynamic `import()`, `declare` and triple-slash directives; `tsconfig.json` compiles `src` alone, with the ES2022 and DOM libraries.
-- A public-text check refuses any run of sixteen or more hex digits in a file or a commit message; so the workflows name their actions by release tag, not by commit, where the parts' workflows pin commits.
+- A public-text check refuses any run of sixteen or more hex digits in a file or a commit message, but an action pinned by its full commit in a workflow's `uses:` line, as the parts' workflows pin theirs, and only exactly there.
 - The gate is `tools/run-gate.mjs`, writing `.gate/results.json`, from which, with the code, `tools/generate-architecture.mjs` derives `docs/ARCHITECTURE.md`, checked last.
 - The guide's `js` examples run in headless Chrome beside the tester's modules, under its own browser rule; its `mjs` examples in the gate's own runtime.
-- The deploy is a Node script over steps (`tools/deploy-steps.mjs`) whose storage, host, edge-cache reading and smoke run are handed in, so the gate's deploy-sequence test runs the very steps over local buckets, loading the page between every pair of its 274; each object's content type is set by its extension; `gcloud storage cp --no-clobber` guards the refusal a second time; the backend buckets' names are required, to read their edge cache.
+- The deploy is a Node script over steps (`tools/deploy-steps.mjs`) whose storage, host, edge-cache reading and smoke run are handed in, so the gate's deploy-sequence test runs the very steps over local buckets, loading the page between every pair of its 274; each object's content type is set by its extension, from the one table the gate's server sends too; every folder object is copied with `--if-generation-match=0`, only where no object is, and the entry, the one object a deploy replaces, with `--if-generation-match` and the generation read just before; the backend buckets' names are required, to read their edge cache.
 - A release attaches three files: the archive of the entry and its folder, packed by name with no owner and no time, its SHA-256, and `SHA256SUMS`.
 
 **Mutants planted, and what failed each, as measured.**\
@@ -117,6 +117,25 @@ Beside them, 40 mutants of the code and of the gate's own checks were planted by
 | `M38` | a held key never relit | `test/browser/rows.test.js`, 4 failing |
 | `M39` | a delivery slower than the bound by 12 ms | `test/browser/immediacy.test.js`, 1 failing |
 | `M40` | the overlap space without the fixtures' facts | `test/table-overlaps.test.js`, 1 failing |
+
+**Amended, 2026-10-25, after two reviews of the first release, each of which failed it.**\
+The amendment folds every finding; what each changed is in the commits that follow `73f83ae`.\
+The recorder ruled two errata, within the ratified intent of IT-D9 and of section 8.
+6. The browser's own keys are matched by the letter a key prints, and view source joins them. [DIRECTOR]
+   IT-D9 leaves reload, full screen and the developer tools to the browser on any keyboard, and Chrome matches its shortcuts by the letter the keyboard prints, so Dvorak's Ctrl+R arrives as `code` `KeyO` and `key` "r"; a key fact whose `code` is a non-empty string is left unclaimed when its `code`, or its `key` case-folded to the letter an entry's letter key names, matches an entry, with each modifier as the entry asks.
+   Ctrl+U, view source, in Chromium's developer-tools group, joins the list on Windows, Linux and ChromeOS, and Command+Option+U, Meta and Alt with `KeyU`, on macOS (`BROWSERS_OWN_KEYS`, `src/input-bindings.ts`; held both ways by `test/table-overlaps.test.js` against the specification's literal list and by trusted input in `test/browser/rows.test.js`).
+   A key with no reported identity stays one whatever letter it prints, so the rows stay exclusive.
+7. GT9 is judged at the 95th percentile of deliveries. [DIRECTOR]
+   The bound of 10 ms failed under load from other processes in 9 of about 30 gate runs across the two reviewers, while the median stayed near 1.7 ms; section 8 asks for a generous bound and a slow build that fails it.
+   The gate judges the deliveries' 95th percentile by nearest rank against 10 ms and reports the maximum and the median beside it; planted builds that wait 50 ms and 12 ms in every delivery each still fail it (`test/browser/immediacy.test.js`).
+
+The reviews' other findings, folded without a ruling:
+- The tests no longer read their expectations from the code under test: section 6's rows' words and Claims column, its per-platform list of the browser's own keys, its modifier codes and chord modifiers and the Mouse button entity's bits are literals in `test/support/architecture-section-6.js`, and every fact of the overlap proof's space hits exactly one row but those section 6 gives none -- a mouse's plain move, its boundary facts and its cancel, and pointer facts no platform makes -- which hit none.
+- A touch's or a pen's fact no longer changes the item under the pointer drawn; every held key is shown, past three named on one line; the threshold shown is the session's declaration's; the buttons' bits are defined once, in `src/keyboard-plans.ts`.
+- The entry was copied under `--no-clobber`, which the Cloud SDK skips silently, so no later deploy could switch it and no rollback was possible; it is now replaced under the generation read just before, and every folder object copied only where none is.
+- The deploy refuses a release unless its manifest is the `SHA256SUMS` attached to its tag's GitHub release; takes a missing object only on gcloud's `not found: 404.`; checks every object's content type and a missing object's 404 through the host; reads its options in any order; and is tested as run, against stand-ins for `gcloud` and `gh`.
+- The release's archive sets every file's mode, so it is the same bytes under any umask, and the release workflow checks the packed manifest against the one the gate built; `GH_TOKEN` is handed to the `gh` steps alone.
+- The gate prints every failing test's whole block, and keeps each step's output in `.gate/`.
 
 **Why not the alternatives.**\
 For erratum 1, following every mouse fact's `buttons` would draw the left button lit while the middle is held, a delivered value contradicting the press before it, from an event section 2 does not draw again; dropping `buttons` altogether would leave a chord's moves undrawn.\

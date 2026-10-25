@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // pack-release - a release's files (docs/ARCHITECTURE-TARGET.md section 9, IT-D10), made by the release workflow
 // from a tag: the site built with its folder named by the tag, packed into one archive holding the entry
-// `index.html` and that folder -- packed by name, with no owner and no time, so packing the same build twice
-// gives the same bytes -- beside the archive's SHA-256 and the release's manifest, `SHA256SUMS`, every file's
+// `index.html` and that folder -- packed by name, with no owner, no time and every file's mode set, so packing the
+// same build twice, on any machine and under any umask, gives the same bytes -- beside the archive's SHA-256 and the release's manifest, `SHA256SUMS`, every file's
 // SHA-256. The three are what the GitHub release attaches; tools/deploy takes the archive extracted.
 //
 // Usage:  node tools/pack-release.mjs TAG OUT_DIR
@@ -25,7 +25,7 @@ export function packRelease(tag, out) {
 	buildSite({ out: site, folder: tag });
 	const names = releaseFileNames(tag);
 	const archive = path.join(out, names.archive);
-	const tarred = execFileSync("tar", ["--sort=name", "--mtime=@0", "--owner=0", "--group=0", "--numeric-owner", "--format=gnu", "-C", site, "-cf", "-", "index.html", tag], { maxBuffer: 256 * 1024 * 1024 });
+	const tarred = execFileSync("tar", ["--sort=name", "--mtime=@0", "--owner=0", "--group=0", "--numeric-owner", "--mode=u=rwX,go=rX", "--format=gnu", "-C", site, "-cf", "-", "index.html", tag], { maxBuffer: 256 * 1024 * 1024 });
 	fs.writeFileSync(archive, execFileSync("gzip", ["-n", "-9"], { input: tarred, maxBuffer: 256 * 1024 * 1024 }));
 	fs.writeFileSync(path.join(out, names.digest), `${sha256Of(archive)}  ${names.archive}\n`);
 	fs.copyFileSync(path.join(site, tag, "SHA256SUMS"), path.join(out, names.manifest));

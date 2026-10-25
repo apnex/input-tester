@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { findConfigProblems, findSourceProblems } from "../../tools/check-source.mjs";
 import { candidateWords, findVocabulary, readVocabulary } from "../../tools/check-vocabulary.mjs";
 import { backlogProblems, pinnedVersions, versionAtLeast } from "../../tools/check-backlog.mjs";
-import { findHexIdentifiers } from "../../tools/check-public-text.mjs";
+import { findHexIdentifiers, isWorkflowFile } from "../../tools/check-public-text.mjs";
 import { SHARED_PARTS, vendorProblems } from "../../tools/vendor-parts.mjs";
 import { repositoryRoot } from "../support/built-site.js";
 
@@ -134,6 +134,15 @@ test("the public-text check passes over the repository and its commit messages, 
 	assert.equal(findHexIdentifiers(`id ${"0123456789"}${"ABCDEF0123"} here`).length, 1);
 	assert.equal(findHexIdentifiers("id 0123456789abcde here").length, 0, "fifteen is not an identifier's shape");
 	assert.equal(findHexIdentifiers("deadbeef deadbeef").length, 0);
+	const pin = ["11d5960a", "326750d5", "838078e3", "6cf38b85", "af677262"].join("");
+	assert.deepEqual(findHexIdentifiers(`      - uses: actions/checkout@${pin} # v4.4.0`, { workflow: true }), [], "an action's commit pin in a workflow's uses: line");
+	assert.deepEqual(findHexIdentifiers(`        uses: actions/checkout@${pin}`, { workflow: true }), []);
+	assert.equal(findHexIdentifiers(`      - uses: actions/checkout@${pin} # v4.4.0`).length, 1, "the same line in a file that is no workflow");
+	assert.equal(findHexIdentifiers(`      # pinned at ${pin}`, { workflow: true }).length, 1, "a commit in a workflow's comment");
+	assert.equal(findHexIdentifiers(`      run: echo ${pin}`, { workflow: true }).length, 1, "a commit in a workflow's run line");
+	assert.equal(findHexIdentifiers(`      - uses: actions/checkout@${pin}0`, { workflow: true }).length, 1, "a pin of 41 hex digits is no commit");
+	assert.equal(isWorkflowFile(".github/workflows/gate.yml"), true);
+	assert.equal(isWorkflowFile("docs/gate.yml"), false);
 });
 
 test("GT3 at build: the vendoring check passes, and fails vendor/ with a byte changed, a file added or a file missing", () => {

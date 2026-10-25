@@ -5,7 +5,8 @@
 # gate drives the runner's own google-chrome -- or $CHROME -- headless, with a profile and a debugging port of its
 # own, over the DevTools protocol through Node.js's global WebSocket, no dependency added. mission-kit's style
 # checks are fetched, never copied: mission-kit is checked out at HEAD and MISSION_KIT points at it. Actions are
-# named by their release tags, not their commits, since this public repository holds no hex identifier.
+# pinned by their full commit, as the four shared parts pin them -- the one place tools/check-public-text.mjs lets
+# a hex identifier stand.
 name: gate
 
 on:
@@ -26,17 +27,17 @@ jobs:
       matrix:
         node: ['22', '24']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # the public-text check reads every commit message reachable from HEAD
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - name: fetch the style rules (mission-kit at HEAD)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: apnex/mission-kit
           path: .mission-kit
