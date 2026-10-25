@@ -41,12 +41,12 @@ Each part's duty is the first sentence of its module's leading comment; its expo
 | Module | Duty | Exports | Imports |
 |---|---|---|---|
 | `src/composition-root.ts` | Composition root: composes the page from its parts, and switches each fact to the router by its family (docs/ARCHITECTURE-TARGET.md sections 5 and 7, P8) | `BrowserBrands`, `TesterPlatform`, `TesterPage`, `planFromAddress`, `planLineWords`, `isChromiumBrowser`, `routeByFamily`, `composeTesterPage` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `../vendor/snap-grid/index.js`, `./input-bindings.js`, `./input-router.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-painter.js`, `./picture-state.js` |
-| `src/input-bindings.ts` | Bindings: declares what every input is taken to mean, and the session's gestures (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P5) | `ItemUnderPointer`, `DeliveredFact`, `CommitFact`, `TesterFact`, `TesterContext`, `RowProof`, `TesterRow`, `NO_KEY_CONTEXT`, `MODIFIER_CODES`, `BrowsersOwnKey`, `BROWSERS_OWN_KEYS`, `isKeyFact`, `isBrowsersOwnKey`, `isKeyedFact`, `isModifierCode`, `BUTTON_BITS`, `TESTER_ROWS`, `TESTER_TABLE_DECLARATION`, `TESTER_SESSION_DECLARATION`, `DRAG_OF_PRESS`, `OVERLAP_PROOF_CONTEXTS`, `overlapProofFacts` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js` |
+| `src/input-bindings.ts` | Bindings: declares what every input is taken to mean, and the session's gestures (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P5) | `ItemUnderPointer`, `DeliveredFact`, `CommitFact`, `TesterFact`, `TesterContext`, `RowProof`, `TesterRow`, `NO_KEY_CONTEXT`, `MODIFIER_CODES`, `BrowsersOwnKey`, `BROWSERS_OWN_KEYS`, `isKeyFact`, `letterOfCode`, `isBrowsersOwnKey`, `isKeyedFact`, `isModifierCode`, `TESTER_ROWS`, `TESTER_TABLE_DECLARATION`, `TESTER_SESSION_DECLARATION`, `DRAG_OF_PRESS`, `OVERLAP_PROOF_CONTEXTS`, `OVERLAP_PROOF_KEYS`, `overlapProofFacts` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./keyboard-plans.js` |
 | `src/input-router.ts` | Router: takes each delivered fact through the table and the session (docs/ARCHITECTURE-TARGET.md sections 5, 6 and 7), and answers one verdict holding every step in order | `FactReply`, `DerivedVerdict`, `VerdictStep`, `Verdict`, `MouseFact`, `InputRouter`, `contextOfFact`, `openInputRouter` | `../vendor/input-binding/index.js`, `../vendor/input-capture/index.js`, `./input-bindings.js` |
 | `src/key-labels.ts` | Labels: names each drawn key as the person's own keyboard does (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `LabelSource`, `KeyLabel`, `KeyLabels`, `KeyboardMapAnswer`, `KeyboardMapSource`, `labelsPrintedOnPlan`, `labelsFromKeyboardMap`, `askKeyboardMap` | `./keyboard-plans.js` |
-| `src/keyboard-plans.ts` | Keyboard plans: where each drawn key and mouse button lies, on the plan the person chose (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `QUARTER_KEY_GRID`, `PlanName`, `CodeSource`, `KeyNote`, `PlanKey`, `PlanMouseButton`, `KeyboardPlan`, `PlacedKey`, `PlacedMouseButton`, `PlacedPlan`, `FULL_SIZE_ANSI_PLAN`, `CHROMEBOOK_PLAN`, `KEYBOARD_PLANS`, `placePlanOnGrid` | `../vendor/snap-grid/index.js` |
+| `src/keyboard-plans.ts` | Keyboard plans: where each drawn key and mouse button lies, on the plan the person chose (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `QUARTER_KEY_GRID`, `PlanName`, `CodeSource`, `KeyNote`, `PlanKey`, `PlanMouseButton`, `KeyboardPlan`, `PlacedKey`, `PlacedMouseButton`, `PlacedPlan`, `BUTTON_BITS`, `bitOfButton`, `FULL_SIZE_ANSI_PLAN`, `CHROMEBOOK_PLAN`, `KEYBOARD_PLANS`, `placePlanOnGrid` | `../vendor/snap-grid/index.js` |
 | `src/page-entry.ts` | The page's one module script (docs/ARCHITECTURE-TARGET.md section 7, Page load): composes the tester on the entry document's `<svg>`, with the window as key source, the page's address and the browser's `navigator`, and leaves the composed page readable whole at `globalThis.inputTester`, which the gate's proof reads | none | `./composition-root.js`, `./key-labels.js` |
-| `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `heldKeyLines`, `keyShapes`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js` |
+| `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `HELD_KEY_LINES`, `heldKeyLines`, `keyShapes`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js` |
 | `src/picture-state.ts` | Picture state: keeps what the person is shown, as data (docs/ARCHITECTURE-TARGET.md sections 5 to 7, P1, P6) | `LOG_LINES`, `HeldKeyPicture`, `WheelPicture`, `GesturePicture`, `LogEntry`, `LegendPicture`, `Picture`, `PictureEntry`, `BUTTONS_REPORTED_BY`, `EMPTY_PICTURE`, `timeBetween`, `wheelFactsAlike`, `applyVerdict` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `./input-bindings.js`, `./input-router.js` |
 | `page/index.html` | The entry document: its stylesheet and its one module script, both in the release's folder, and the plans to choose | none | `v0.1.0/input-tester.css`, `v0.1.0/app/page-entry.js` |
 
@@ -112,6 +112,7 @@ The browser's own keys, left unclaimed on every platform at once:
 | `KeyI` | held | held | not held | not held | Windows, Linux, ChromeOS | developer tools |
 | `KeyJ` | held | held | not held | not held | Windows, Linux, ChromeOS | developer tools |
 | `KeyC` | held | held | not held | not held | Windows, Linux, ChromeOS | developer tools |
+| `KeyU` | not held | held | not held | not held | Windows, Linux, ChromeOS | view source |
 | `BrowserRefresh` | either | either | either | either | Linux, ChromeOS | reload |
 | `ZoomToggle` | either | either | either | either | ChromeOS | fullscreen |
 | `KeyR` | either | not held | not held | held | macOS | reload |
@@ -120,6 +121,7 @@ The browser's own keys, left unclaimed on every platform at once:
 | `KeyJ` | not held | not held | held | held | macOS | developer tools |
 | `KeyC` | not held | not held | held | held | macOS | developer tools |
 | `KeyC` | held | not held | not held | held | macOS | developer tools |
+| `KeyU` | not held | not held | held | held | macOS | view source |
 
 The session's threshold is 4 drawing units; its gestures are `press-0` (button 0), `press-1` (button 1), `press-2` (button 2), `press-3` (button 3), `press-4` (button 4), `drag-0` (button 0, engaged), `drag-1` (button 1, engaged), `drag-2` (button 2, engaged), `drag-3` (button 3, engaged), `drag-4` (button 4, engaged).
 
@@ -151,8 +153,8 @@ What no page can know, shown always:
 |---|---|---|---|
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
-| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 49 of 49 passed |
-| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 49 of 49 passed |
+| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 62 of 62 passed |
+| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 64 of 64 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
 | backlog check | no workaround open while its retiring release is installed; every deferral with a revival trigger (GT4) | pass | -- |
@@ -166,7 +168,7 @@ What no page can know, shown always:
 Every response carries the rule, `default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'`, with `Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff` (`tools/response-headers.json`).\
 A release's folder is copied with `Cache-Control: public, max-age=31536000, immutable` and its entry with `no-store`.
 
-A deploy of this release is 274 steps (`tools/deploy-steps.mjs`): for the lab and then production, 134 folder objects copied, the folder checked through the host, the entry copied, and the entry, the edge cache and the smoke run checked; no step deletes.\
+A deploy of this release is 274 steps (`tools/deploy-steps.mjs`): for the lab and then production, 134 folder objects copied where none is, the folder checked through the host, the entry copied -- the one object a deploy replaces -- and the entry, a missing object's 404, the edge cache and the smoke run checked; no step deletes.\
 The release workflow is `.github/workflows/release.yml`; the gate's is `.github/workflows/gate.yml`.
 
 ---
@@ -196,8 +198,8 @@ Workarounds open: 0.
 | B10 | Browsers that are not Chromium-based are not covered; the page says so (IT-D12) |
 | B11 | The Keyboard Map is asked once, at load: a keyboard's language switched while the page is open leaves the labels the page loaded with |
 | B12 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured; the browser rule refuses an image either way |
-| B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
-| B14 | `tools/deploy` has never run against the buckets: it is the operator's, run with their own credentials, and the lab's measurement of the backends' headers (IT-D5) is owed with it |
+| B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
+| B14 | `tools/deploy` has never run against the buckets: it is the operator's, run with their own credentials, and the lab's measurement of the backends' headers (IT-D5), a missing object's 404 among them, is owed with it; its `gcloud` forms -- `storage objects describe --format=value(generation)`, `storage cp --if-generation-match`, 0 meaning no object, and the missing object's `not found: 404.` -- are taken from the Cloud SDK's documentation and messages and proved only against a stand-in |
 
 ---
 
