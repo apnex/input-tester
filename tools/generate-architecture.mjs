@@ -30,7 +30,7 @@ export function describeModule(rel) {
 	const text = read(rel);
 	const file = ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 	const lead = /^\/\*\*([\s\S]*?)\*\//.exec(text)?.[1].replace(/^\s*\* ?/gm, "").replace(/\s+/g, " ").trim() ?? "";
-	const duty = lead.split(/(?<=[.:]) /)[0].replace(/[.:]$/, "");
+	const duty = lead.split(/(?<=\.) /)[0].replace(/\.$/, "");
 	const exported = [];
 	const imports = [];
 	for (const s of file.statements) {
@@ -127,7 +127,7 @@ export async function deriveArchitecture() {
 	line(`A release's folder is copied with \`Cache-Control: ${headers.cacheControl.folder}\` and its entry with \`${headers.cacheControl.entry}\`.`);
 	const release = readRelease(path.join(root, "site"));
 	const steps = deploySteps(release, [{ name: "lab" }, { name: "production" }]);
-	line("", `A deploy of this release is ${steps.length} steps (\`tools/deploy-steps.mjs\`): for the lab and then production, ${release.files.length} folder objects copied, the folder checked through the host, the entry copied, and the entry, the edge cache and the smoke run checked; no step deletes.`);
+	line("", `A deploy of this release is ${steps.length} steps (\`tools/deploy-steps.mjs\`): for the lab and then production, ${release.files.length} folder objects copied, the folder checked through the host, the entry copied, and the entry, the edge cache and the smoke run checked; no step deletes.\\`);
 	line(`The release workflow is \`.github/workflows/release.yml\`${fs.existsSync(path.join(root, ".github", "workflows", "release.yml")) ? "" : ", absent"}; the gate's is \`.github/workflows/gate.yml\`${fs.existsSync(path.join(root, ".github", "workflows", "gate.yml")) ? "" : ", absent"}.`, "", "---", "");
 
 	line("## 8. Owed and open", "", "The open rows of `docs/BACKLOG.md`, each with its revival trigger there.", "");
