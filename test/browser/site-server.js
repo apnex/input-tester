@@ -1,8 +1,8 @@
 // site-server - the gate's own server (docs/ARCHITECTURE-TARGET.md section 8, IT-D5, GT6): serves a built
 // site or a local copy of a bucket, sending the browser rule and its two companions, exactly as
 // tools/response-headers.json holds them, in every response -- a missing file's among them -- with each
-// object's Cache-Control as a bucket would: the entry `no-store`, every file of a release's folder
-// `public, max-age=31536000, immutable`, or what a bucket copy's own metadata names.
+// object's Cache-Control and content type as a bucket would: the entry `no-store`, every file of a release's
+// folder `public, max-age=31536000, immutable`, or what a bucket copy's own metadata names.
 //
 // It records every request it answers, so a test holds the browser's own account of its requests against a
 // second witness. It never holds the process open, and close() ends every connection and never throws.
@@ -10,6 +10,8 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { contentTypeOf } from "../../tools/content-types.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const headersFile = path.resolve(here, "..", "..", "tools", "response-headers.json");
@@ -19,26 +21,13 @@ export function readResponseHeaders(file = headersFile) {
 	return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-/** The content type a file is served with, by its extension -- the same table tools/deploy sets as object metadata. */
-export const CONTENT_TYPES = {
-	".html": "text/html; charset=utf-8",
-	".js": "text/javascript; charset=utf-8",
-	".css": "text/css; charset=utf-8",
-	".map": "application/json; charset=utf-8",
-	".ts": "text/plain; charset=utf-8",
-	".json": "application/json; charset=utf-8",
-	".txt": "text/plain; charset=utf-8",
-	"": "text/plain; charset=utf-8",
-};
-
-/** The content type of a file name: `.d.ts` and every unknown extension plain text. */
-export function contentTypeOf(name) {
-	return CONTENT_TYPES[path.extname(name)] ?? CONTENT_TYPES[""];
-}
+/** The content type a file is served with: the one table tools/deploy sets as each object's metadata. */
+export { CONTENT_TYPES, contentTypeOf } from "../../tools/content-types.mjs";
 
 /**
- * Serves `root` on a port of its own, or on `port`. `metadata(relativePath)` may answer `{ cacheControl }` for an
- * object, as a bucket copy's sidecar does; otherwise `index.html` is the entry and every other file a folder's.
+ * Serves `root` on a port of its own, or on `port`. `metadata(relativePath)` may answer `{ cacheControl, contentType }`
+ * for an object, as a bucket copy's sidecar does, each served as stored; otherwise `index.html` is the entry, every
+ * other file a folder's, and the content type the one table's.
  * Unless `hold` is set the server never holds the process open.
  * Answers { origin, requests, close }.
  */
@@ -59,7 +48,7 @@ export async function serveSite(root, { metadata = () => null, headers = readRes
 		}
 		const meta = metadata(rel) ?? {};
 		const cacheControl = meta.cacheControl ?? (rel === "index.html" ? headers.cacheControl.entry : headers.cacheControl.folder);
-		res.writeHead(200, { ...rule, "Content-Type": contentTypeOf(rel), "Cache-Control": cacheControl });
+		res.writeHead(200, { ...rule, "Content-Type": meta.contentType ?? contentTypeOf(rel), "Cache-Control": cacheControl });
 		res.end(req.method === "HEAD" ? undefined : fs.readFileSync(file));
 	});
 	await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));

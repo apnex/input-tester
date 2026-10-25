@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+// gcloud - a stand-in for the four `gcloud` command forms tools/deploy runs, for the gate's test of its wrapper
+// (test/browser/deploy-cli.test.js), behaving as the Cloud SDK's documentation and messages give them: an object
+// missing answers `gs://B/O not found: 404.` on stderr; `storage cp` honours `--if-generation-match`, 0 meaning
+// no object at all, refusing a mismatch with a 412; and a backend bucket's edge cache is off unless FAKE_CDN_ON
+// names it. Every call's arguments are logged, one JSON line each, to FAKE_GCS_ROOT/calls.log; the buckets are
+// directories under FAKE_GCS_ROOT/buckets, each object's metadata in a sidecar the test's server reads.
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.env.FAKE_GCS_ROOT;
+const args = process.argv.slice(2);
+fs.appendFileSync(path.join(root, "calls.log"), `${JSON.stringify(args)}\n`);
+const fail = (message, code = 1) => {
+	process.stderr.write(`ERROR: (gcloud.${args.slice(0, 3).join(".")}) ${message}\n`);
+	process.exit(code);
+};
+const parse = (url) => {
+	const m = /^gs:\/\/([^/]+)\/(.+)$/.exec(url ?? "");
+	if (!m) fail(`not an object's URL: ${url}`);
+	return { bucket: m[1], name: m[2], file: path.join(root, "buckets", m[1], m[2]) };
+};
+const metaFile = (bucket) => path.join(root, "buckets", `${bucket}.metadata.json`);
+const readMeta = (bucket) => (fs.existsSync(metaFile(bucket)) ? JSON.parse(fs.readFileSync(metaFile(bucket), "utf8")) : {});
+
+const [group, verb, sub] = args;
+if (group === "storage" && verb === "objects" && sub === "describe") {
+	const flags = args.slice(4);
+	if (args.length !== 5 || flags[0] !== "--format=value(generation)") fail(`unrecognized arguments: ${flags.join(" ")}`);
+	const { bucket, name, file } = parse(args[3]);
+	if (!fs.existsSync(file)) fail(`gs://${bucket}/${name} not found: 404.`);
+	process.stdout.write(`${readMeta(bucket)[name].generation}\n`);
+} else if (group === "storage" && verb === "cat") {
+	const { bucket, name, file } = parse(args[2]);
+	if (!fs.existsSync(file)) fail(`gs://${bucket}/${name} not found: 404.`);
+	process.stdout.write(fs.readFileSync(file));
+} else if (group === "storage" && verb === "cp") {
+	const flags = args.slice(2, -2);
+	const [source, destination] = args.slice(-2);
+	let match;
+	const meta = {};
+	for (const f of flags) {
+		if (f.startsWith("--if-generation-match=")) match = f.slice("--if-generation-match=".length);
+		else if (f.startsWith("--cache-control=")) meta.cacheControl = f.slice("--cache-control=".length);
+		else if (f.startsWith("--content-type=")) meta.contentType = f.slice("--content-type=".length);
+		else if (f === "--no-clobber") meta.noClobber = true;
+		else fail(`unrecognized arguments: ${f}`);
+	}
+	const { bucket, name, file } = parse(destination);
+	const all = readMeta(bucket);
+	const current = fs.existsSync(file) ? all[name].generation : 0;
+	if (meta.noClobber && current !== 0) {
+		process.stderr.write(`Skipping existing destination item (no-clobber): gs://${bucket}/${name}\n`);
+		process.exit(0);
+	}
+	if (match !== undefined && String(current) !== match) fail(`HTTPError 412: At least one of the pre-conditions you specified did not hold.`);
+	fs.mkdirSync(path.dirname(file), { recursive: true });
+	fs.copyFileSync(source, file);
+	all[name] = { cacheControl: meta.cacheControl, contentType: meta.contentType, generation: current + 1 };
+	fs.writeFileSync(metaFile(bucket), JSON.stringify(all));
+} else if (group === "compute" && verb === "backend-buckets" && sub === "describe") {
+	if (args.length !== 5 || args[4] !== "--format=json") fail(`unrecognized arguments: ${args.slice(4).join(" ")}`);
+	process.stdout.write(`${JSON.stringify({ name: args[3], enableCdn: (process.env.FAKE_CDN_ON ?? "").split(",").includes(args[3]) })}\n`);
+} else fail(`the stand-in does not answer: ${args.join(" ")}`);

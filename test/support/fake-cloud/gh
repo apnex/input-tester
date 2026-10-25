@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+// gh - a stand-in for the one `gh` command form tools/deploy runs, `gh release download TAG --repo R --pattern
+// SHA256SUMS --dir D`, for the gate's test of its wrapper: it copies FAKE_GH_RELEASES/TAG/SHA256SUMS into D, and
+// answers a tag it has none for as gh does a release not found. Every call's arguments are logged to
+// FAKE_GCS_ROOT/calls.log beside gcloud's.
+import fs from "node:fs";
+import path from "node:path";
+
+const args = process.argv.slice(2);
+fs.appendFileSync(path.join(process.env.FAKE_GCS_ROOT, "calls.log"), `${JSON.stringify(["gh", ...args])}\n`);
+const [group, verb, tag, ...rest] = args;
+const flag = (name) => rest[rest.indexOf(name) + 1];
+if (group !== "release" || verb !== "download" || rest.length !== 6 || flag("--pattern") !== "SHA256SUMS" || !flag("--repo") || !flag("--dir")) {
+	process.stderr.write(`unknown command: ${args.join(" ")}\n`);
+	process.exit(1);
+}
+const attached = path.join(process.env.FAKE_GH_RELEASES, tag, "SHA256SUMS");
+if (!fs.existsSync(attached)) {
+	process.stderr.write("release not found\n");
+	process.exit(1);
+}
+fs.copyFileSync(attached, path.join(flag("--dir"), "SHA256SUMS"));

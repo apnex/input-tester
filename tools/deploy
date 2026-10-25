@@ -1,20 +1,25 @@
 #!/usr/bin/env node
 // deploy - the operator's deploy (docs/ARCHITECTURE-TARGET.md section 9, IT-D10): copies one release, as its
 // GitHub release attached it and as extracted, to the lab bucket and then to production, exactly as section 9
-// lists -- the folder first, each object's Cache-Control `public, max-age=31536000, immutable`, refusing to
-// replace an object whose bytes differ; every object's bytes and headers checked through the host; the entry
-// last, `no-store`, and the deploy's checks there, the backend's edge cache and the gate's smoke run among them --
-// production only once the lab's checks passed, and never deleting anything. The steps are tools/deploy-steps.mjs.
+// lists -- the folder first, each object's Cache-Control `public, max-age=31536000, immutable`, never replacing an
+// object; every object's bytes and headers checked through the host; the entry last, `no-store`, replacing the
+// entry there under the generation read just before, and the deploy's checks there, the backend's edge cache and
+// the gate's smoke run among them -- production only once the lab's checks passed, and never deleting anything.
+// The steps are tools/deploy-steps.mjs.
 //
-// It is run by an operator, with their own cloud credentials, never by CI; it needs `gcloud`, authenticated, a
-// Node.js the package names, and `google-chrome` (or $CHROME) for the smoke run.
+// It refuses a release whose manifest is not the `SHA256SUMS` attached to its tag's GitHub release, fetched with
+// `gh`, so what it copies is what CI built. It is run by an operator, with their own credentials, never by CI; it
+// needs `gcloud` and `gh`, authenticated, a Node.js the package names, and `google-chrome` (or $CHROME) for the
+// smoke run.
 //
 // Usage:
-//   tools/deploy RELEASE_DIR --lab-bucket gs://B --lab-host H --lab-backend NAME --prod-bucket gs://B --prod-host H --prod-backend NAME
-// Each option may come instead from the environment: LAB_BUCKET, LAB_HOST, LAB_BACKEND, PROD_BUCKET, PROD_HOST, PROD_BACKEND.
-// With --lab-only, production is left untouched.
+//   tools/deploy RELEASE_DIR --tag vX.Y.Z --lab-bucket gs://B --lab-host H --lab-backend NAME --prod-bucket gs://B --prod-host H --prod-backend NAME
+// Options come in any order, each value-taking one from its flag or else from the environment: TAG, LAB_BUCKET,
+// LAB_HOST, LAB_BACKEND, PROD_BUCKET, PROD_HOST, PROD_BACKEND, and REPO (default apnex/input-tester). A host is a
+// name, read over HTTPS, or an origin with its scheme. With --lab-only, production is left untouched.
 import { execFile } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -25,55 +30,84 @@ import { smokeRunAt } from "./smoke-run.mjs";
 const run = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** The deploy's options, each from its flag or its environment variable; every one but --lab-only required. */
+/** The flags that take a value, each with the environment variable that may give it instead. */
+export const VALUE_FLAGS = Object.freeze({ tag: "TAG", repo: "REPO", "lab-bucket": "LAB_BUCKET", "lab-host": "LAB_HOST", "lab-backend": "LAB_BACKEND", "prod-bucket": "PROD_BUCKET", "prod-host": "PROD_HOST", "prod-backend": "PROD_BACKEND" });
+
+/** The deploy's options, read in any order: each value flag's value, else its environment variable; `--lab-only`; and the one release directory. */
 export function readOptions(args, env) {
-	const flag = (name) => {
-		const i = args.indexOf(`--${name}`);
-		return i === -1 ? undefined : args[i + 1];
-	};
-	const options = {
-		release: args.find((a, i) => !a.startsWith("--") && (i === 0 || !args[i - 1].startsWith("--"))),
-		labBucket: flag("lab-bucket") ?? env.LAB_BUCKET,
-		labHost: flag("lab-host") ?? env.LAB_HOST,
-		labBackend: flag("lab-backend") ?? env.LAB_BACKEND,
-		prodBucket: flag("prod-bucket") ?? env.PROD_BUCKET,
-		prodHost: flag("prod-host") ?? env.PROD_HOST,
-		prodBackend: flag("prod-backend") ?? env.PROD_BACKEND,
-		labOnly: args.includes("--lab-only"),
-	};
-	const missing = Object.entries(options).filter(([key, value]) => value === undefined && key !== "labOnly" && !(options.labOnly && key.startsWith("prod"))).map(([key]) => key);
+	const values = {};
+	const positional = [];
+	let labOnly = false;
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg === "--lab-only") labOnly = true;
+		else if (arg.startsWith("--")) {
+			const [name, inline] = arg.slice(2).split(/=(.*)/s, 2);
+			if (!(name in VALUE_FLAGS)) throw new Error(`deploy: ${arg} is no option; see the usage at the top of tools/deploy`);
+			const value = inline ?? args[++i];
+			if (value === undefined || value.startsWith("--")) throw new Error(`deploy: --${name} takes a value`);
+			values[name] = value;
+		} else positional.push(arg);
+	}
+	if (positional.length > 1) throw new Error(`deploy: one release directory, not ${positional.length}: ${positional.join(" ")}`);
+	const pick = (name) => values[name] ?? env[VALUE_FLAGS[name]];
+	const options = { release: positional[0], tag: pick("tag"), repo: pick("repo") ?? "apnex/input-tester", labBucket: pick("lab-bucket"), labHost: pick("lab-host"), labBackend: pick("lab-backend"), prodBucket: pick("prod-bucket"), prodHost: pick("prod-host"), prodBackend: pick("prod-backend"), labOnly };
+	const missing = Object.entries(options).filter(([key, value]) => value === undefined && !(labOnly && key.startsWith("prod"))).map(([key]) => key);
 	if (missing.length) throw new Error(`deploy: missing ${missing.join(", ")}; see the usage at the top of tools/deploy`);
-	for (const bucket of [options.labBucket, options.prodBucket].filter(Boolean)) if (!/^gs:\/\/[a-z0-9._-]+$/.test(bucket)) throw new Error(`deploy: ${bucket} is no gs:// bucket`);
+	for (const bucket of [options.labBucket, labOnly ? undefined : options.prodBucket].filter(Boolean)) if (!/^gs:\/\/[a-z0-9._-]+$/.test(bucket)) throw new Error(`deploy: ${bucket} is no gs:// bucket`);
+	if (!/^v\d+\.\d+\.\d+$/.test(options.tag)) throw new Error(`deploy: ${options.tag} is no v<major>.<minor>.<patch> tag`);
 	return options;
 }
 
-/** The bucket's storage through `gcloud storage`: an object's bytes or null, and a copy that never replaces. */
-const gcloudStorage = {
+/** The origin a host is read at: a name over HTTPS, or an origin given with its scheme. */
+export const originOf = (host) => (host.includes("://") ? host.replace(/\/$/, "") : `https://${host}`);
+
+/** Refuses a release that is not its tag's: its folder must be named by the tag, and its manifest the `SHA256SUMS` attached to the tag's GitHub release. */
+export async function checkReleaseIsTags(release, tag, repo) {
+	if (release.folder !== tag) throw new Error(`deploy: the release's folder is ${release.folder}, not the tag ${tag}`);
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-deploy-manifest-"));
+	try {
+		await run("gh", ["release", "download", tag, "--repo", repo, "--pattern", "SHA256SUMS", "--dir", dir]);
+		const attached = fs.readFileSync(path.join(dir, "SHA256SUMS"));
+		if (!attached.equals(release.manifest)) throw new Error(`deploy: the release's manifest is not the SHA256SUMS attached to ${repo}'s release ${tag}`);
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+}
+
+/**
+ * The buckets' storage through `gcloud storage`: an object's bytes and generation, or null when gcloud answers it
+ * `not found: 404.`; and a copy that writes only over the generation given -- 0, no object at all, for every folder
+ * object, and the generation read just before for the entry, the one object a deploy replaces.
+ */
+export const gcloudStorage = {
 	async read(bucket, name) {
+		let generation;
 		try {
-			await run("gcloud", ["storage", "objects", "describe", `${bucket}/${name}`, "--format=value(name)"]);
+			({ stdout: generation } = await run("gcloud", ["storage", "objects", "describe", `${bucket}/${name}`, "--format=value(generation)"]));
 		} catch (error) {
-			if (/not found|no urls matched|404/i.test(`${error.stderr ?? ""}${error.message}`)) return null;
+			if (/not found: 404\./.test(String(error.stderr ?? ""))) return null;
 			throw error;
 		}
-		const { stdout } = await run("gcloud", ["storage", "cat", `${bucket}/${name}`], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
-		return stdout;
+		const { stdout: bytes } = await run("gcloud", ["storage", "cat", `${bucket}/${name}`], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+		return { bytes, generation: generation.trim() };
 	},
-	async copy(bucket, name, file, { cacheControl, contentType }) {
-		await run("gcloud", ["storage", "cp", "--no-clobber", `--cache-control=${cacheControl}`, `--content-type=${contentType}`, file, `${bucket}/${name}`]);
+	async copy(bucket, name, file, { cacheControl, contentType, replace, generation }) {
+		if (!replace && String(generation) !== "0") throw new Error(`deploy: ${bucket}/${name} is copied only where no object is`);
+		await run("gcloud", ["storage", "cp", `--if-generation-match=${generation}`, `--cache-control=${cacheControl}`, `--content-type=${contentType}`, file, `${bucket}/${name}`]);
 	},
 };
 
-/** A host, read over HTTPS with nothing cached: each response's status, headers by lower-case name, and bytes. */
-const httpsHost = {
+/** A host, read with nothing cached: each response's status, headers by lower-case name, and bytes. */
+export const hostOverHttp = {
 	async get(host, name) {
-		const response = await fetch(`https://${host}/${name === "index.html" ? "" : name}`, { cache: "no-store", redirect: "manual" });
+		const response = await fetch(`${originOf(host)}/${name === "index.html" ? "" : name}`, { cache: "no-store", redirect: "manual" });
 		return { status: response.status, headers: Object.fromEntries([...response.headers].map(([k, v]) => [k.toLowerCase(), v])), body: Buffer.from(await response.arrayBuffer()) };
 	},
 };
 
 /** Whether a backend bucket's edge cache is on, as `gcloud compute backend-buckets describe` reports it. */
-async function edgeCacheOn(backend) {
+export async function edgeCacheOn(backend) {
 	const { stdout } = await run("gcloud", ["compute", "backend-buckets", "describe", backend, "--format=json"]);
 	return JSON.parse(stdout).enableCdn === true;
 }
@@ -82,10 +116,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 	try {
 		const options = readOptions(process.argv.slice(2), process.env);
 		const release = readRelease(path.resolve(options.release));
+		await checkReleaseIsTags(release, options.tag, options.repo);
+		console.log(`  ${release.folder}: the manifest is the one attached to ${options.repo}'s release ${options.tag}`);
 		const rule = JSON.parse(fs.readFileSync(path.join(here, "response-headers.json"), "utf8"));
 		const targets = [{ name: "lab", bucket: options.labBucket, host: options.labHost, backend: options.labBackend }];
 		if (!options.labOnly) targets.push({ name: "production", bucket: options.prodBucket, host: options.prodHost, backend: options.prodBackend });
-		const steps = await runDeploy({ release, targets, storage: gcloudStorage, host: httpsHost, edgeCacheOn, smokeRun: (host) => smokeRunAt(`https://${host}`, release.dir), rule, log: (line) => console.log(`  ${line}`) });
+		const steps = await runDeploy({ release, targets, storage: gcloudStorage, host: hostOverHttp, edgeCacheOn, smokeRun: (host) => smokeRunAt(originOf(host), release.dir), rule, log: (line) => console.log(`  ${line}`) });
 		console.log(`deploy: PASS -- ${release.folder}: ${steps} step(s) done, ${targets.map((t) => `${t.name} at ${t.host}`).join(" then ")}`);
 	} catch (error) {
 		console.log(error.message);
