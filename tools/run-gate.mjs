@@ -2,8 +2,9 @@
 // run-gate - the gate (docs/ARCHITECTURE-TARGET.md section 8, IT-D1; `npm run gate`): every step in order, each
 // able to fail -- the vendoring, the build, the tests in Node and in headless Chrome, the source, vocabulary,
 // backlog, public-text and style checks -- its output shown as it ran, and its result written to
-// .gate/results.json; last, the current architecture checked against what the code and those results derive.
-// It fails when any step fails, having run every step, so one run names every failure.
+// .gate/results.json and its whole output to .gate/<step>.log, every failing test's block -- its error, expected
+// and actual values and stack -- printed in full; last, the current architecture checked against what the code
+// and those results derive. It fails when any step fails, having run every step, so one run names every failure.
 //
 // Usage:  node tools/run-gate.mjs
 import { spawnSync } from "node:child_process";
@@ -35,6 +36,29 @@ export const GATE_STEPS = [
 	{ name: "style check", holds: "mission-kit's S6, S8, S10, S12 and S13 over every document", command: [node, "tools/check-style.mjs"] },
 ];
 
+/**
+ * Every failing test's whole block in a TAP run: its `not ok` line and the YAML block beneath it -- the error,
+ * expected and actual values, the location and the stack -- so the gate shows why a test failed.
+ */
+export function failureBlocks(output) {
+	const lines = output.split("\n");
+	const blocks = [];
+	for (let i = 0; i < lines.length; i++) {
+		if (!/^\s*not ok \d+/.test(lines[i])) continue;
+		const block = [lines[i]];
+		let j = i + 1;
+		if (/^\s*---$/.test(lines[j] ?? "")) {
+			for (; j < lines.length; j++) {
+				block.push(lines[j]);
+				if (/^\s*\.\.\.$/.test(lines[j])) break;
+			}
+		}
+		blocks.push(block.join("\n"));
+		i = j;
+	}
+	return blocks;
+}
+
 /** The counts a TAP run reports: tests, pass, fail. */
 export function tapCounts(output) {
 	const count = (name) => Number(new RegExp(`^# ${name} (\\d+)$`, "m").exec(output)?.[1] ?? NaN);
@@ -47,8 +71,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 		console.log(`\n== ${step.name}: ${step.holds}`);
 		const run = spawnSync(step.command[0], step.command.slice(1), { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, env: process.env });
 		const output = `${run.stdout ?? ""}${run.stderr ?? ""}`;
-		const shown = step.tests ? output.split("\n").filter((l) => /^(not ok|# (tests|pass|fail|cancelled|skipped|todo|duration_ms) |# Subtest)|^\s+(error|expected|actual|location):/.test(l) || /^#\s+\S/.test(l)).join("\n") : output.trim();
-		console.log(shown);
+		fs.mkdirSync(path.join(root, ".gate"), { recursive: true });
+		const logFile = path.join(".gate", `${step.name.replace(/\W+/g, "-")}.log`);
+		fs.writeFileSync(path.join(root, logFile), output);
+		if (step.tests) {
+			console.log(output.split("\n").filter((l) => /^# (?!Subtest)\S/.test(l)).join("\n"));
+			const blocks = failureBlocks(output);
+			if (blocks.length) console.log(`${blocks.length} failing test(s), each in full:\n${blocks.join("\n")}`);
+			if (run.status !== 0 && blocks.length === 0) console.log(output.trim());
+			console.log(`(the whole run: ${logFile})`);
+		} else console.log(output.trim());
 		const result = { name: step.name, holds: step.holds, passed: run.status === 0 };
 		if (step.tests) Object.assign(result, tapCounts(output));
 		if (step.tests && !(result.fail === 0 && result.pass === result.tests)) result.passed = false;
