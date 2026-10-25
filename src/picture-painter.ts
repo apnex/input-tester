@@ -69,7 +69,7 @@ export const NOT_REPORTED_LINES: readonly string[] = Object.freeze([
 ]);
 
 /** What the tester claims, shown always (IT-D9). */
-export const CLAIMS_LINE = "Every key, button, wheel, double click and context menu is claimed, so the browser does nothing with it -- but the browser's own keys (reload, fullscreen, the developer tools, view source), left to the browser whatever letters your keyboard prints.";
+export const CLAIMS_LINE = "Every key, button, wheel, double click and context menu is claimed, so the browser does nothing with it -- but the browser's own keys (reload, fullscreen, developer tools, view source), left to it on any keyboard.";
 
 /** The line shown outside a Chromium-based browser (IT-D12). */
 export const UNCOVERED_BROWSER_LINE = "This browser names no Chromium: input-tester's coverage is proved in Chromium-based browsers, ChromeOS's among them, and is not proved here.";
@@ -270,9 +270,9 @@ export function paintWholePage(scene: PaintTarget, view: PaintView, picture: Pic
 	if (view.notices.problems.length > 0) scene.put("panel", "problems", [{ tag: "text", attrs: { x: PANEL_X, y: 892, class: "problems" }, children: view.notices.problems.map((p, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 892 + i * 14 }, text: p })) }]);
 	scene.put("panel", "log heading", [text(PANEL_X, 472, "heading", "Log, newest first")]);
 	scene.put("panel", "not reported", [{ tag: "text", attrs: { x: PANEL_X, y: 724, class: "not-reported" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: 724, class: "heading" }, text: "What no page can know" }, ...NOT_REPORTED_LINES.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 742 + i * 16 }, text: line }))] }]);
-	scene.put("panel", "claims line", [text(PANEL_X, 818, "notice", CLAIMS_LINE)]);
+	scene.put("panel", "claims line", [{ tag: "text", attrs: { x: PANEL_X, y: 814, class: "notice" }, children: CLAIMS_LINE.split(" -- ").map((part, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 814 + i * 14 }, text: i === 0 ? `${part} --` : ` ${part}` })) }]);
 	const notes = [...new Set([...view.placed.keys.values()].flatMap((k) => k.notes))];
-	scene.put("panel", "notes key", [{ tag: "text", attrs: { x: PANEL_X, y: 838, class: "notes-key" }, children: notes.map((n, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 838 + i * 14, class: `note-${n}` }, text: `a key's corner marked so: ${KEY_NOTE_WORDS[n]}` })) }]);
+	scene.put("panel", "notes key", [{ tag: "text", attrs: { x: PANEL_X, y: 848, class: "notes-key" }, children: notes.map((n, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 848 + i * 14, class: `note-${n}` }, text: `a key's corner marked so: ${KEY_NOTE_WORDS[n]}` })) }]);
 	scene.put("panel", "legend heading", [text(LEGEND_X, 22, "heading", "Every rule, and its standing for the latest fact")]);
 	paintStatus(scene, view, picture);
 	paintLog(scene, view, picture);
