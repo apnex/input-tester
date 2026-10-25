@@ -47,7 +47,7 @@ export function watchRequests(chrome) {
  * Opens the tester: a server for `siteDir`, Chrome, the request monitor, scripts evaluated before the page's
  * own, and the page loaded at `query`. Answers the session and helpers; `close()` tears every part down.
  */
-export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [], metadata, waitForPage = true } = {}) {
+export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [], metadata, navigate = true } = {}) {
 	const server = await serveSite(siteDir, metadata ? { metadata } : {});
 	let chrome;
 	try {
@@ -58,7 +58,7 @@ export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [],
 		await chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 		for (const source of beforeLoad) await chrome.send("Page.addScriptToEvaluateOnNewDocument", { source });
 		const tester = makeHelpers(chrome, server, requests);
-		await tester.load(query, { waitForPage });
+		if (navigate) await tester.load(query);
 		return tester;
 	} catch (error) {
 		await chrome?.close();
@@ -76,11 +76,16 @@ function makeHelpers(chrome, server, requests) {
 		server,
 		requests,
 		page,
-		/** Loads the entry at `query` and waits for the tester to compose; reads the root's screen transform. */
-		async load(query = "", { waitForPage = true } = {}) {
-			await chrome.send("Page.navigate", { url: `${server.origin}/${query}` });
-			if (!waitForPage) return;
-			for (let i = 0; i < 200 && !(await chrome.evaluate("globalThis.inputTester !== undefined")); i++) await sleep(25);
+		/** Navigates to the entry at `query`, answering when the protocol has started the navigation. */
+		navigate: (query = "") => chrome.send("Page.navigate", { url: `${server.origin}/${query}` }),
+		/** Loads the entry at `query` and waits for the tester to compose. */
+		async load(query = "") {
+			await tester.navigate(query);
+			await tester.ready();
+		},
+		/** Waits for the page now loading to compose the tester; reads the root's screen transform and the plan. */
+		async ready() {
+			for (let i = 0; i < 200 && !(await chrome.evaluate("globalThis.inputTester !== undefined").catch(() => false)); i++) await sleep(25);
 			if (!(await chrome.evaluate("globalThis.inputTester !== undefined"))) throw new Error("the tester did not compose");
 			await chrome.evaluate("new Promise((resolve) => requestAnimationFrame(() => resolve(true)))");
 			screenMatrix = await page("(() => { const m = document.getElementById('input-surface').getScreenCTM(); return [m.a, m.b, m.c, m.d, m.e, m.f]; })()");
