@@ -127,15 +127,16 @@ const LEAKS = [
 for (const [name, code] of LEAKS) {
 	test(`a planted leak fails the monitor: ${name}`, TEST, async () => {
 		const planted = plantedSite([{ file: "app/composition-root.js", find: DELIVERY_OPENS, replace: `${DELIVERY_OPENS}\n        if (fact.type === "key-down") { ${code} }` }]);
-		const t = await openTesterInChrome({ siteDir: planted.dir });
+		let t;
 		try {
+			t = await openTesterInChrome({ siteDir: planted.dir });
 			await t.key("keyDown", "q", "KeyQ", { text: "q", windowsVirtualKeyCode: 81 });
 			await t.key("keyUp", "q", "KeyQ", { windowsVirtualKeyCode: 81 });
 			await sleep(700);
 			const problems = containmentProblems(t.requests, { origin: t.server.origin, loads: filesThePageLoads(planted.dir) });
 			assert.ok(problems.some((p) => p.includes("k=q")), `the monitor named the leak: ${JSON.stringify(problems)}`);
 		} finally {
-			await t.close();
+			await t?.close();
 			planted.remove();
 		}
 	});
@@ -143,8 +144,9 @@ for (const [name, code] of LEAKS) {
 
 test("IT-D5: under the rule an inline script, a fetch, a worker and a style attribute written by script are each refused, while the release's own files load by relative path", TEST, async () => {
 	const planted = plantedSite([{ entry: true, find: "</body>", replace: "<script>window.inlineRan = true;</script></body>" }]);
-	const t = await openTesterInChrome({ siteDir: planted.dir });
+	let t;
 	try {
+		t = await openTesterInChrome({ siteDir: planted.dir });
 		assert.equal(await t.chrome.evaluate("globalThis.inputTester !== undefined"), true, "the release's modules loaded");
 		assert.equal(await t.chrome.evaluate("window.inlineRan === undefined"), true, "the inline script refused");
 		await t.settle();
@@ -156,7 +158,7 @@ test("IT-D5: under the rule an inline script, a fetch, a worker and a style attr
 		const attempted = t.requests.slice(mark);
 		assert.ok(attempted.every((r) => r.blocked !== null), `the fetch and the worker refused before any byte arrived: ${JSON.stringify(attempted)}`);
 	} finally {
-		await t.close();
+		await t?.close();
 		planted.remove();
 	}
 });

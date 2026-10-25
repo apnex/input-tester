@@ -87,9 +87,14 @@ async function driveQuickly(t) {
 /** Opens the tester with the harness set, waits until the Keyboard Map's labels are painted, and empties the harness's record. */
 async function openTimed(siteDir) {
 	const t = await openTesterInChrome({ siteDir, beforeLoad: [HARNESS] });
-	for (let i = 0; i < 60 && !(await t.chrome.evaluate("document.querySelector('#input-surface .label-reported') !== null")); i++) await sleep(50);
-	await t.chrome.evaluate("deliveryHarness.deliveries.length = 0; deliveryHarness.writes.length = 0");
-	return t;
+	try {
+		for (let i = 0; i < 60 && !(await t.chrome.evaluate("document.querySelector('#input-surface .label-reported') !== null")); i++) await sleep(50);
+		await t.chrome.evaluate("deliveryHarness.deliveries.length = 0; deliveryHarness.writes.length = 0");
+		return t;
+	} catch (error) {
+		await t.close();
+		throw error;
+	}
 }
 
 test("GT9: every delivery, the composition root's routing, the picture state and every put inside it, completes within 10 ms; the time from each fact's time to the end of its put is reported", TEST, async (ctx) => {
@@ -122,15 +127,16 @@ test("GT2: once the page is composed and its labels painted, every write to the 
 
 test("GT9: a planted build that waits 50 ms in its delivery fails the bound", TEST, async () => {
 	const planted = plantedSite([{ file: "app/composition-root.js", find: DELIVERY_OPENS, replace: `${DELIVERY_OPENS}\n        { const until = performance.now() + 50; while (performance.now() < until) { } }` }]);
-	const t = await openTimed(planted.dir);
+	let t;
 	try {
+		t = await openTimed(planted.dir);
 		await t.key("keyDown", "a", "KeyA", { text: "a", windowsVirtualKeyCode: 65 });
 		await t.key("keyUp", "a", "KeyA", { windowsVirtualKeyCode: 65 });
 		await t.settle();
 		const problems = immediacyProblems(await t.page("deliveryHarness.deliveries"));
 		assert.ok(problems.length >= 2 && problems.every((p) => /took (5\d|[6-9]\d|\d{3,})\.\d\d ms, beyond 10 ms/.test(p)), JSON.stringify(problems));
 	} finally {
-		await t.close();
+		await t?.close();
 		planted.remove();
 	}
 });

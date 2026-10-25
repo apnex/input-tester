@@ -378,8 +378,9 @@ test("a page without navigator.userAgentData naming Chromium, simulated, shows t
 
 test("the positive control: in a planted build whose claim is taken away, the same synthesized pinch zooms the page to 2", TEST, async () => {
 	const planted = plantedSite([{ file: "app/input-router.js", find: CLAIM_IN_ROUTER, replace: "if (claimed && false)\n            reply.claim();" }]);
-	const control = await openTesterInChrome({ siteDir: planted.dir });
+	let control;
 	try {
+		control = await openTesterInChrome({ siteDir: planted.dir });
 		const at = control.keyCentre("KeyN");
 		await control.mouse("mouseMoved", at);
 		await control.chrome.send("Input.synthesizePinchGesture", { x: at.x, y: at.y, scaleFactor: 2, relativeSpeed: 800, gestureSourceType: "mouse" });
@@ -388,7 +389,7 @@ test("the positive control: in a planted build whose claim is taken away, the sa
 		for (let i = 0; i < 40 && Math.abs(scale - 2) >= 0.01; i++, await sleep(50)) scale = await control.chrome.evaluate("visualViewport.scale");
 		assert.ok(Math.abs(scale - 2) < 0.01, `unclaimed, the page zoomed to 2 (${scale})`);
 	} finally {
-		await control.close();
+		await control?.close();
 		planted.remove();
 	}
 });
