@@ -11,6 +11,7 @@ import type { BindingEntry, TraceRecord } from "../vendor/input-binding/index.js
 import type { Scene, Shape } from "../vendor/vector-scene/index.js";
 import type { TesterFact, TesterRow } from "./input-bindings.js";
 import type { KeyLabels } from "./key-labels.js";
+import { BUTTON_BITS } from "./keyboard-plans.js";
 import type { KeyNote, PlacedKey, PlacedPlan } from "./keyboard-plans.js";
 import type { LogEntry, Picture, PictureEntry } from "./picture-state.js";
 import { LOG_LINES } from "./picture-state.js";
@@ -42,11 +43,12 @@ export interface PaintTarget {
 	readonly remove: Scene["remove"];
 }
 
-/** Everything the painter describes besides the record: the plan as placed, the labels, the table's rows and the notices. */
+/** Everything the painter describes besides the record: the plan as placed, the labels, the table's rows, the session's threshold and the notices. */
 export interface PaintView {
 	readonly placed: PlacedPlan;
 	readonly labels: KeyLabels;
 	readonly rows: readonly BindingEntry<TesterRow>[];
+	readonly threshold: number;
 	readonly notices: PageNotices;
 }
 
@@ -123,21 +125,28 @@ export function logLineWords(entry: LogEntry, view: PaintView): string {
 /** The mouse buttons a `buttons` value holds, by number, or said not reported. */
 export function buttonsHeldWords(buttons: number | null): string {
 	if (buttons === null) return "not reported";
-	const held = [1, 4, 2, 8, 16].map((bit, button) => ((buttons & bit) !== 0 ? String(button) : "")).filter((b) => b !== "");
+	const held = BUTTON_BITS.map((bit, button) => ((buttons & bit) !== 0 ? String(button) : "")).filter((b) => b !== "");
 	return held.length === 0 ? "none" : held.join(" ");
 }
 
-/** The status lines: keys held and buttons held; the live gesture, its press, the threshold and the item under the pointer. */
-export function statusWords(picture: Picture): [string, string] {
+/** The status lines: keys held, buttons held and the item under the pointer; the live gesture, its press, and the session's threshold in drawing units and in keys, a key being 40 of them. */
+export function statusWords(picture: Picture, threshold: number): [string, string] {
 	const keys = picture.heldKeys.length === 0 ? "none" : picture.heldKeys.map((k) => k.code).join(" ");
 	const g = picture.gesture;
 	const gesture = g === null ? "none" : `${g.name} ${g.phase}${g.trigger === null ? "" : ` (${g.trigger})`}${g.live ? ", live" : ", ended"}`;
 	const press = picture.press === null ? "no press" : `press from ${picture.press.at.x}, ${picture.press.at.y}${picture.press.beyond ? ", beyond the threshold" : ""}`;
 	const under = picture.under === null ? "nothing" : `${picture.under.key} (${picture.under.layer})`;
-	return [`keys held: ${keys} | buttons held: ${buttonsHeldWords(picture.buttons)} | under the pointer: ${under}`, `gesture: ${gesture} | ${press} | threshold: 4 drawing units, a tenth of a key`];
+	return [`keys held: ${keys} | buttons held: ${buttonsHeldWords(picture.buttons)} | under the pointer: ${under}`, `gesture: ${gesture} | ${press} | threshold: ${threshold} drawing units, ${threshold / 40} of a key's width`];
 }
 
-/** The lines describing each held key: its repeats observed, its time held as of its latest fact and its last repeat interval. */
+/** How many held keys the panel describes a line each; past them, one line says how many more are held, and names them. */
+export const HELD_KEY_LINES = 3;
+
+/**
+ * The lines describing the held keys -- each one's repeats observed, its time held as of its latest fact and its
+ * last repeat interval -- the first few a line each and the rest named on one line, never dropped; then the
+ * latest key with no identity.
+ */
 export function heldKeyLines(picture: Picture): string[] {
 	const lines = picture.heldKeys.map((k) => {
 		const before = k.firstSeen === "repeat" ? "pressed before it was seen, " : "";
@@ -145,6 +154,8 @@ export function heldKeyLines(picture: Picture): string[] {
 		const interval = k.interval === null ? "" : `, last repeat interval ${k.interval} ms`;
 		return `${k.code} ${k.latest.key === null ? "key null" : JSON.stringify(k.latest.key)}: ${before}${k.repeats} repeat${k.repeats === 1 ? "" : "s"} observed, ${held}${interval}`;
 	});
+	const more = picture.heldKeys.slice(HELD_KEY_LINES);
+	if (more.length > 0) lines.splice(HELD_KEY_LINES, lines.length, `and ${more.length} more held: ${more.map((k) => k.code).join(" ")}`);
 	const u = picture.unidentifiedKey;
 	if (u !== null) lines.push(`latest key with no identity: ${u.type} key ${u.key === null ? "null" : JSON.stringify(u.key)}, ${timeWords(u.time)} -- its physical key not reported`);
 	return lines;
@@ -220,18 +231,18 @@ function legendShapes(entry: BindingEntry<TesterRow>, index: number, picture: Pi
 }
 
 /** Paints the status line and the held keys' lines. */
-function paintStatus(scene: PaintTarget, picture: Picture): void {
-	const [first, second] = statusWords(picture);
+function paintStatus(scene: PaintTarget, view: PaintView, picture: Picture): void {
+	const [first, second] = statusWords(picture, view.threshold);
 	scene.put("panel", "status line", [{ tag: "text", attrs: { x: PANEL_X, y: 352, class: "status-line" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: 352 }, text: first }, { tag: "tspan", attrs: { x: PANEL_X, y: 368 }, text: second }] }]);
 	const lines = heldKeyLines(picture);
-	scene.put("panel", "held keys", [{ tag: "text", attrs: { x: PANEL_X, y: 388, class: "held-keys" }, children: lines.slice(0, 4).map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 388 + i * 16 }, text: line })) }]);
+	scene.put("panel", "held keys", [{ tag: "text", attrs: { x: PANEL_X, y: 388, class: "held-keys" }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 388 + i * 16 }, text: line })) }]);
 }
 
 /** Paints the log, newest first, a fixed number of lines. */
 function paintLog(scene: PaintTarget, view: PaintView, picture: Picture): void {
 	for (let i = 0; i < LOG_LINES; i++) {
 		const entry = picture.log[i];
-		scene.put("panel", `log line ${i}`, [text(PANEL_X, 480 + i * 16, i === 0 ? "log-line newest" : "log-line", entry === undefined ? "" : logLineWords(entry, view))]);
+		scene.put("panel", `log line ${i}`, [text(PANEL_X, 488 + i * 16, i === 0 ? "log-line newest" : "log-line", entry === undefined ? "" : logLineWords(entry, view))]);
 	}
 }
 
@@ -257,13 +268,13 @@ export function paintWholePage(scene: PaintTarget, view: PaintView, picture: Pic
 	scene.put("panel", "plan line", [{ tag: "text", attrs: { x: PANEL_X, y: 296, class: "notice plan-line" }, children: view.notices.planLine.split("\n").map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 296 + i * 14 }, text: line })) }]);
 	if (!view.notices.coveredBrowser) scene.put("panel", "browser line", [text(PANEL_X, 340, "notice uncovered", UNCOVERED_BROWSER_LINE)]);
 	if (view.notices.problems.length > 0) scene.put("panel", "problems", [{ tag: "text", attrs: { x: PANEL_X, y: 892, class: "problems" }, children: view.notices.problems.map((p, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 892 + i * 14 }, text: p })) }]);
-	scene.put("panel", "log heading", [text(PANEL_X, 462, "heading", "Log, newest first")]);
+	scene.put("panel", "log heading", [text(PANEL_X, 472, "heading", "Log, newest first")]);
 	scene.put("panel", "not reported", [{ tag: "text", attrs: { x: PANEL_X, y: 724, class: "not-reported" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: 724, class: "heading" }, text: "What no page can know" }, ...NOT_REPORTED_LINES.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 742 + i * 16 }, text: line }))] }]);
 	scene.put("panel", "claims line", [text(PANEL_X, 818, "notice", CLAIMS_LINE)]);
 	const notes = [...new Set([...view.placed.keys.values()].flatMap((k) => k.notes))];
 	scene.put("panel", "notes key", [{ tag: "text", attrs: { x: PANEL_X, y: 838, class: "notes-key" }, children: notes.map((n, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 838 + i * 14, class: `note-${n}` }, text: `a key's corner marked so: ${KEY_NOTE_WORDS[n]}` })) }]);
 	scene.put("panel", "legend heading", [text(LEGEND_X, 22, "heading", "Every rule, and its standing for the latest fact")]);
-	paintStatus(scene, picture);
+	paintStatus(scene, view, picture);
 	paintLog(scene, view, picture);
 	paintLegend(scene, view, picture);
 }
@@ -286,7 +297,7 @@ export function paintPictureChanges(scene: PaintTarget, view: PaintView, previou
 	if (changed.has("buttons")) paintMouse(scene, view, picture);
 	if (changed.has("wheel") || (changed.has("latestFact") && (previous.latestFact?.type === "wheel") !== (picture.latestFact?.type === "wheel"))) paintWheel(scene, view, picture);
 	if (changed.has("gesture") || changed.has("press") || changed.has("pointerAt")) paintTrail(scene, picture);
-	if (["heldKeys", "unidentifiedKey", "buttons", "gesture", "press", "under"].some((e) => changed.has(e as PictureEntry))) paintStatus(scene, picture);
+	if (["heldKeys", "unidentifiedKey", "buttons", "gesture", "press", "under"].some((e) => changed.has(e as PictureEntry))) paintStatus(scene, view, picture);
 	if (changed.has("log")) paintLog(scene, view, picture);
 	if (changed.has("legend")) paintLegend(scene, view, picture);
 }

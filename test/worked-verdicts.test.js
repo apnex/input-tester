@@ -68,6 +68,7 @@ test("worked verdict: a left drag -- the move crossing the threshold hits no row
 	]);
 	platform.pointer("up", { clientX: 110, clientY: 100, button: 0, buttons: 0 });
 	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerUp", phase: "commit", gesture: "drag-0", trigger: "drop", meaning: ["button-0-drag"] }]);
+	assert.deepEqual(page.latestVerdict.steps[0].derived.fact, { type: "commit", gesture: "drag-0", trigger: "drop" }, "the derived fact carries the commit's own trigger");
 });
 
 test("worked verdict: the right button pressed mid-drag, the left released, then the right -- a chorded press, a chorded release, a release of button 2 committing drag-0, meaning a drag of button 0", () => {

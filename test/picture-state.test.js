@@ -134,3 +134,73 @@ test("the log keeps a fixed number of lines, newest first; an entry that did not
 	const { changed } = applyVerdict(EMPTY_PICTURE, page.latestVerdict);
 	assert.ok(changed.has("legend") && changed.has("latestFact") && !changed.has("heldKeys") && !changed.has("log"));
 });
+
+test("a mouse's cancel reaches the session's pointerLost, ending the press and the gesture, and its buttons are drawn", () => {
+	const { platform, page } = freshPage();
+	platform.pointer("down", { clientX: 10, clientY: 10, button: 0, buttons: 1 });
+	platform.pointer("cancel", { clientX: 10, clientY: 10, button: -1, buttons: 0 });
+	const [step] = page.latestVerdict.steps;
+	assert.deepEqual([step.operation, step.outcome.phase, step.outcome.gesture.name], ["pointerLost", "cancel", "press-0"]);
+	assert.deepEqual(page.latestVerdict.trace.filter((r) => r.hit), [], "section 6 gives a mouse's cancel no row");
+	assert.deepEqual([page.picture.press, page.picture.gesture.live, page.picture.buttons], [null, false, 0]);
+	assert.match(page.picture.log[0].notes.join(" "), /cancelled press-0: its release not reported/);
+});
+
+test("otherHeld is a non-modifier code held other than the fact's own: a key pressed again while held, its release unseen, is a first press, not a roll-over", () => {
+	const { platform, page } = freshPage();
+	platform.key("key-down", { key: "a", code: "KeyA" });
+	platform.key("key-down", { key: "a", code: "KeyA" });
+	assert.deepEqual(page.latestVerdict.trace.filter((r) => r.hit).map((r) => r.id), ["key-first-press"]);
+	assert.match(page.picture.log[0].notes.join(" "), /pressed again while held: its release was not seen/);
+});
+
+test("wheel facts with a delta of another sign on any axis start a new line: sideways right, then left", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ deltaX: 40 });
+	platform.wheel({ deltaX: 25 });
+	platform.wheel({ deltaX: -40 });
+	assert.deepEqual(page.picture.log.map((l) => [l.fact.deltaX, l.count, l.hits[0]]), [[-40, 1, "wheel-sideways"], [25, 2, "wheel-sideways"]]);
+	assert.equal(page.latestVerdict.claimed, true, "a leftward turn is the wheel sideways too, claimed");
+});
+
+test("the status line is painted again when only the buttons drawn change", () => {
+	const { platform, page } = freshPage();
+	assert.match(platform.textOf("status-line"), /buttons held: not reported/);
+	platform.pointer("move", { clientX: 5, clientY: 5, button: -1, buttons: 4 });
+	assert.equal(page.picture.buttons, 4);
+	assert.match(platform.textOf("status-line"), /buttons held: 1 \|/);
+});
+
+test("IT-D4: the item under the pointer is itemOf the target, and, when that answers nothing -- as for a taken pointer, whose events target the svg -- itemAt the fact's screen point; a touch's or a pen's fact changes nothing drawn", () => {
+	let under = [];
+	const platform = fakePlatform({ elementsAt: () => under });
+	const page = composeTesterPage(platform);
+	const keysLayer = platform.root.children[0];
+	const firstKey = keysLayer.children[0];
+	under = [platform.root, keysLayer, firstKey];
+	platform.pointer("move", { clientX: 15, clientY: 15, button: -1, buttons: 0, target: platform.root });
+	assert.deepEqual([page.picture.under?.layer, page.picture.under?.key, page.picture.under?.path], ["keys", "key Escape", [0]], "itemAt names the first item the scene holds under the point, looking through the root and the layer");
+	assert.match(platform.textOf("status-line"), /under the pointer: key Escape \(keys\)/);
+	under = [];
+	platform.pointer("move", { clientX: 900, clientY: 15, button: -1, buttons: 0, target: platform.root });
+	assert.equal(page.picture.under, null);
+	under = [firstKey];
+	for (const pointerType of ["touch", "pen"]) {
+		platform.pointer("move", { clientX: 15, clientY: 15, button: -1, buttons: 0, pointerType, pointerId: 7, target: platform.root });
+		assert.equal(page.picture.under, null, `a ${pointerType}'s fact changes nothing drawn`);
+		assert.equal(page.latestVerdict.fact.hit?.key, "key Escape", "though its fact holds what lies under it, as delivered");
+	}
+});
+
+test("every held key is shown: the first three a line each, the rest named on one line, and the latest key with no identity beside them", () => {
+	const { platform, page } = freshPage();
+	for (const code of ["KeyA", "KeyS", "KeyD", "KeyF", "KeyJ", "KeyK"]) platform.key("key-down", { key: code.slice(3).toLowerCase(), code });
+	platform.key("key-down", { key: "AudioVolumeUp", code: "" });
+	assert.equal(page.picture.heldKeys.length, 6);
+	const lines = platform.textOf("held-keys").split("\n");
+	assert.equal(lines.length, 5);
+	assert.match(lines[0], /^KeyA "a": 0 repeats observed/);
+	assert.equal(lines[3], "and 3 more held: KeyF KeyJ KeyK");
+	assert.match(lines[4], /^latest key with no identity: key-down key "AudioVolumeUp"/);
+	assert.match(platform.textOf("status-line"), /keys held: KeyA KeyS KeyD KeyF KeyJ KeyK \|/);
+});

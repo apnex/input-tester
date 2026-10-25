@@ -98,14 +98,20 @@ const TOP_LETTERS: readonly (readonly [string, string])[] = [["KeyQ", "Q"], ["Ke
 const HOME_LETTERS: readonly (readonly [string, string])[] = [["KeyA", "A"], ["KeyS", "S"], ["KeyD", "D"], ["KeyF", "F"], ["KeyG", "G"], ["KeyH", "H"], ["KeyJ", "J"], ["KeyK", "K"], ["KeyL", "L"], ["Semicolon", ";"], ["Quote", "'"]];
 const BOTTOM_LETTERS: readonly (readonly [string, string])[] = [["KeyZ", "Z"], ["KeyX", "X"], ["KeyC", "C"], ["KeyV", "V"], ["KeyB", "B"], ["KeyN", "N"], ["KeyM", "M"], ["Comma", ","], ["Period", "."], ["Slash", "/"]];
 
+/** The bit each mouse button holds in a pointer event's `buttons`, for buttons 0 to 4: 1, 4, 2, 8 and 16 (Pointer Events), the one definition every part reads. */
+export const BUTTON_BITS: readonly number[] = Object.freeze([1, 4, 2, 8, 16]);
+
+/** The mouse button whose bit `buttons` must hold for a button, or 0 for a button beyond the five. */
+export const bitOfButton = (button: number): number => BUTTON_BITS[button] ?? 0;
+
 /** The mouse, drawn right of every plan's keys: its body, its left, middle and right buttons on top, and its forward and back buttons on its side. */
 const MOUSE_BODY = Object.freeze({ col: 94, row: 0, width: 20, height: 26 });
 const MOUSE_BUTTONS: readonly PlanMouseButton[] = Object.freeze([
-	Object.freeze({ name: "left", button: 0, bit: 1, col: 94, row: 0, width: 8, height: 10 }),
-	Object.freeze({ name: "middle", button: 1, bit: 4, col: 102, row: 1, width: 4, height: 8 }),
-	Object.freeze({ name: "right", button: 2, bit: 2, col: 106, row: 0, width: 8, height: 10 }),
-	Object.freeze({ name: "back", button: 3, bit: 8, col: 91, row: 16, width: 3, height: 5 }),
-	Object.freeze({ name: "forward", button: 4, bit: 16, col: 91, row: 10, width: 3, height: 5 }),
+	Object.freeze({ name: "left", button: 0, bit: bitOfButton(0), col: 94, row: 0, width: 8, height: 10 }),
+	Object.freeze({ name: "middle", button: 1, bit: bitOfButton(1), col: 102, row: 1, width: 4, height: 8 }),
+	Object.freeze({ name: "right", button: 2, bit: bitOfButton(2), col: 106, row: 0, width: 8, height: 10 }),
+	Object.freeze({ name: "back", button: 3, bit: bitOfButton(3), col: 91, row: 16, width: 3, height: 5 }),
+	Object.freeze({ name: "forward", button: 4, bit: bitOfButton(4), col: 91, row: 10, width: 3, height: 5 }),
 ]);
 
 /** Full-size ANSI: 104 keys, the function row half a key above the rest, the control and arrow pads and the numeric keypad beside them. */

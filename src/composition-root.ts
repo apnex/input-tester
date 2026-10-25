@@ -111,7 +111,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	}
 	const table = openedTable.table;
 	const router = openInputRouter(table, openedSession.session);
-	let view: PaintView = { placed: placePlanOnGrid(openedGrid.grid as SquareGrid, plan), labels: labelsPrintedOnPlan(plan), rows: table.rows, notices };
+	let view: PaintView = { placed: placePlanOnGrid(openedGrid.grid as SquareGrid, plan), labels: labelsPrintedOnPlan(plan), rows: table.rows, threshold: openedSession.session.declaration.threshold, notices };
 	let picture: Picture = EMPTY_PICTURE;
 	let latestVerdict: Verdict | null = null;
 	paintWholePage(scene, view, picture);

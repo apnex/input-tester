@@ -10,6 +10,7 @@
 import type { BlurFact, ContextMenuFact, KeyFact, PointerFact, WheelFact } from "../vendor/input-capture/index.js";
 import type { BindingRow, BindingTableDeclaration, GestureSessionDeclaration, Trigger } from "../vendor/input-binding/index.js";
 import type { ShapeAtElement } from "../vendor/vector-scene/index.js";
+import { bitOfButton } from "./keyboard-plans.js";
 
 /** What lies under a pointer, as the tester's `hit` answers it: the scene's item and path, or nothing. */
 export type ItemUnderPointer = ShapeAtElement | null;
@@ -55,7 +56,9 @@ export const MODIFIER_CODES: readonly string[] = Object.freeze(["ShiftLeft", "Sh
 
 /**
  * One of the browser's own keys that reaches a page (section 6): a code, and each modifier as it must be held --
- * `true` held, `false` not held, `null` either -- with the platform whose browser keeps it and the source.
+ * `true` held, `false` not held, `null` either -- with the platform whose browser keeps it and what it does.
+ * A key whose code is a letter's, `KeyR`, is the browser's on any keyboard layout, since Chrome matches its
+ * shortcuts by the letter the layout prints (docs/DECISIONS.md 0002): Dvorak's Ctrl+R is `code` KeyO, `key` "r".
  */
 export interface BrowsersOwnKey {
 	readonly code: string;
@@ -68,8 +71,9 @@ export interface BrowsersOwnKey {
 }
 
 /**
- * The browser's own keys -- reload, fullscreen, developer tools -- on every platform at once, so no platform is
- * detected and a combination that is the browser's on one platform is left unclaimed on all (section 6).
+ * The browser's own keys -- reload, fullscreen, developer tools, view source among them -- on every platform at
+ * once, so no platform is detected and a combination that is the browser's on one platform is left unclaimed on
+ * all (section 6; view source by the recorder's ruling, docs/DECISIONS.md 0002).
  */
 export const BROWSERS_OWN_KEYS: readonly BrowsersOwnKey[] = Object.freeze(
 	[
@@ -80,6 +84,7 @@ export const BROWSERS_OWN_KEYS: readonly BrowsersOwnKey[] = Object.freeze(
 		{ code: "KeyI", shift: true, ctrl: true, alt: false, meta: false, platform: "Windows, Linux, ChromeOS", does: "developer tools" },
 		{ code: "KeyJ", shift: true, ctrl: true, alt: false, meta: false, platform: "Windows, Linux, ChromeOS", does: "developer tools" },
 		{ code: "KeyC", shift: true, ctrl: true, alt: false, meta: false, platform: "Windows, Linux, ChromeOS", does: "developer tools" },
+		{ code: "KeyU", shift: false, ctrl: true, alt: false, meta: false, platform: "Windows, Linux, ChromeOS", does: "view source" },
 		{ code: "BrowserRefresh", shift: null, ctrl: null, alt: null, meta: null, platform: "Linux, ChromeOS", does: "reload" },
 		{ code: "ZoomToggle", shift: null, ctrl: null, alt: null, meta: null, platform: "ChromeOS", does: "fullscreen" },
 		{ code: "KeyR", shift: null, ctrl: false, alt: false, meta: true, platform: "macOS", does: "reload" },
@@ -88,6 +93,7 @@ export const BROWSERS_OWN_KEYS: readonly BrowsersOwnKey[] = Object.freeze(
 		{ code: "KeyJ", shift: false, ctrl: false, alt: true, meta: true, platform: "macOS", does: "developer tools" },
 		{ code: "KeyC", shift: false, ctrl: false, alt: true, meta: true, platform: "macOS", does: "developer tools" },
 		{ code: "KeyC", shift: true, ctrl: false, alt: false, meta: true, platform: "macOS", does: "developer tools" },
+		{ code: "KeyU", shift: false, ctrl: false, alt: true, meta: true, platform: "macOS", does: "view source" },
 	].map((k) => Object.freeze(k)),
 );
 
@@ -99,10 +105,26 @@ export function isKeyFact(fact: TesterFact): fact is KeyFact<null> {
 	return fact.type === "key-down" || fact.type === "key-up";
 }
 
-/** Whether a fact is a key fact of one of the browser's own keys, on any platform. */
+/** The letter a letter key's code names, lower-cased -- "r" for `KeyR` -- or null for any other code. */
+export function letterOfCode(code: string): string | null {
+	return /^Key[A-Z]$/.test(code) ? code.slice(3).toLowerCase() : null;
+}
+
+/** Whether a key fact is an entry's key: its `code` is the entry's, or the entry is a letter's and the fact's `key`, case-folded, is that letter. */
+function isEntrysKey(entry: BrowsersOwnKey, fact: KeyFact<null>): boolean {
+	if (fact.code === entry.code) return true;
+	const letter = letterOfCode(entry.code);
+	return letter !== null && typeof fact.key === "string" && fact.key.toLowerCase() === letter;
+}
+
+/**
+ * Whether a fact is a key fact of one of the browser's own keys, on any platform and any layout: a key whose
+ * physical identity is reported -- a non-empty `code` -- matched by its code or its layout's letter, with each
+ * modifier held as the entry asks.
+ */
 export function isBrowsersOwnKey(fact: TesterFact): boolean {
-	if (!isKeyFact(fact)) return false;
-	return BROWSERS_OWN_KEYS.some((k) => k.code === fact.code && heldAsAsked(k.shift, fact.shiftKey) && heldAsAsked(k.ctrl, fact.ctrlKey) && heldAsAsked(k.alt, fact.altKey) && heldAsAsked(k.meta, fact.metaKey));
+	if (!isKeyFact(fact) || typeof fact.code !== "string" || fact.code === "") return false;
+	return BROWSERS_OWN_KEYS.some((k) => isEntrysKey(k, fact) && heldAsAsked(k.shift, fact.shiftKey) && heldAsAsked(k.ctrl, fact.ctrlKey) && heldAsAsked(k.alt, fact.altKey) && heldAsAsked(k.meta, fact.metaKey));
 }
 
 /** A keyed fact: a key fact whose `code` is a non-empty string that is not one of the browser's own keys. */
@@ -132,9 +154,6 @@ function isMouseFact(fact: TesterFact, ...types: string[]): fact is PointerFact<
 function isChordMove(fact: TesterFact): fact is PointerFact<ItemUnderPointer> {
 	return isMouseFact(fact, "move") && fact.button >= 0 && fact.button <= 4;
 }
-
-/** The bit a button holds in `buttons`: 1, 4, 2, 8 and 16 for buttons 0 to 4. */
-export const BUTTON_BITS: readonly number[] = Object.freeze([1, 4, 2, 8, 16]);
 
 /** A wheel fact, with Ctrl held or not. */
 function isWheel(fact: TesterFact, ctrl: boolean): fact is WheelFact<ItemUnderPointer> {
@@ -177,8 +196,8 @@ export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	releaseRow("button-2-release", 2),
 	releaseRow("button-3-release", 3),
 	releaseRow("button-4-release", 4),
-	{ id: "chorded-press", words: "a chorded press", on: (f) => isChordMove(f) && Number.isSafeInteger(f.buttons) && ((f.buttons as number) & (BUTTON_BITS[f.button] as number)) !== 0, claims: true, proof: ["trusted"] },
-	{ id: "chorded-release", words: "a chorded release", on: (f) => isChordMove(f) && Number.isSafeInteger(f.buttons) && ((f.buttons as number) & (BUTTON_BITS[f.button] as number)) === 0, claims: true, proof: ["trusted"] },
+	{ id: "chorded-press", words: "a chorded press", on: (f) => isChordMove(f) && Number.isSafeInteger(f.buttons) && ((f.buttons as number) & bitOfButton(f.button)) !== 0, claims: true, proof: ["trusted"] },
+	{ id: "chorded-release", words: "a chorded release", on: (f) => isChordMove(f) && Number.isSafeInteger(f.buttons) && ((f.buttons as number) & bitOfButton(f.button)) === 0, claims: true, proof: ["trusted"] },
 	{ id: "chorded-change-buttons-unreported", words: "a chorded change, buttons not reported", on: (f) => isChordMove(f) && f.buttons === null, claims: false, proof: ["fixture"] },
 	{ id: "button-beyond-five", words: "a button beyond the five", on: (f) => isMouseFact(f, "down", "up", "move") && f.button > 4, claims: false, proof: ["fixture"] },
 	{ id: "double-click", words: "a double click", on: (f) => f.type === "double", claims: true, proof: ["trusted"] },
@@ -251,9 +270,15 @@ function factOfCaptureForm(fields: Record<string, unknown>): DeliveredFact {
 }
 
 /**
- * The overlap proof's facts (IB8, GT5): every key fact's type, repeat flag and sixteen modifier states over the
- * codes given -- every drawn code, the browser's own keys' codes, `''` and `null` among them -- and every pointer,
- * wheel, context-menu, `blur` and derived commit fact, the browser's and the fixtures' alike.
+ * The keys the overlap proof gives each code: a letter no entry names; a letter of the browser's own letter keys
+ * in lower case and another in upper, so a key matched by its layout's letter on any code meets every row; and none.
+ */
+export const OVERLAP_PROOF_KEYS: readonly (string | null)[] = Object.freeze(["x", "r", "U", null]);
+
+/**
+ * The overlap proof's facts (IB8, GT5): every key fact's type, repeat flag, `key` and sixteen modifier states over
+ * the codes given -- every drawn code, the browser's own keys' codes, `''` and `null` among them -- and every
+ * pointer, wheel, context-menu, `blur` and derived commit fact, the browser's and the fixtures' alike.
  */
 export function overlapProofFacts(codes: readonly (string | null)[]): TesterFact[] {
 	const facts: TesterFact[] = [];
@@ -261,7 +286,8 @@ export function overlapProofFacts(codes: readonly (string | null)[]): TesterFact
 	for (const type of ["key-down", "key-up"])
 		for (const repeat of [false, true])
 			for (const code of codes)
-				for (let m = 0; m < 16; m++) facts.push(factOfCaptureForm({ type, key: "x", code, repeat, shiftKey: (m & 1) !== 0, ctrlKey: (m & 2) !== 0, altKey: (m & 4) !== 0, metaKey: (m & 8) !== 0 }));
+				for (const key of OVERLAP_PROOF_KEYS)
+					for (let m = 0; m < 16; m++) facts.push(factOfCaptureForm({ type, key, code, repeat, shiftKey: (m & 1) !== 0, ctrlKey: (m & 2) !== 0, altKey: (m & 4) !== 0, metaKey: (m & 8) !== 0 }));
 	for (const type of ["leave", "down", "move", "up", "cancel", "over", "out", "double", "context-menu"])
 		for (const pointerType of ["mouse", "pen", "touch", null])
 			for (const button of [-1, 0, 1, 2, 3, 4, 5, 6])

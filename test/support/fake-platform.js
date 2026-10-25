@@ -63,7 +63,7 @@ function identityMatrix() {
  * `browser`; and the means to dispatch events -- `pointer`, `key`, `wheel`, `menu`, `blur` -- each answering what the
  * delivery asked of the platform: whether the event was claimed and whether the pointer was taken.
  */
-export function fakePlatform({ address = "https://input.example/", brands = ["Chromium", "Google Chrome"], keyboardMap = null } = {}) {
+export function fakePlatform({ address = "https://input.example/", brands = ["Chromium", "Google Chrome"], keyboardMap = null, elementsAt = () => [] } = {}) {
 	const surfaceListeners = new Map();
 	const keyListeners = new Map();
 	const writes = [];
@@ -75,7 +75,7 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 	};
 	const document = {
 		createElementNS: (namespace, tag) => fakeElement(tag, platform),
-		elementsFromPoint: () => [],
+		elementsFromPoint: (x, y) => elementsAt(x, y),
 	};
 	const root = fakeElement("svg", platform);
 	const surface = Object.assign(root, {
@@ -128,6 +128,12 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 		menu: (fields = {}) => dispatch(surfaceListeners, "contextmenu", { clientX: 0, clientY: 0, button: 2, buttons: 2, pointerId: 1, pointerType: "mouse", ...fields }),
 		/** The key source's focus loss. */
 		blur: () => dispatch(keyListeners, "blur", {}),
+		/** The text an element of the given class shows: its own text, or its tspans' joined by newlines. */
+		textOf: (className) => {
+			const walk = (e) => [e, ...e.children.flatMap(walk)];
+			const found = walk(root).find((e) => (e.attributes.get("class") ?? "").split(" ").includes(className));
+			return found === undefined ? null : found.children.length > 0 ? found.children.map((c) => c.text).join("\n") : found.text;
+		},
 		/** Every element under the root, depth first, with its tag and attributes. */
 		elements: () => {
 			const out = [];

@@ -211,7 +211,8 @@ export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Pic
 	const isMouse = "pointerType" in fact && fact.pointerType === "mouse";
 	const buttons = ((isMouse && BUTTONS_REPORTED_BY.includes(fact.type)) || fact.type === "wheel") && fact.buttons !== null ? fact.buttons : picture.buttons;
 	const pointerAt = isMouse ? fact.at : picture.pointerAt;
-	const under = fact.at !== null && !sameItem(picture.under, fact.hit) ? fact.hit : picture.under;
+	const touchOrPen = "pointerType" in fact && (fact.pointerType === "touch" || fact.pointerType === "pen");
+	const under = fact.at !== null && !touchOrPen && !sameItem(picture.under, fact.hit) ? fact.hit : picture.under;
 	const unidentifiedKey = (fact.type === "key-down" || fact.type === "key-up") && (fact.code === "" || fact.code === null) ? fact : picture.unidentifiedKey;
 
 	let wheel = picture.wheel;
