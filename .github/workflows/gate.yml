@@ -1,0 +1,45 @@
+# The gate (docs/ARCHITECTURE-TARGET.md section 9, "The build and the gate"): `npm run gate` on every push and
+# pull request, on Node 22 and Node 24, as the four shared parts' gates run theirs.
+#
+# The workflow runs `npm run gate` rather than listing its steps, so it cannot drift from tools/run-gate.mjs. The
+# gate drives the runner's own google-chrome -- or $CHROME -- headless, with a profile and a debugging port of its
+# own, over the DevTools protocol through Node.js's global WebSocket, no dependency added. mission-kit's style
+# checks are fetched, never copied: mission-kit is checked out at HEAD and MISSION_KIT points at it. Actions are
+# named by their release tags, not their commits, since this public repository holds no hex identifier.
+name: gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    # a backstop: a hang fails the job rather than holding a runner for hours
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the public-text check reads every commit message reachable from HEAD
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: fetch the style rules (mission-kit at HEAD)
+        uses: actions/checkout@v4
+        with:
+          repository: apnex/mission-kit
+          path: .mission-kit
+      - run: npm run gate
+        env:
+          MISSION_KIT: ${{ github.workspace }}/.mission-kit

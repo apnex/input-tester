@@ -37,11 +37,12 @@ export function contentTypeOf(name) {
 }
 
 /**
- * Serves `root` on a port of its own. `metadata(relativePath)` may answer `{ cacheControl }` for an object, as
- * a bucket copy's sidecar does; otherwise `index.html` is the entry and every other file a folder's.
+ * Serves `root` on a port of its own, or on `port`. `metadata(relativePath)` may answer `{ cacheControl }` for an
+ * object, as a bucket copy's sidecar does; otherwise `index.html` is the entry and every other file a folder's.
+ * Unless `hold` is set the server never holds the process open.
  * Answers { origin, requests, close }.
  */
-export async function serveSite(root, { metadata = () => null, headers = readResponseHeaders() } = {}) {
+export async function serveSite(root, { metadata = () => null, headers = readResponseHeaders(), port = 0, hold = false } = {}) {
 	const requests = [];
 	const server = http.createServer((req, res) => {
 		const url = new URL(req.url, "http://localhost");
@@ -61,8 +62,8 @@ export async function serveSite(root, { metadata = () => null, headers = readRes
 		res.writeHead(200, { ...rule, "Content-Type": contentTypeOf(rel), "Cache-Control": cacheControl });
 		res.end(req.method === "HEAD" ? undefined : fs.readFileSync(file));
 	});
-	await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-	server.unref();
+	await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
+	if (!hold) server.unref();
 	const close = async () => {
 		try {
 			server.closeAllConnections?.();
