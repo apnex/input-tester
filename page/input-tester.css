@@ -1,0 +1,50 @@
+/* input-tester's looks, every one by class: the browser rule refuses a style attribute written by script
+   (docs/ARCHITECTURE-TARGET.md IT-D5), and this sheet holds no url( and no @import (GT8). */
+html, body { margin: 0; background: #f6f6f4; color: #222; font-family: system-ui, sans-serif; }
+header { padding: 8px 16px; }
+header h1 { display: inline; font-size: 18px; margin-right: 12px; }
+header p { display: inline; font-size: 13px; }
+header nav { font-size: 13px; margin-top: 4px; }
+header nav a { margin-right: 10px; }
+main { padding: 0 8px; }
+#input-surface { display: block; width: 100%; height: auto; max-height: calc(100vh - 70px); touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.key .key-cap { fill: #fff; stroke: #888; stroke-width: 1; }
+.key.lit .key-cap { fill: #f2b233; stroke: #8a5a00; stroke-width: 2; }
+.key-label { font-size: 11px; text-anchor: middle; fill: #222; }
+.label-assumed { font-style: italic; fill: #666; }
+.key-note { stroke: none; }
+.note-kept-by-system { fill: #c0392b; }
+.note-kept-by-browser { fill: #8e44ad; }
+.note-seldom-reported { fill: #7f8c8d; }
+.note-unmeasured { fill: #2471a3; }
+
+.mouse-body { fill: #ececec; stroke: #888; stroke-width: 1; }
+.mouse-button .button-cap { fill: #fff; stroke: #888; stroke-width: 1; }
+.mouse-button.lit .button-cap { fill: #f2b233; stroke: #8a5a00; stroke-width: 2; }
+.button-label { font-size: 11px; text-anchor: middle; fill: #444; }
+.wheel { fill: #bbb; }
+.wheel.lit { fill: #d35400; }
+.wheel-line { font-size: 11px; fill: #333; }
+
+.drag-line { stroke: #d35400; stroke-width: 2; stroke-dasharray: 6 4; fill: none; }
+
+.panel text { font-size: 11px; fill: #222; }
+.notice { fill: #333; }
+.plan-line { font-weight: 600; }
+.uncovered { fill: #b03a2e; font-weight: 600; }
+.status-line { font-family: ui-monospace, monospace; font-size: 11px; }
+.held-keys { font-family: ui-monospace, monospace; }
+.heading { font-weight: 700; font-size: 12px; }
+.log-line { font-family: ui-monospace, monospace; fill: #444; }
+.log-line.newest { fill: #000; font-weight: 600; }
+.not-reported { fill: #333; }
+.problems { fill: #b03a2e; font-weight: 700; }
+
+.legend-standing { font-family: ui-monospace, monospace; fill: #999; }
+.legend-words { fill: #666; font-size: 10px; }
+.legend-input .legend-standing, .legend-input .legend-words { fill: #000; font-weight: 700; }
+.legend-meaning .legend-standing, .legend-meaning .legend-words { fill: #1e6f3a; font-weight: 700; }
+.legend-hit .legend-words { fill: #000; }
+.legend-unmet .legend-standing { fill: #b9770e; }
+.legend-refused .legend-standing { fill: #b03a2e; }

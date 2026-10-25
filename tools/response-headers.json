@@ -1,0 +1,12 @@
+{
+  "about": "The browser rule and its two companions (docs/ARCHITECTURE-TARGET.md IT-D5, GT6): one text, in every response's header, the same for every release, with no report endpoint. Sent by both backends as their custom response headers and by the gate's own server (test/browser/site-server.js), and measured at each host by tools/deploy.",
+  "headers": {
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff"
+  },
+  "cacheControl": {
+    "entry": "no-store",
+    "folder": "public, max-age=31536000, immutable"
+  }
+}
