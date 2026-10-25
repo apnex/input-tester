@@ -1,0 +1,108 @@
+/**
+ * Argument checks shared by every function (CONTRACT.md, "Errors"): a malformed argument throws a
+ * TypeError whose message begins with the function's name.
+ *
+ * A point is a non-null value of type object, of any prototype, with number properties x and y, read
+ * once each through ordinary property access, because consumers pass what they hold; a function is not
+ * a point. Every other argument is a plain object holding exactly the properties its form names, read
+ * through their descriptors. An error a getter or a Proxy trap throws while an argument is read is
+ * rethrown as the function's own TypeError.
+ */
+import { exactRecord } from "./plain-data.js";
+/** A TypeError whose message begins with the function's name. */
+export function malformed(fn, what) {
+    return new TypeError(`${fn}: ${what}`);
+}
+const messageOf = (e) => {
+    try {
+        return e instanceof Error ? e.message : String(e);
+    }
+    catch {
+        return "an unreadable error";
+    }
+};
+/** The x and y of a point, read once each, or a TypeError. */
+export function readPoint(fn, point, label = "point") {
+    const form = `${label} must be a non-null object, not a function, with number properties x and y`;
+    if (typeof point !== "object" || point === null)
+        throw malformed(fn, form);
+    let x, y;
+    try {
+        ({ x, y } = point);
+    }
+    catch (e) {
+        throw malformed(fn, `${label} could not be read: ${messageOf(e)}`);
+    }
+    if (typeof x !== "number" || typeof y !== "number")
+        throw malformed(fn, form);
+    return { x, y };
+}
+/** The elements of an array, read once each, or a TypeError. */
+export function readArray(fn, value, label) {
+    let isArray = false;
+    const out = [];
+    try {
+        isArray = Array.isArray(value);
+        if (isArray) {
+            const list = value;
+            const length = list.length;
+            for (let i = 0; i < length; i++)
+                out.push(list[i]);
+        }
+    }
+    catch (e) {
+        throw malformed(fn, `${label} could not be read: ${messageOf(e)}`);
+    }
+    if (!isArray)
+        throw malformed(fn, `${label} must be an array`);
+    return out;
+}
+/** A rect: exactly kind 'rect', x, y, w and h, each a number, w and h each at least 0, so neither NaN; infinities are well formed. */
+export function readRect(fn, rect, label = "rect") {
+    const r = exactRecord(rect, ["kind", "x", "y", "w", "h"]);
+    const form = `${label} must be a plain object of exactly kind 'rect', x, y, w and h, each of x, y, w and h a number, w and h each at least 0`;
+    if (r === null || r.get("kind") !== "rect")
+        throw malformed(fn, form);
+    const x = r.get("x"), y = r.get("y"), w = r.get("w"), h = r.get("h");
+    if (typeof x !== "number" || typeof y !== "number" || typeof w !== "number" || typeof h !== "number" || !(w >= 0) || !(h >= 0))
+        throw malformed(fn, form);
+    return { x, y, w, h };
+}
+/** A view: exactly region and scale, the region a rect with finite x, y, w, h, x + w and y + h, the scale finite and above 0. */
+export function readView(fn, view) {
+    const v = exactRecord(view, ["region", "scale"]);
+    if (v === null)
+        throw malformed(fn, "view must be a plain object of exactly region and scale");
+    const region = readRect(fn, v.get("region"), "view.region");
+    const { x, y, w, h } = region;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h) || !Number.isFinite(x + w) || !Number.isFinite(y + h)) {
+        throw malformed(fn, "view.region must have finite x, y, w, h, x + w and y + h");
+    }
+    const scale = v.get("scale");
+    if (typeof scale !== "number" || !Number.isFinite(scale) || !(scale > 0))
+        throw malformed(fn, "view.scale must be a finite number above 0");
+    return { x, y, w, h, scale };
+}
+/** inView's options, with their defaults: minSpacing 0, max 10000. */
+export function readInViewOptions(fn, options) {
+    if (options === undefined)
+        return { minSpacing: 0, max: 10000 };
+    const o = exactRecord(options, [], ["minSpacing", "max"]);
+    if (o === null)
+        throw malformed(fn, "options must be a plain object of minSpacing, max, both or neither");
+    let minSpacing = 0, max = 10000;
+    if (o.has("minSpacing")) {
+        const v = o.get("minSpacing");
+        if (typeof v !== "number" || !Number.isFinite(v) || !(v >= 0))
+            throw malformed(fn, "options.minSpacing must be a finite number at least 0");
+        minSpacing = v;
+    }
+    if (o.has("max")) {
+        const v = o.get("max");
+        if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 2 ** 32 - 1)
+            throw malformed(fn, "options.max must be an integer from 1 to 2^32 - 1");
+        max = v;
+    }
+    return { minSpacing, max };
+}
+//# sourceMappingURL=argument-check.js.map

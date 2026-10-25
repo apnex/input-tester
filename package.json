@@ -1,0 +1,33 @@
+{
+  "name": "input-tester",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Show a person, live and exactly, what their keyboard, mouse and touchpad send and what each gesture is taken to mean, composed only from four published, reusable components.",
+  "license": "MIT",
+  "author": "apnex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apnex/input-tester.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "vendor": "node tools/vendor-parts.mjs",
+    "build": "node tools/build-site.mjs",
+    "test": "npm run build && node --test --test-concurrency=1 \"test/**/*.test.js\"",
+    "gate": "node tools/run-gate.mjs",
+    "architecture": "node tools/generate-architecture.mjs",
+    "serve": "node tools/serve-site.mjs"
+  },
+  "dependencies": {
+    "@apnex/input-binding": "https://github.com/apnex/input-binding/releases/download/v0.2.0/apnex-input-binding-0.2.0.tgz",
+    "@apnex/input-capture": "https://github.com/apnex/input-capture/releases/download/v0.2.0/apnex-input-capture-0.2.0.tgz",
+    "@apnex/snap-grid": "https://github.com/apnex/snap-grid/releases/download/v0.1.1/apnex-snap-grid-0.1.1.tgz",
+    "@apnex/vector-scene": "https://github.com/apnex/vector-scene/releases/download/v0.2.0/apnex-vector-scene-0.2.0.tgz"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
