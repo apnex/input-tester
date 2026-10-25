@@ -204,3 +204,8 @@ test("every held key is shown: the first three a line each, the rest named on on
 	assert.match(lines[4], /^latest key with no identity: key-down key "AudioVolumeUp"/);
 	assert.match(platform.textOf("status-line"), /keys held: KeyA KeyS KeyD KeyF KeyJ KeyK \|/);
 });
+
+test("the status line names section 6's threshold, 4 drawing units, a tenth of a key, as the session declares it", () => {
+	const { platform } = freshPage();
+	assert.match(platform.textOf("status-line"), /threshold: 4 drawing units, 0\.1 of a key's width/);
+});

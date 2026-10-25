@@ -12,27 +12,39 @@ import { after, before, test } from "node:test";
 
 import { importBuilt, siteRoot } from "../support/built-site.js";
 import { CLAIM_IN_ROUTER, plantedSite } from "../support/planted-site.js";
+import { SPEC_ROW_CLAIMS } from "../support/architecture-section-6.js";
 import { sleep } from "./chrome-driver.js";
 import { BUTTON_BITS, BUTTON_NAMES, MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
 
 const { TESTER_ROWS } = await importBuilt("input-bindings.js");
+const WORDS_OF = new Map(TESTER_ROWS.map((r) => [r.id, r.words]));
 const { NOT_REPORTED_LINES, CLAIMS_LINE } = await importBuilt("picture-painter.js");
 const TEST = { timeout: 60000 };
 const rowsHit = new Set();
+/** Every claim seen for each row's hit by trusted input, by the row's words. */
+const claimsSeen = new Map();
 let t;
 
-/** The latest verdict, its hits counted toward the rows the trusted input reached. */
+/** Counts a row hit by trusted input, with whether its fact was claimed. */
+function sawHit(id, claimed) {
+	rowsHit.add(id);
+	const words = WORDS_OF.get(id);
+	if (!claimsSeen.has(words)) claimsSeen.set(words, new Set());
+	claimsSeen.get(words).add(claimed);
+}
+
+/** The latest verdict, its hits and their claims counted toward the rows the trusted input reached. */
 async function verdict() {
 	const v = await t.verdict();
-	for (const id of v?.hits ?? []) rowsHit.add(id);
-	for (const s of v?.steps ?? []) for (const id of s.meaning ?? []) rowsHit.add(id);
+	for (const id of v?.hits ?? []) sawHit(id, v.claimed);
+	for (const s of v?.steps ?? []) for (const id of s.meaning ?? []) sawHit(id, false);
 	return v;
 }
 
-/** The rows the log's lines hit, counted toward the rows reached; answers the log's lines as [type, hits]. */
+/** The rows the log's lines hit, counted with their claims toward the rows reached; answers the log's lines as [type, hits, claimed, notes]. */
 async function logHits() {
 	const log = await t.page("inputTester.picture.log.map((l) => [l.fact.type, l.hits, l.claimed, l.notes])");
-	for (const [, hits] of log) for (const id of hits) rowsHit.add(id);
+	for (const [, hits, claimed] of log) for (const id of hits) sawHit(id, claimed);
 	return log;
 }
 
@@ -135,6 +147,21 @@ test("the browser's own keys reach the page and match the unclaimed row -- reloa
 	assert.deepEqual(await t.page("inputTester.picture.heldKeys"), []);
 });
 
+test("the recorder's ruling: the browser's own keys are matched by the layout's letter -- Dvorak's Ctrl+R, the key printing r being KeyO -- and view source, Ctrl+U and macOS's Meta+Alt+U, is among them; the letter on another key with no modifier is claimed", TEST, async () => {
+	const { ctrl, alt, meta } = MODIFIERS;
+	for (const [key, code, modifiers, vk] of [["r", "KeyO", ctrl, 82], ["u", "KeyU", ctrl, 85], ["u", "KeyU", meta | alt, 85]]) {
+		await t.key("rawKeyDown", key, code, { modifiers, windowsVirtualKeyCode: vk });
+		const v = await verdict();
+		assert.deepEqual([v.code, v.hits, v.claimed], [code, ["key-left-to-browser"], false], `${code} "${key}" with modifiers ${modifiers}`);
+		await t.key("keyUp", key, code, { modifiers, windowsVirtualKeyCode: vk });
+	}
+	await t.key("keyDown", "r", "KeyO", { text: "r", windowsVirtualKeyCode: 82 });
+	const v = await verdict();
+	assert.deepEqual([v.hits, v.claimed], [["key-first-press"], true]);
+	await t.key("keyUp", "r", "KeyO", { windowsVirtualKeyCode: 82 });
+	assert.equal(await t.chrome.evaluate("window.notReloaded === true"), true);
+});
+
 test("every button: a press starts its press gesture, lit while held, and its release commits it, a click -- claimed, so the back and forward buttons navigate nowhere", TEST, async () => {
 	const at = t.keyCentre("KeyG");
 	for (let b = 0; b <= 4; b++) {
@@ -152,7 +179,28 @@ test("every button: a press starts its press gesture, lit while held, and its re
 		assert.deepEqual([release, notes, meaning], [["up", [`button-${b}-release`], true], [`committed press-${b}, a click`], [`button-${b}-click`]], `button ${b}'s release`);
 		assert.equal(await t.litAt(t.buttonCentre(b)), false);
 	}
-	assert.equal(await t.chrome.evaluate("window.notReloaded === true && inputTester.plan === 'ansi'"), true, "the back and forward buttons' releases claimed: no history navigated");
+	assert.equal(await t.chrome.evaluate("window.notReloaded === true && inputTester.plan === 'ansi'"), true, "the back and forward buttons' releases claimed: the page not left");
+});
+
+test("the back and forward buttons navigate nowhere: with history behind and ahead of the page, each one's press and release, claimed, leaves the page where it was", TEST, async () => {
+	await t.load("?plan=ansi&history=first");
+	await t.load("?plan=ansi&history=second");
+	await t.chrome.evaluate("history.back()");
+	for (let i = 0; i < 100 && !/history=first/.test(await t.chrome.evaluate("location.href").catch(() => "")); i++) await sleep(25);
+	await t.ready();
+	assert.deepEqual(await t.page("[location.search, history.length >= 3]"), ["?plan=ansi&history=first", true], "history behind (the blank page and more) and ahead (the second load)");
+	await t.chrome.evaluate("window.stillHere = true");
+	const at = t.keyCentre("KeyG");
+	for (const [name, bit, b] of [["back", 8, 3], ["forward", 16, 4]]) {
+		await t.mouse("mouseMoved", at);
+		await t.mouse("mousePressed", at, { button: name, buttons: bit });
+		await t.mouse("mouseReleased", at, { button: name, buttons: 0 });
+		await sleep(500);
+		assert.deepEqual(await t.page("[location.search, window.stillHere === true]"), ["?plan=ansi&history=first", true], `the ${name} button navigated nowhere`);
+		const { release } = await releaseLines();
+		assert.deepEqual(release, ["up", [`button-${b}-release`], true]);
+	}
+	await t.chrome.evaluate("window.notReloaded = true");
 });
 
 test("every button's drag: a move of exactly the threshold is no crossing, a move just beyond it becomes the drag without a from, plain drag moves hit no row, and the release is a drop meaning a drag of that button", TEST, async () => {
@@ -183,6 +231,44 @@ test("every button's drag: a move of exactly the threshold is no crossing, a mov
 	await t.mouse("mouseReleased", { x: at.x + 4, y: at.y }, { button: "left", buttons: 0 });
 	await t.settle();
 	assert.deepEqual((await releaseLines()).meaning, ["button-0-click"], "a press travelling exactly the threshold is a click");
+});
+
+test("IT-D4: while the pointer is taken every fact targets the svg, and the item under the pointer is itemAt the fact's screen point -- the key it is over, then the next", TEST, async () => {
+	const from = t.keyCentre("KeyG");
+	const to = t.keyCentre("KeyH");
+	await t.mouse("mouseMoved", from);
+	await t.mouse("mousePressed", from, { button: "left", buttons: 1 });
+	assert.equal(await t.chrome.evaluate("document.getElementById('input-surface').hasPointerCapture(1)"), true, "the press took the pointer");
+	assert.equal(await t.page("inputTester.picture.under.key"), "key KeyG");
+	await t.mouse("mouseMoved", to, { buttons: 1 });
+	assert.deepEqual(await t.page("[inputTester.latestVerdict.fact.hit.key, inputTester.picture.under.key]"), ["key KeyH", "key KeyH"]);
+	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .status-line').textContent"), /under the pointer: key KeyH \(keys\)/);
+	await t.mouse("mouseReleased", to, { button: "left", buttons: 0 });
+	await t.settle();
+});
+
+test("section 7, resize: nothing is repainted when the page is resized, and the next press lands on the key under it, each conversion following the root's screen transform as it stands", TEST, async () => {
+	await t.mouse("mouseMoved", { x: 4, y: 4 });
+	await t.settle();
+	const facts = await t.facts();
+	await t.chrome.evaluate("window.mutations = 0; window.watcher = new MutationObserver((records) => (window.mutations += records.length)); window.watcher.observe(document.getElementById('input-surface'), { subtree: true, childList: true, attributes: true, characterData: true })");
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1200, height: 900, deviceScaleFactor: 1, mobile: false });
+	await sleep(300);
+	assert.equal(await t.facts(), facts, "with the pointer off the picture, the resize delivered no fact");
+	assert.equal(await t.chrome.evaluate("window.mutations"), 0, "a resize repaints nothing");
+	await t.ready();
+	assert.ok(t.matrix()[0] < 1, `the root is drawn smaller: ${t.matrix()}`);
+	const at = t.keyCentre("KeyT");
+	await t.mouse("mouseMoved", at);
+	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	assert.equal(await t.page("inputTester.picture.under.key"), "key KeyT");
+	await t.mouse("mouseReleased", at, { button: "left", buttons: 0 });
+	await t.settle();
+	await t.chrome.evaluate("window.watcher.disconnect()");
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1656, height: 1000, deviceScaleFactor: 1, mobile: false });
+	await sleep(200);
+	await t.ready();
+	assert.deepEqual(t.matrix().slice(0, 4), [1, 0, 0, 1]);
 });
 
 test("chords in both release orders: during a drag the right pressed, the left released, then the right, committing drag-0; and with no drag the right released first, the left last, committing press-0", TEST, async () => {
@@ -245,7 +331,7 @@ test("a double click: one double, matching its row, claimed", TEST, async () => 
 test("wheels: up, down, sideways and still, each claimed, in the unit the browser gave; Ctrl and the wheel its own row", TEST, async () => {
 	const at = t.keyCentre("KeyB");
 	await t.mouse("mouseMoved", at);
-	for (const [dx, dy, row] of [[0, -120, "wheel-up"], [0, 120, "wheel-down"], [60, 0, "wheel-sideways"], [0, 0, "wheel-still"]]) {
+	for (const [dx, dy, row] of [[0, -120, "wheel-up"], [0, 120, "wheel-down"], [60, 0, "wheel-sideways"], [-60, 0, "wheel-sideways"], [0, 0, "wheel-still"]]) {
 		await t.wheel(at, dx, dy);
 		await t.settle();
 		const v = await verdict();
@@ -347,6 +433,13 @@ test("every row marked trusted was hit by trusted input in this run", TEST, asyn
 	await logHits();
 	const trusted = TESTER_ROWS.filter((r) => r.proof.includes("trusted")).map((r) => r.id);
 	assert.deepEqual(trusted.filter((id) => !rowsHit.has(id)), []);
+});
+
+test("every row hit by trusted input in this run was claimed exactly as section 6's Claims column says, the context menu and the chord rows among them", TEST, async () => {
+	await logHits();
+	const spec = new Map(SPEC_ROW_CLAIMS);
+	for (const [words, seen] of claimsSeen) assert.deepEqual([...seen], [spec.get(words)], `${words}: claimed ${[...seen]}, section 6 says ${spec.get(words)}`);
+	for (const words of ["the context menu", "a chorded press", "a chorded release", "a double click", "focus lost", "left to the browser", "a touch or a pen pointer"]) assert.ok(claimsSeen.has(words), `${words} was hit`);
 });
 
 test("the Chromebook plan, chosen by the address's plan parameter: its action keys drawn, ZoomToggle left to the browser, and a code not drawn logged as not on the drawn keyboard", TEST, async () => {
