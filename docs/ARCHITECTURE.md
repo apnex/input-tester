@@ -154,7 +154,7 @@ What no page can know, shown always:
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
 | tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 62 of 62 passed |
-| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 64 of 64 passed |
+| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 65 of 65 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
 | backlog check | no workaround open while its retiring release is installed; every deferral with a revival trigger (GT4) | pass | -- |
@@ -185,6 +185,7 @@ Workarounds open: 0.
 | D2 | `input-capture`'s `README.md` says `takePointer` answers `false` for a synthetic event; in headless Chrome it answered `true` for a synthetic `pointerdown` naming pointer 1, the mouse's own, with no button down, and `false` for pointer 9 |
 | D3 | No part's documents say that a taken pointer's press and release are followed by boundary facts, `out`, `leave` and `over`, nor that Chrome sends them with `buttons` 1 while only button 1 is held; the tester met both at its gate, its picture and its tests each reading past them |
 | D4 | The vocabulary list the parts refuse on behalf of their first consumer, which GT7 runs here, is held only in each part's repository, `tools/consumer-vocabulary.json`, in no published document or release file; the tester copied it from there |
+| D6 | No part's `README.md` or `CONTRACT.md` says that a protocol move of trusted input must name its held button in `button`, not only in `buttons`, or Chrome drops the taken pointer; only `input-capture`'s own test code shows it, by example, and this build's driver, missing it, tested no taken pointer until a review's mutant exposed it |
 | D5 | `vector-scene`'s scene is generic in the root's kind of element, so a painter written for any scene types its target as `Scene["put"]` and `Scene["remove"]`, which hold for every kind; no document says those two do not depend on it, and it was found by compiling |
 | B1 | The Chromebook plan's action-key codes are Chromium's, and the Search key's `MetaLeft` is the architecture's; none is measured on a Chromebook, so each is marked unmeasured on the page |
 | B2 | Typing through a native input method is not covered: injected composition reached no listener, which says nothing of a native one's key events (IT-D12) |
@@ -198,7 +199,7 @@ Workarounds open: 0.
 | B10 | Browsers that are not Chromium-based are not covered; the page says so (IT-D12) |
 | B11 | The Keyboard Map is asked once, at load: a keyboard's language switched while the page is open leaves the labels the page loaded with |
 | B12 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured; the browser rule refuses an image either way |
-| B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
+| B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is, measured again with the held button named on every move; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
 | B14 | `tools/deploy` has never run against the buckets: it is the operator's, run with their own credentials, and the lab's measurement of the backends' headers (IT-D5), a missing object's 404 among them, is owed with it; the recorder reports, 2026-10-26, both buckets made -- `gs://input-lab-apnex-io` and `gs://input-apnex-io`, public read, main page `index.html` -- served at `input-lab.apnex.io` and `input.apnex.io` through backend buckets with their edge cache off, and both hosts answering with the rule, `Referrer-Policy` and `X-Content-Type-Options`, a 404 among them, which this build has not measured, having touched no cloud resource; its `gcloud` forms -- `storage objects describe --format=value(generation)`, `storage cp --if-generation-match`, 0 meaning no object, and the missing object's `not found: 404.` -- are taken from the Cloud SDK's documentation and messages and proved only against a stand-in |
 
 ---
