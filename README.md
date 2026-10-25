@@ -78,7 +78,7 @@ Prerequisites:
 - `gcloud`, authenticated with the right to write both buckets and read both backend buckets, and `gh`, authenticated;
 - Node.js and `google-chrome` as for the gate;
 - this repository checked out at the tag of the release being deployed -- a rollback's too, so the deploy run is that release's own -- and its packages installed with `npm ci`;
-- each bucket's main page set to `index.html`, which the recorder sets on the buckets, so its host answers `/` with the entry;
+- each bucket's main page set to `index.html`, as the recorder has set it on both, so its host answers `/` with the entry;
 - both backends serving their buckets with their edge cache off and these custom response headers, exactly as `tools/response-headers.json` holds them, on every response, a missing object's 404 among them:
 ```text
 Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'
