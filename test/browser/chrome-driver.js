@@ -159,7 +159,7 @@ async function connect(url) {
 	socket.addEventListener("message", (message) => {
 		const data = JSON.parse(String(message.data));
 		if (data.id === undefined) {
-			for (const listener of listeners.get(data.method) ?? []) listener(data.params);
+			for (const listener of listeners.get(data.method) ?? []) listener(data.params, data.sessionId);
 			return;
 		}
 		const waiting = pending.get(data.id);
@@ -168,7 +168,8 @@ async function connect(url) {
 		if (data.error) waiting.reject(new Error(`${waiting.method}: ${data.error.message}`));
 		else waiting.resolve(data.result);
 	});
-	const send = (method, params = {}) =>
+	/** Sends one command, to the page, or to the target a flattened `Target.attachToTarget` named by `sessionId`. */
+	const send = (method, params = {}, sessionId = undefined) =>
 		new Promise((resolve, reject) => {
 			const id = ++next;
 			const timer = setTimeout(() => {
@@ -176,7 +177,7 @@ async function connect(url) {
 				reject(new Error(`${method}: no answer in 15 seconds`));
 			}, 15000);
 			pending.set(id, { method, resolve: (v) => (clearTimeout(timer), resolve(v)), reject: (e) => (clearTimeout(timer), reject(e)) });
-			socket.send(JSON.stringify({ id, method, params }));
+			socket.send(JSON.stringify(sessionId === undefined ? { id, method, params } : { id, method, params, sessionId }));
 		});
 	/** Hands every protocol event named `method` to `listener`; answers a function that stops it. */
 	const on = (method, listener) => {

@@ -1,0 +1,152 @@
+// tester-in-chrome - the tester's built site opened in headless Chrome for the gate's browser tests
+// (docs/ARCHITECTURE-TARGET.md section 8): served by the gate's own server, which sends the browser rule; every
+// request the browser makes watched from before navigation through teardown; trusted input dispatched over the
+// DevTools protocol's Input domain, the held buttons named on every move; and the page's record read whole from
+// `globalThis.inputTester`, where the page leaves it for the proof.
+//
+// The page is laid out so a screen pixel is one drawing unit: the viewport is 1656 CSS pixels wide, so the
+// `<svg>`, between the page's 8-pixel margins, is 1640 pixels wide, its viewBox's width -- and a press
+// travelling 4 pixels travels exactly the session's threshold of 4 drawing units.
+import { importBuilt, importVendored } from "../support/built-site.js";
+import { launchChrome, sleep } from "./chrome-driver.js";
+import { serveSite } from "./site-server.js";
+
+const { QUARTER_KEY_GRID, KEYBOARD_PLANS, placePlanOnGrid } = await importBuilt("keyboard-plans.js");
+const { openGrid } = await importVendored("snap-grid");
+
+export const VIEWPORT = Object.freeze({ width: 1656, height: 1000 });
+const grid = openGrid(QUARTER_KEY_GRID).grid;
+
+/** The protocol's modifiers bitmask: Alt 1, Ctrl 2, Meta 4, Shift 8. */
+export const MODIFIERS = Object.freeze({ alt: 1, ctrl: 2, meta: 4, shift: 8 });
+
+/** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`. */
+export const BUTTON_NAMES = Object.freeze(["left", "middle", "right", "back", "forward"]);
+export const BUTTON_BITS = Object.freeze([1, 4, 2, 8, 16]);
+
+/**
+ * Watches every request a Chrome session makes, from the moment it is called: each `Network.requestWillBeSent`,
+ * a request the browser rule refused among them, with `loadingFailed`'s reason beside it.
+ */
+export function watchRequests(chrome) {
+	const requests = [];
+	const byId = new Map();
+	chrome.on("Network.requestWillBeSent", (p) => {
+		const record = { url: p.request.url, type: p.type, blocked: null };
+		byId.set(p.requestId, record);
+		requests.push(record);
+	});
+	chrome.on("Network.loadingFailed", (p) => {
+		const record = byId.get(p.requestId);
+		if (record) record.blocked = p.blockedReason ?? p.errorText ?? "failed";
+	});
+	return requests;
+}
+
+/**
+ * Opens the tester: a server for `siteDir`, Chrome, the request monitor, scripts evaluated before the page's
+ * own, and the page loaded at `query`. Answers the session and helpers; `close()` tears every part down.
+ */
+export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [], metadata, waitForPage = true } = {}) {
+	const server = await serveSite(siteDir, metadata ? { metadata } : {});
+	let chrome;
+	try {
+		chrome = await launchChrome({ width: VIEWPORT.width, height: VIEWPORT.height });
+		const requests = watchRequests(chrome);
+		await chrome.send("Network.enable");
+		await chrome.send("Page.enable");
+		await chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+		for (const source of beforeLoad) await chrome.send("Page.addScriptToEvaluateOnNewDocument", { source });
+		const tester = makeHelpers(chrome, server, requests);
+		await tester.load(query, { waitForPage });
+		return tester;
+	} catch (error) {
+		await chrome?.close();
+		await server.close();
+		throw error;
+	}
+}
+
+function makeHelpers(chrome, server, requests) {
+	let screenMatrix = null;
+	let plan = null;
+	const page = async (expression) => JSON.parse(await chrome.evaluate(`JSON.stringify(${expression})`));
+	const tester = {
+		chrome,
+		server,
+		requests,
+		page,
+		/** Loads the entry at `query` and waits for the tester to compose; reads the root's screen transform. */
+		async load(query = "", { waitForPage = true } = {}) {
+			await chrome.send("Page.navigate", { url: `${server.origin}/${query}` });
+			if (!waitForPage) return;
+			for (let i = 0; i < 200 && !(await chrome.evaluate("globalThis.inputTester !== undefined")); i++) await sleep(25);
+			if (!(await chrome.evaluate("globalThis.inputTester !== undefined"))) throw new Error("the tester did not compose");
+			await chrome.evaluate("new Promise((resolve) => requestAnimationFrame(() => resolve(true)))");
+			screenMatrix = await page("(() => { const m = document.getElementById('input-surface').getScreenCTM(); return [m.a, m.b, m.c, m.d, m.e, m.f]; })()");
+			plan = placePlanOnGrid(grid, KEYBOARD_PLANS[await page("inputTester.plan")]);
+		},
+		/** The root's screen transform, as read at the last load: [a, b, c, d, e, f]. */
+		matrix: () => screenMatrix,
+		/** Where a point in drawing units lies on the screen. */
+		screenOf: ({ x, y }) => {
+			const [a, b, c, d, e, f] = screenMatrix;
+			return { x: a * x + c * y + e, y: b * x + d * y + f };
+		},
+		/** The screen point at a drawn key's centre, rounded to a pixel. */
+		keyCentre(code) {
+			const k = plan.keys.get(code);
+			const s = tester.screenOf({ x: k.rect.x + k.rect.w / 2, y: k.rect.y + k.rect.h / 2 });
+			return { x: Math.round(s.x), y: Math.round(s.y) };
+		},
+		/** The screen point at a mouse button's centre, rounded to a pixel. */
+		buttonCentre(button) {
+			const b = plan.mouseButtons.find((m) => m.button === button);
+			const s = tester.screenOf({ x: b.rect.x + b.rect.w / 2, y: b.rect.y + b.rect.h / 2 });
+			return { x: Math.round(s.x), y: Math.round(s.y) };
+		},
+		/** A trusted mouse event; `buttons` names every button held after it, as Chrome needs on every move to keep a drag. */
+		mouse: (type, { x, y }, { button = "none", buttons = 0, clickCount, modifiers = 0, pointerType = "mouse" } = {}) => chrome.send("Input.dispatchMouseEvent", { type, x, y, button, buttons, clickCount: clickCount ?? (type === "mouseMoved" ? 0 : 1), modifiers, pointerType }),
+		/** A trusted key event. */
+		key: (type, key, code, { modifiers = 0, autoRepeat = false, text, windowsVirtualKeyCode } = {}) => chrome.send("Input.dispatchKeyEvent", { type, key, code, modifiers, autoRepeat, ...(text === undefined ? {} : { text }), ...(windowsVirtualKeyCode === undefined ? {} : { windowsVirtualKeyCode }) }),
+		/** A trusted wheel turn at a screen point. */
+		wheel: ({ x, y }, deltaX, deltaY, modifiers = 0) => chrome.send("Input.dispatchMouseEvent", { type: "mouseWheel", x, y, deltaX, deltaY, modifiers }),
+		/** How many facts the page has been delivered. */
+		facts: () => chrome.evaluate("inputTester.picture.facts"),
+		/** Waits until the page's count of facts holds still for 100 milliseconds, or 3 seconds pass; answers the count. */
+		async settle() {
+			let count = -1;
+			for (let waited = 0; waited < 3000; waited += 50) {
+				await sleep(50);
+				const now = await tester.facts();
+				if (now === count && waited >= 100) return now;
+				count = now;
+			}
+			return count;
+		},
+		/** The latest verdict, summarised: the rows the delivered fact hit, its claim, and each session step, as the worked verdicts name them. */
+		verdict: () =>
+			page(`(() => {
+				const v = inputTester.latestVerdict;
+				if (v === null) return null;
+				const hits = (trace) => trace.filter((r) => r.hit).map((r) => r.id);
+				return {
+					type: v.fact.type, button: v.fact.button, buttons: v.fact.buttons, code: v.fact.code, pointerType: v.fact.pointerType, claimed: v.claimed, hits: hits(v.trace),
+					steps: v.steps.map((s) => ({ operation: s.operation, phase: s.outcome.phase ?? null, gesture: s.outcome.gesture ? s.outcome.gesture.name : null, crossed: s.outcome.crossed, taken: s.outcome.taken, trigger: s.outcome.trigger, cancelled: s.outcome.cancelled ? s.outcome.cancelled.gesture.name : undefined, tracked: s.outcome.tracked, held: s.outcome.held, meaning: s.derived ? hits(s.derived.trace) : undefined })),
+				};
+			})()`),
+		/** The page's newest log line, as drawn. */
+		newestLogLine: () => chrome.evaluate("document.querySelector('#input-surface .log-line.newest')?.textContent ?? null"),
+		/** Whether the key drawn at a screen point is lit. */
+		litAt: ({ x, y }) => chrome.evaluate(`(() => { const g = document.elementFromPoint(${x}, ${y})?.closest('g.key, g.mouse-button'); return g ? g.classList.contains('lit') : null; })()`),
+		/** Tears down Chrome and the server; never throws. */
+		async close() {
+			try {
+				await chrome.close();
+			} finally {
+				await server.close();
+			}
+		},
+	};
+	return tester;
+}

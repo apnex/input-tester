@@ -88,7 +88,7 @@ test("wheel facts in a row with the same modifiers, unit and sign of each delta 
 	assert.equal(page.picture.log[0].fact.deltaMode, 1, "unconverted: in the unit the browser gave");
 });
 
-test("the buttons drawn follow buttons, when not null, of a mouse fact -- a mouse's context menu among them -- and of a wheel; a double click, a touch or pen fact and a key never change them", () => {
+test("the buttons drawn follow buttons, when not null, of a mouse's press, move, release, cancel and context menu, and of a wheel; a boundary fact, a double click, a touch or pen fact and a key never change them", () => {
 	const { platform, page } = freshPage();
 	platform.pointer("move", { buttons: 4, button: -1 });
 	assert.equal(page.picture.buttons, 4);
@@ -103,6 +103,8 @@ test("the buttons drawn follow buttons, when not null, of a mouse fact -- a mous
 	assert.equal(page.picture.buttons, 2, "a context menu from the keyboard, its pointer type not mouse");
 	platform.wheel({ buttons: 8 });
 	assert.equal(page.picture.buttons, 8);
+	for (const type of ["over", "out", "leave"]) platform.pointer(type, { buttons: 1, button: -1 });
+	assert.equal(page.picture.buttons, 8, "boundary facts, which the browser derives from a crossing or a capture, change no button drawn");
 	platform.pointer("move", { buttons: undefined, button: -1 });
 	assert.equal(page.picture.buttons, 8, "buttons not reported change nothing drawn");
 });

@@ -78,6 +78,14 @@ export interface Picture {
 /** The names of the record's entries, which the painter puts again when they change. */
 export type PictureEntry = keyof Picture;
 
+/**
+ * The mouse facts whose `buttons` the buttons drawn follow, with every wheel fact's: not `over`, `out` and
+ * `leave`, which the browser derives from a pointer crossing an element's edge or from a capture changing --
+ * events section 2 does not draw again -- and which Chrome was measured to send with `buttons` 1 while only
+ * button 1 was held (docs/DECISIONS.md, 0002).
+ */
+export const BUTTONS_REPORTED_BY: readonly string[] = Object.freeze(["down", "move", "up", "cancel", "context-menu"]);
+
 /** The record before any fact. */
 export const EMPTY_PICTURE: Picture = Object.freeze({ heldKeys: Object.freeze([]), unidentifiedKey: null, buttons: null, wheel: null, gesture: null, press: null, pointerAt: null, log: Object.freeze([]), legend: null, under: null, latestFact: null, facts: 0 });
 
@@ -201,7 +209,7 @@ export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Pic
 	if (state !== null && gesture !== null) gesture = sameOrNew(picture.gesture, Object.freeze({ ...gesture, live: state.gesture !== null && state.gesture.name === gesture.name }));
 
 	const isMouse = "pointerType" in fact && fact.pointerType === "mouse";
-	const buttons = (isMouse || fact.type === "wheel") && fact.buttons !== null ? fact.buttons : picture.buttons;
+	const buttons = ((isMouse && BUTTONS_REPORTED_BY.includes(fact.type)) || fact.type === "wheel") && fact.buttons !== null ? fact.buttons : picture.buttons;
 	const pointerAt = isMouse ? fact.at : picture.pointerAt;
 	const under = fact.at !== null && !sameItem(picture.under, fact.hit) ? fact.hit : picture.under;
 	const unidentifiedKey = (fact.type === "key-down" || fact.type === "key-up") && (fact.code === "" || fact.code === null) ? fact : picture.unidentifiedKey;
