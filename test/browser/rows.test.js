@@ -16,6 +16,7 @@ import { sleep } from "./chrome-driver.js";
 import { BUTTON_BITS, BUTTON_NAMES, MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
 
 const { TESTER_ROWS } = await importBuilt("input-bindings.js");
+const { NOT_REPORTED_LINES, CLAIMS_LINE } = await importBuilt("picture-painter.js");
 const TEST = { timeout: 60000 };
 const rowsHit = new Set();
 let t;
@@ -53,12 +54,15 @@ after(async () => {
 	await t?.close();
 }, { timeout: 30000 });
 
-test("the page composes: no problem, the full-size ANSI plan, a Chromium browser with no uncovered line, and a screen pixel one drawing unit", TEST, async () => {
+test("the page composes: no problem, the full-size ANSI plan, a Chromium browser with no uncovered line, a screen pixel one drawing unit, and what no page can know and what is claimed shown (IT-D8, IT-D9)", TEST, async () => {
 	assert.deepEqual(await t.page("inputTester.problems"), []);
 	assert.equal(await t.page("inputTester.plan"), "ansi");
 	const [a, b, c, d] = t.matrix();
 	assert.deepEqual([a, b, c, d], [1, 0, 0, 1], "the svg is drawn at one pixel to a drawing unit");
 	assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .uncovered') === null"), true);
+	const shown = await t.chrome.evaluate("document.getElementById('input-surface').textContent");
+	for (const line of [...NOT_REPORTED_LINES, CLAIMS_LINE]) assert.ok(shown.includes(line), `the page shows: ${line}`);
+	assert.ok(shown.includes("Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart"), "the Ctrl row's sentence beside it in the legend (IT-D8)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
