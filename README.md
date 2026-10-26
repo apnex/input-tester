@@ -77,7 +77,7 @@ It is run by an operator with their own credentials, never by CI.
 Prerequisites:
 - `gcloud`, authenticated with the right to write both buckets and read both backend buckets, and `gh`, authenticated;
 - Node.js and `google-chrome` as for the gate;
-- this repository checked out at the tag of the release being deployed -- a rollback's too, so the deploy run is that release's own -- and its packages installed with `npm ci`;
+- this repository checked out at the tag of the release being deployed -- a rollback's too, so the deploy run is that release's own -- its packages installed with `npm ci` and built with `npm run build`, as the gate builds it; the deploy itself reads nothing built, so it runs from a checkout never built too;
 - each bucket's main page set to `index.html`, as the recorder has set it on both, so its host answers `/` with the entry;
 - both backends serving their buckets with their edge cache off and these custom response headers, exactly as `tools/response-headers.json` holds them, on every response, a missing object's 404 among them:
 ```text
@@ -86,13 +86,14 @@ Referrer-Policy: no-referrer
 X-Content-Type-Options: nosniff
 ```
 
-Check out the release's tag and install, writing the release's tag for `<tag>`:
+Check out the release's tag, install and build, writing the release's tag for `<tag>`:
 ```bash
 git checkout <tag>
 npm ci
+npm run build
 ```
 
-Download the release, check its archive and every file in it, and extract it:
+Download the release into `release-<tag>/`, which git ignores, check its archive and every file in it, and extract it:
 ```bash
 gh release download <tag> --repo apnex/input-tester --dir release-<tag>
 cd release-<tag>
