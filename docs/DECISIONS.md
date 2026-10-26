@@ -33,15 +33,16 @@ The director's acceptance runs on a Chromebook -- what its top-row keys send, a 
 **Affects:** `docs/ARCHITECTURE-TARGET.md` sections 6 to 9, where the errata below would be absorbed; `src/`, `page/`, `tools/`, `test/`, `docs/GUIDE.md`, `docs/BACKLOG.md`.
 
 **Ruling proposed.**\
-The first build stands as the nearest faithful reading of revision 4, with the choices and the five errata below; each erratum's evidence is cited, and each is to be absorbed into the target, or overruled, by the director.
+The first build stands as the nearest faithful reading of revision 4, with the choices and the seven errata below -- five found at build, and two the recorder ruled after the reviews --; each erratum's evidence is cited, and each is to be absorbed into the target, or overruled, by the director.
 
 **Errata against the architecture.**
 1. The buttons drawn do not follow boundary facts. [MEASURED]
    Section 6 has the buttons drawn follow the `buttons` of every fact whose `pointerType` is `mouse`.
    In headless Chrome, under trusted input over the DevTools protocol, a middle press delivered `pointerdown` with `button` 1 and `buttons` 4, and once its pointer was taken the boundary events that followed, `pointerout`, `pointerleave` and `pointerover`, each carried `buttons` 1 -- the left button's bit, while only the middle was held; a pen's press made the mouse's boundary events carry `buttons` 1 likewise; and a review measured the right button the same way, its press's `pointerdown` carrying `buttons` 2 and the boundary events after the capture `buttons` 0, while the right was held.
+   Review A measured the cause: the wrong `buttons` appear when the page's content changes under a pressed button, Chromium then synthesizing a hover move that sets only the left button's flag.
    Section 2 puts "events the browser derives from inputs already shown -- pointer capture changes -- drawn again" out of scope, so the nearest faithful reading is that the buttons drawn follow a mouse's `down`, `move`, `up`, `cancel` and `context-menu`, and every `wheel`, never `over`, `out` or `leave` (`BUTTONS_REPORTED_BY`, `src/picture-state.ts`; `test/picture-state.test.js`; `docs/BACKLOG.md` B13).
 2. The overlap proof's count. [MEASURED]
-   Section 6 reports 46,661 facts; the text does not state how they were counted, so the space was built from its description -- every key fact's type, repeat flag and sixteen modifier states over 119 codes, both plans' and the browser's own keys' among them, `''` and `null` too, and every pointer, wheel, context-menu, `blur` and derived commit fact -- and was 17,291 facts with the four contexts, 69,164 combinations; with each key fact given four `key` values once the browser's own keys were matched by the letter a key prints (erratum 6), it is 40,139 facts, 160,556 combinations (`overlapProofFacts`, `src/input-bindings.ts`; `test/table-overlaps.test.js`).
+   Section 6 reports 46,661 facts; the text does not state how they were counted, so the space was built from its description -- every key fact's type, repeat flag and sixteen modifier states over 119 codes, both plans' and the browser's own keys' among them, `''` and `null` too, and every pointer, wheel, context-menu, `blur` and derived commit fact -- and was 17,291 facts with the four contexts, 69,164 combinations; with each key fact given four `key` values once the browser's own keys were matched by the letter a key prints (erratum 6), it was 40,139 facts; and with eight -- a letter no entry names, each of the six letters the browser's own letter keys name, in lower or upper case by turns, and none -- after review A's confirming pass, it is 70,603 facts, 282,412 combinations (`overlapProofFacts`, `src/input-bindings.ts`; `test/table-overlaps.test.js`).
    What the count stood for holds over it: no two of the 42 rows hit together, no fact of a browser's own key is claimed, and every row is hit by some fact.
 3. "Each of the release's files once." [ARGUED]
    Section 8 has the monitor find the entry, then each of the release's files once; but a release also holds files no page requests -- the parts' declarations and maps, its manifest -- so the monitor holds the requests to the files the page loads: its stylesheet and every module its one module script reaches by static import, each once, and nothing else (`test/support/containment.js`).
@@ -74,7 +75,8 @@ The first build stands as the nearest faithful reading of revision 4, with the c
 Every check is able to fail.\
 Planted builds are part of the gate itself, each run by every gate: seven leaks, each carrying a key in its address -- a same-origin script element, a dynamic import, a stylesheet, a prefetch, an image, a shape's href and a navigation to the page's own origin -- each failing the containment monitor; deliveries waiting 50 ms and 12 ms, each failing the immediacy bound; the router's claim taken away, the pinch's positive control, zooming the page to 2; and an inline script in the entry, refused by the rule.\
 Beside them, the mutants of `tools/run-mutants.mjs`, each edit applied in place, the site rebuilt, the named tests run and the edit taken back: the first build's 40; review A's 15, `MU1` to `MU15`, which its gate let survive, two of them run again against trusted input; review B's deploy mutants; and one for each other finding folded.\
-In the run after the reviews, 76 of the 77 were killed at once, and the one that survived, `B-N`, was killed once its test was made to refuse the object's reading alone; in the final run before the driver's correction below, `MU15c` survived, and in the final run after it all 77 were killed, as the table gives.
+In the run after the reviews, 76 of the 77 were killed at once, and the one that survived, `B-N`, was killed once its test was made to refuse the object's reading alone; in the final run before the driver's correction below, `MU15c` survived, and in the final run after it all 77 were killed, as the table gives.\
+After review A's confirming pass, three more, `N2` to `N4`, were planted and each killed, run alone by the director's ruling `H26-15` that a test-strength finding is fixed with one targeted check; they close the table.
 
 | Mutant | What it breaks | Failed by |
 |---|---|---|
@@ -154,16 +156,20 @@ In the run after the reviews, 76 of the 77 were killed at once, and the one that
 | `B-6` | a missing object's 404 not checked for the rule | `test/browser/deploy-sequence.test.js`, 1 failing |
 | `B-M` | the archive's file modes left to the umask | `test/tools/pack-release.test.js`, 1 failing |
 | `B-P` | the public-text check lets a hex identifier stand anywhere in a workflow | `test/tools/gate-checks.test.js`, 1 failing |
+| `N2` | the overlap space without the letters r and U | `test/table-overlaps.test.js`, 1 failing |
+| `N3` | a touch's or a pen's fact moves the drag line's end | `test/picture-state.test.js`, 1 failing |
+| `N4` | the driver names a move's held button only when it is the left, so Chrome drops the other buttons' drags | `test/browser/rows.test.js`, 5 failing |
 | `M40` | the overlap space without the fixtures' facts | `test/table-overlaps.test.js`, 1 failing |
 
 **Amended, 2026-10-25, after two reviews of the first release, each of which failed it.**\
 The amendment folds every finding; what each changed is in the commits that follow `73f83ae`.\
-The recorder ruled two errata, within the ratified intent of IT-D9 and of section 8.
-6. The browser's own keys are matched by the letter a key prints, and view source joins them. [DIRECTOR]
+The recorder ruled two errata, within the ratified intent of IT-D9 and of section 8.\
+`[RECORDER]` marks a ruling the programme's recorder made within a ratified decision's intent, which is no ruling of the director's; it is a fifth tag beside mission-kit `AR4`'s four.
+6. The browser's own keys are matched by the letter a key prints, and view source joins them. [RECORDER]
    IT-D9 leaves reload, full screen and the developer tools to the browser on any keyboard, and Chrome matches its shortcuts by the letter the keyboard prints, so Dvorak's Ctrl+R arrives as `code` `KeyO` and `key` "r"; a key fact whose `code` is a non-empty string is left unclaimed when its `code`, or its `key` case-folded to the letter an entry's letter key names, matches an entry, with each modifier as the entry asks.
    Ctrl+U, view source, in Chromium's developer-tools group, joins the list on Windows, Linux and ChromeOS, and Command+Option+U, Meta and Alt with `KeyU`, on macOS (`BROWSERS_OWN_KEYS`, `src/input-bindings.ts`; held both ways by `test/table-overlaps.test.js` against the specification's literal list and by trusted input in `test/browser/rows.test.js`).
    A key with no reported identity stays one whatever letter it prints, so the rows stay exclusive.
-7. GT9 is judged at the 95th percentile of deliveries. [DIRECTOR]
+7. GT9 is judged at the 95th percentile of deliveries. [RECORDER]
    The bound of 10 ms failed under load from other processes in 9 of about 30 gate runs across the two reviewers, while the median stayed near 1.7 ms; section 8 asks for a generous bound and a slow build that fails it.
    The gate judges the deliveries' 95th percentile by nearest rank against 10 ms and reports the maximum and the median beside it; planted builds that wait 50 ms and 12 ms in every delivery each still fail it (`test/browser/immediacy.test.js`).
 
@@ -172,6 +178,13 @@ The gate's driver, `test/browser/tester-in-chrome.js`, sent each move during a d
 Section 3 states its measurements were made "under a trusted-input driver that names the held button on every move"; this build's driver did not, so until this correction no browser test of a taken pointer tested one, and `MU15c` -- `hit` without IT-D4's `itemAt` fallback -- lived or died by timing, surviving the final mutant run before the correction.\
 The driver now names the lowest-numbered held button on every move, as a real mouse's move carries it; the IT-D4 test asserts the move targets the `<svg>` with the pointer still taken; a test pins Chrome's dropping of a pointer whose move names none; and the guide's section 8, which had taught the bits alone, teaches both.\
 Erratum 1 was measured with the faulty driver and is measured again with the held button named: the capture holds, the move and the release target the `<svg>`, and still the boundary facts Chrome sends as the capture begins carry `buttons` 1 while only button 1 is held and `buttons` 0 while only button 2 is, so the erratum stands.
+
+**Review A's confirming pass, 2026-10-26: three test gaps closed, each by one targeted check (the director's `H26-15`).**\
+The drag tests of every button, the chord test and the focus-lost drag test of every button each assert, after their moves, that the pointer is still taken and every move targeted the `<svg>`, so a driver naming only the left button's moves fails them (`N4`).\
+A touch's or a pen's every pointer fact during a live mouse drag is held to leave every drawn entry unchanged -- the buttons, the pointer's position and so the drag line, the press, the gesture, the held keys and the item under the pointer (`N3`).\
+The code already kept the drag line's end to mouse facts, so no code changed; what was missing was the test.\
+[MEASURED] In Chrome a pen's first press on the page is followed by a mouse `move` at the pen's position, which moves the line as any mouse move does: a mouse fact the browser delivered, shown as delivered (`docs/BACKLOG.md` B15).\
+The overlap proof's space gives every letter the browser's own letter keys name, and the test holds it to section 6's literal list, a letter printed on another key for each, so the space cannot shrink unseen (`N2`).
 
 The reviews' other findings, folded without a ruling:
 - The tests no longer read their expectations from the code under test: section 6's rows' words and Claims column, its per-platform list of the browser's own keys, its modifier codes and chord modifiers and the Mouse button entity's bits are literals in `test/support/architecture-section-6.js`, and every fact of the overlap proof's space hits exactly one row but those section 6 gives none -- a mouse's plain move, its boundary facts and its cancel, and pointer facts no platform makes -- which hit none.
@@ -190,4 +203,4 @@ The plan chosen by a link reloads the page, ending what it showed.\
 The buttons drawn can lag a boundary fact that was right, until the next press, move or release.
 
 **Consequences.**\
-The target absorbs errata 1 to 5 in sections 6 to 8 when ratified; `docs/BACKLOG.md` carries B13 until real hardware is measured.
+The target absorbs errata 1 to 7 in sections 6 to 8 when ratified; `docs/BACKLOG.md` carries B13 until real hardware is measured.

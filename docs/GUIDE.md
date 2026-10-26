@@ -200,7 +200,7 @@ Trusted input -- a person's, or the DevTools protocol's -- is taken, and its lat
 ## 6. Deciding what each input means
 
 One table holds every meaning, its rows exclusive by construction, so no row wins by its place: two rows that hit together mean nothing.\
-Run `findOverlaps` over every fact your rows can meet, in your own gate; the tester's runs over 40,139 facts with four contexts, and holds every fact but those it gives no row to exactly one row (`test/table-overlaps.test.js`).\
+Run `findOverlaps` over every fact your rows can meet, in your own gate; the tester's runs over 70,603 facts with four contexts, and holds every fact but those it gives no row to exactly one row (`test/table-overlaps.test.js`).\
 A row's `when` reads a context the application makes; the tester's says whether the session's held keys, before the fact, hold the fact's own code and any other key that is no modifier, so its roll-over row needs no state of its own.
 
 The overlap check, and what an overlap does to a match:

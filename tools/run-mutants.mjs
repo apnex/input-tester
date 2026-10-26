@@ -94,6 +94,10 @@ export const MUTANTS = [
 	["B-6", "a missing object's 404 not checked for the rule", "tools/deploy-steps.mjs", "problems.push(...missingObjectProblems(await host.get(target.host, missing), missing, rule.headers));", "await host.get(target.host, missing);", ["test/browser/deploy-sequence.test.js"]],
 	["B-M", "the archive's file modes left to the umask", "tools/pack-release.mjs", '"--mode=u=rwX,go=rX", ', "", ["test/tools/pack-release.test.js"]],
 	["B-P", "the public-text check lets a hex identifier stand anywhere in a workflow", "tools/check-public-text.mjs", "const kept = workflow && ACTION_PIN.test(line) ? line.replace(ACTION_PIN.exec(line)[1], \"\") : line;", "const kept = workflow ? line.replace(/[0-9a-f]{40}/, \"\") : line;", ["test/tools/gate-checks.test.js"]],
+	// review A's confirming pass: three test gaps, each now held
+	["N2", "the overlap space without the letters r and U", "src/input-bindings.ts", 'Object.freeze(["x", "r", "I", "j", "C", "f", "U", null]);', 'Object.freeze(["x", "I", "j", "C", "f", null]);', ["test/table-overlaps.test.js"]],
+	["N3", "a touch's or a pen's fact moves the drag line's end", "src/picture-state.ts", "const pointerAt = isMouse ? fact.at : picture.pointerAt;", 'const pointerAt = isMouse || ("pointerType" in fact && (fact.pointerType === "pen" || fact.pointerType === "touch")) ? fact.at : picture.pointerAt;', ["test/picture-state.test.js"]],
+	["N4", "the driver names a move's held button only when it is the left, so Chrome drops the other buttons' drags", "test/browser/tester-in-chrome.js", "const i = BUTTON_BITS.findIndex((bit) => (buttons & bit) !== 0);", "const i = (buttons & 1) !== 0 ? 0 : -1;", ["test/browser/rows.test.js"]],
 	["M40", "the overlap space without the fixtures' facts", "src/input-bindings.ts", "for (const buttons of [null, ...Array.from({ length: 32 }, (_, i) => i)])", "for (const buttons of Array.from({ length: 32 }, (_, i) => i))", ["test/table-overlaps.test.js"]],
 ];
 
