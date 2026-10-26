@@ -153,7 +153,7 @@ What no page can know, shown always:
 |---|---|---|---|
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
-| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 64 of 64 passed |
+| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 67 of 67 passed |
 | browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 65 of 65 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
