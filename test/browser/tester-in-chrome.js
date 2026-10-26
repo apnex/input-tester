@@ -128,6 +128,21 @@ function makeHelpers(chrome, server, requests) {
 		 * taken pointer.
 		 */
 		mouse: (type, { x, y }, { button, buttons = 0, clickCount, modifiers = 0, pointerType = "mouse" } = {}) => chrome.send("Input.dispatchMouseEvent", { type, x, y, button: button ?? (type === "mouseMoved" ? heldButtonName(buttons) : "none"), buttons, clickCount: clickCount ?? (type === "mouseMoved" ? 0 : 1), modifiers, pointerType }),
+		/** Whether the page's `<svg>` holds the capture of the mouse's pointer, 1. */
+		taken: () => chrome.evaluate("document.getElementById('input-surface').hasPointerCapture(1)"),
+		/** Starts recording the target of every mouse move the `<svg>` sees, forgetting those recorded before; on a page loaded since, it listens anew. */
+		trackMoves: () => chrome.evaluate("if (!window.moveTargetLog) { window.moveTargetLog = []; document.getElementById('input-surface').addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') moveTargetLog.push(e.target.localName); }, true); } moveTargetLog.length = 0"),
+		/** The targets of the mouse moves recorded since `trackMoves`, which it then forgets. */
+		movesTracked: () => chrome.evaluate("JSON.stringify(moveTargetLog.splice(0))").then(JSON.parse),
+		/**
+		 * Holds the pointer taken: the `<svg>` still holds its capture, and every mouse move since `trackMoves` -- at
+		 * least `atLeast` of them -- targeted the `<svg>`, for which itemOf answers nothing.
+		 */
+		async assertTaken(where, atLeast = 1) {
+			const targets = await tester.movesTracked();
+			if (!(await tester.taken())) throw new Error(`${where}: the pointer is no longer taken`);
+			if (targets.length < atLeast || targets.some((t) => t !== "svg")) throw new Error(`${where}: the mouse's moves targeted ${JSON.stringify(targets)}, not the svg alone`);
+		},
 		/** A trusted key event. */
 		key: (type, key, code, { modifiers = 0, autoRepeat = false, text, windowsVirtualKeyCode } = {}) => chrome.send("Input.dispatchKeyEvent", { type, key, code, modifiers, autoRepeat, ...(text === undefined ? {} : { text }), ...(windowsVirtualKeyCode === undefined ? {} : { windowsVirtualKeyCode }) }),
 		/** A trusted wheel turn at a screen point. */

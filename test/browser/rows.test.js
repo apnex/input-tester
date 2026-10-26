@@ -203,19 +203,23 @@ test("the back and forward buttons navigate nowhere: with history behind and ahe
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
-test("every button's drag: a move of exactly the threshold is no crossing, a move just beyond it becomes the drag without a from, plain drag moves hit no row, and the release is a drop meaning a drag of that button", TEST, async () => {
+test("every button's drag, its pointer taken through every move, each move targeting the svg: a move of exactly the threshold is no crossing, a move just beyond it becomes the drag without a from, plain drag moves hit no row, and the release is a drop meaning a drag of that button", TEST, async () => {
 	const at = t.keyCentre("KeyH");
 	for (let b = 0; b <= 4; b++) {
 		await t.mouse("mouseMoved", at);
 		await t.mouse("mousePressed", at, { button: BUTTON_NAMES[b], buttons: BUTTON_BITS[b] });
 		await t.settle();
+		await t.trackMoves();
 		await t.mouse("mouseMoved", { x: at.x + 4, y: at.y }, { buttons: BUTTON_BITS[b] });
+		await t.assertTaken(`button ${b}, after a move of exactly the threshold`);
 		let v = await verdict();
 		assert.deepEqual([v.button, v.hits, v.steps], [-1, [], [{ operation: "pointerMove", phase: "update", gesture: `press-${b}`, crossed: false }]], `button ${b}: exactly the threshold`);
 		await t.mouse("mouseMoved", { x: at.x + 5, y: at.y }, { buttons: BUTTON_BITS[b] });
+		await t.assertTaken(`button ${b}, after a move just beyond the threshold`);
 		v = await verdict();
 		assert.deepEqual([v.hits, v.steps], [[], [{ operation: "pointerMove", phase: "update", gesture: `press-${b}`, crossed: true }, { operation: "becomeGesture", phase: "become", gesture: `drag-${b}` }]], `button ${b}: just beyond`);
 		await t.mouse("mouseMoved", { x: at.x + 40, y: at.y + 12 }, { buttons: BUTTON_BITS[b] });
+		await t.assertTaken(`button ${b}, after a plain drag's move`);
 		v = await verdict();
 		assert.deepEqual([v.buttons, v.hits], [BUTTON_BITS[b], []], "a plain drag's move matches no chord row");
 		assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .drag-line') !== null"), true, "the drag's line drawn");
@@ -289,27 +293,38 @@ test("section 7, resize: nothing is repainted when the page is resized, and the 
 	assert.deepEqual(t.matrix().slice(0, 4), [1, 0, 0, 1]);
 });
 
-test("chords in both release orders: during a drag the right pressed, the left released, then the right, committing drag-0; and with no drag the right released first, the left last, committing press-0", TEST, async () => {
+test("chords in both release orders, the pointer taken through every move with either button or both held: during a drag the right pressed, the left released, then the right, committing drag-0; and with no drag the right released first, the left last, committing press-0", TEST, async () => {
 	const at = t.keyCentre("KeyJ");
 	await t.mouse("mouseMoved", at);
 	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	await t.trackMoves();
 	await t.mouse("mouseMoved", { x: at.x + 30, y: at.y }, { buttons: 1 });
+	await t.assertTaken("the left button's drag, after its move");
 	await t.mouse("mousePressed", { x: at.x + 30, y: at.y }, { button: "right", buttons: 3 });
 	await t.settle();
+	await t.assertTaken("the right button joining the drag, its chorded press a move");
 	let log = await logHits();
 	assert.deepEqual(log.slice(0, 2).map(([type, hits]) => [type, hits]), [["context-menu", ["context-menu"]], ["move", ["chorded-press"]]], "the menu's event after the chord's press, on Linux");
-	await t.mouse("mouseReleased", { x: at.x + 30, y: at.y }, { button: "left", buttons: 2 });
+	await t.mouse("mouseMoved", { x: at.x + 40, y: at.y }, { buttons: 3 });
+	await t.assertTaken("both buttons held, after a move");
+	await t.mouse("mouseReleased", { x: at.x + 40, y: at.y }, { button: "left", buttons: 2 });
 	let v = await verdict();
 	assert.deepEqual([v.type, v.button, v.buttons, v.hits, v.steps], ["move", 0, 2, ["chorded-release"], [{ operation: "pointerMove", phase: "update", gesture: "drag-0", crossed: false }]]);
-	await t.mouse("mouseReleased", { x: at.x + 30, y: at.y }, { button: "right", buttons: 0 });
+	await t.assertTaken("the left button released, its chorded release a move");
+	await t.mouse("mouseMoved", { x: at.x + 50, y: at.y }, { buttons: 2 });
+	await t.assertTaken("the right button alone held, after a move");
+	await t.mouse("mouseReleased", { x: at.x + 50, y: at.y }, { button: "right", buttons: 0 });
 	await t.settle();
 	const drop = await releaseLines();
 	assert.deepEqual([drop.release, drop.notes, drop.meaning], [["up", ["button-2-release"], true], ["committed drag-0, a drop"], ["button-0-drag"]]);
 	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	await t.trackMoves();
 	await t.mouse("mousePressed", at, { button: "right", buttons: 3 });
+	await t.assertTaken("with no drag, the right button's chorded press a move");
 	await t.mouse("mouseReleased", at, { button: "right", buttons: 1 });
 	v = await verdict();
 	assert.deepEqual([v.type, v.button, v.buttons, v.hits], ["move", 2, 1, ["chorded-release"]]);
+	await t.assertTaken("with no drag, the right button's chorded release a move");
 	await t.mouse("mouseReleased", at, { button: "left", buttons: 0 });
 	await t.settle();
 	const { meaning, release, notes } = await releaseLines();
@@ -420,32 +435,38 @@ test("focus lost by opening a second tab: keysLost then pointerLost, every held 
 	assert.deepEqual((await verdict()).hits, ["key-release-press-unseen"], "its release, back in focus, is one whose press was not seen");
 });
 
-test("focus lost during a captured drag released in the other tab: the drag cancelled, its release not reported; returned to, the page sees no up and no cancel", TEST, async () => {
-	await t.chrome.send("Page.bringToFront");
-	for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
-	const at = t.keyCentre("KeyU");
-	await t.mouse("mouseMoved", at);
-	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
-	await t.mouse("mouseMoved", { x: at.x + 30, y: at.y }, { buttons: 1 });
-	assert.equal(await t.page("inputTester.picture.gesture.name"), "drag-0");
-	const { targetId } = await t.chrome.send("Target.createTarget", { url: "about:blank" });
-	try {
-		const { sessionId } = await t.chrome.send("Target.attachToTarget", { targetId, flatten: true });
-		await t.settle();
-		await t.chrome.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x + 30, y: at.y, button: "left", buttons: 0, clickCount: 1 }, sessionId);
-	} finally {
-		await t.chrome.send("Target.closeTarget", { targetId });
+test("focus lost during a captured drag of each button, released in the other tab: the pointer taken until then, the drag cancelled, its release not reported; returned to, the page sees no up and no cancel", TEST, async () => {
+	for (let b = 0; b <= 4; b++) {
 		await t.chrome.send("Page.bringToFront");
+		for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
+		assert.equal(await t.chrome.evaluate("document.hasFocus()"), true, `button ${b}: the page holds the focus`);
+		const at = t.keyCentre("KeyU");
+		await t.mouse("mouseMoved", at);
+		await t.mouse("mousePressed", at, { button: BUTTON_NAMES[b], buttons: BUTTON_BITS[b] });
+		await t.trackMoves();
+		await t.mouse("mouseMoved", { x: at.x + 30, y: at.y }, { buttons: BUTTON_BITS[b] });
+		await t.assertTaken(`button ${b}'s drag, before focus is lost`);
+		assert.equal(await t.page("inputTester.picture.gesture.name"), `drag-${b}`);
+		const { targetId } = await t.chrome.send("Target.createTarget", { url: "about:blank" });
+		try {
+			const { sessionId } = await t.chrome.send("Target.attachToTarget", { targetId, flatten: true });
+			await t.settle();
+			await t.chrome.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x + 30, y: at.y, button: BUTTON_NAMES[b], buttons: 0, clickCount: 1 }, sessionId);
+		} finally {
+			await t.chrome.send("Target.closeTarget", { targetId });
+			await t.chrome.send("Page.bringToFront");
+		}
+		await t.settle();
+		const v = await verdict();
+		assert.deepEqual([v.type, v.hits, v.steps.map((s) => [s.operation, s.phase, s.gesture])], ["blur", ["focus-lost"], [["keysLost", null, null], ["pointerLost", "cancel", `drag-${b}`]]], `button ${b}`);
+		const log = await logHits();
+		assert.ok(!log.slice(0, 1).some(([type]) => type === "up" || type === "cancel"), `button ${b}: no up and no cancel reached the page`);
+		assert.match(log[0][3].join("; "), new RegExp(`cancelled drag-${b}: its release not reported`));
+		assert.deepEqual(await t.page("[inputTester.picture.press, inputTester.picture.buttons]"), [null, BUTTON_BITS[b]], `button ${b}: the buttons drawn are the last mouse fact's, as delivered`);
+		for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
+		await t.mouse("mouseMoved", { x: at.x + 31, y: at.y });
+		assert.equal(await t.page("inputTester.picture.buttons"), 0, `button ${b}: the next mouse fact reports the button released`);
 	}
-	await t.settle();
-	const v = await verdict();
-	assert.deepEqual([v.type, v.hits, v.steps], [["blur"][0], ["focus-lost"], [{ operation: "keysLost", phase: null, gesture: null, crossed: undefined, taken: undefined, trigger: undefined, cancelled: undefined, tracked: undefined, held: undefined, meaning: undefined }, { operation: "pointerLost", phase: "cancel", gesture: "drag-0", crossed: undefined, taken: undefined, trigger: undefined, cancelled: undefined, tracked: undefined, held: undefined, meaning: undefined }]].map((x) => JSON.parse(JSON.stringify(x))));
-	const log = await logHits();
-	assert.ok(!log.slice(0, 1).some(([type]) => type === "up" || type === "cancel"), "no up and no cancel reached the page");
-	assert.match(log[0][3].join("; "), /cancelled drag-0: its release not reported/);
-	assert.deepEqual(await t.page("[inputTester.picture.press, inputTester.picture.buttons]"), [null, 1], "the buttons drawn are the last mouse fact's, as delivered");
-	await t.mouse("mouseMoved", { x: at.x + 31, y: at.y });
-	assert.equal(await t.page("inputTester.picture.buttons"), 0, "the next mouse fact reports the button released");
 });
 
 test("every row marked trusted was hit by trusted input in this run", TEST, async () => {
