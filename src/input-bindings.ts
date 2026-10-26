@@ -270,10 +270,12 @@ function factOfCaptureForm(fields: Record<string, unknown>): DeliveredFact {
 }
 
 /**
- * The keys the overlap proof gives each code: a letter no entry names; a letter of the browser's own letter keys
- * in lower case and another in upper, so a key matched by the letter it prints on any code meets every row; and none.
+ * The keys the overlap proof gives each code: a letter no entry names; every letter of the browser's own letter keys
+ * -- r, i, j, c, f and u -- in lower or upper case by turns, so a key matched by the letter it prints, on any code and
+ * case-folded, meets every row; and none. The test holds this list to the specification's letters, so it cannot
+ * shrink unseen.
  */
-export const OVERLAP_PROOF_KEYS: readonly (string | null)[] = Object.freeze(["x", "r", "U", null]);
+export const OVERLAP_PROOF_KEYS: readonly (string | null)[] = Object.freeze(["x", "r", "I", "j", "C", "f", "U", null]);
 
 /**
  * The overlap proof's facts (IB8, GT5): every key fact's type, repeat flag, `key` and sixteen modifier states over

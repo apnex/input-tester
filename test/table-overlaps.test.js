@@ -72,6 +72,18 @@ test("IT-D9: over every code, key, type and modifier state, the code's browser's
 	assert.ok(own > 1000, `${own} combinations the browser's own`);
 });
 
+test("the proof's space holds, for every letter entry of section 6's browser's own keys, a key fact printing that letter on another key, so the space cannot shrink unseen", () => {
+	const letters = [...new Set(SPEC_BROWSERS_OWN_KEYS.map((e) => (/^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : null)).filter((l) => l !== null))];
+	assert.deepEqual(letters.sort(), ["c", "f", "i", "j", "r", "u"], "section 6's letter entries, with the recorder's view source");
+	for (const letter of letters) {
+		const own = `Key${letter.toUpperCase()}`;
+		const onAnother = facts.filter((f) => (f.type === "key-down" || f.type === "key-up") && typeof f.code === "string" && f.code !== own && /^Key[A-Z]$/.test(f.code) && typeof f.key === "string" && f.key.toLowerCase() === letter);
+		assert.ok(onAnother.length > 0, `the letter ${letter} printed on a key other than ${own}`);
+		assert.ok(onAnother.some((f) => f.code === "KeyO"), `the letter ${letter} printed on KeyO, as Dvorak prints r`);
+	}
+	assert.ok(facts.some((f) => typeof f.key === "string" && f.key !== f.key.toLowerCase() && /^[A-Z]$/.test(f.key)), "an upper-case letter among them, so case folding is met");
+});
+
 test("GT5, IB8: over the proof's space -- every fact the browser produces and every fixture, with the four contexts -- exactly one row hits, but for the facts section 6 gives no row, which hit none", (t) => {
 	const overlaps = table.findOverlaps(facts, OVERLAP_PROOF_CONTEXTS, [{}]);
 	assert.deepEqual(overlaps.slice(0, 5).map((o) => ({ fact: o.fact, context: o.context, ids: o.ids })), [], `${overlaps.length} overlap(s)`);
