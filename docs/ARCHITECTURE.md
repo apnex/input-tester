@@ -153,7 +153,7 @@ What no page can know, shown always:
 |---|---|---|---|
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
-| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 62 of 62 passed |
+| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 64 of 64 passed |
 | browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 65 of 65 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
@@ -201,6 +201,7 @@ Workarounds open: 0.
 | B12 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured; the browser rule refuses an image either way |
 | B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is, measured again with the held button named on every move; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
 | B14 | `tools/deploy` has never run against the buckets: it is the operator's, run with their own credentials, and the lab's measurement of the backends' headers (IT-D5), a missing object's 404 among them, is owed with it; the recorder reports, 2026-10-26, both buckets made -- `gs://input-lab-apnex-io` and `gs://input-apnex-io`, public read, main page `index.html` -- served at `input-lab.apnex.io` and `input.apnex.io` through backend buckets with their edge cache off, and both hosts answering with the rule, `Referrer-Policy` and `X-Content-Type-Options`, a 404 among them, which this build has not measured, having touched no cloud resource; its `gcloud` forms -- `storage objects describe --format=value(generation)`, `storage cp --if-generation-match`, 0 meaning no object, and the missing object's `not found: 404.` -- are taken from the Cloud SDK's documentation and messages and proved only against a stand-in |
+| B15 | In Chrome a pen's first press on the page is followed by a mouse `move` at the pen's position, which moves a live mouse drag's line there; the tester shows the mouse fact as delivered, and whether a real pen, or a finger on a touch screen, makes the browser send it is not measured |
 
 ---
 
