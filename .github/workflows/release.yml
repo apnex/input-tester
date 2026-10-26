@@ -27,13 +27,16 @@ jobs:
     runs-on: ubuntu-latest
     # a backstop: a hang fails the run rather than holding a runner for hours
     timeout-minutes: 30
-    # GH_TOKEN is handed only to the steps that run gh; no other step, the gate's among them, holds it
+    # GH_TOKEN is handed only to the steps that run gh; both checkouts fetch with the job's token but persist none of
+    # it (persist-credentials: false), so it is written into no .git/config and no other step, the gate's among them,
+    # holds it (test/tools/workflows.test.js)
     env:
       TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
@@ -70,6 +73,7 @@ jobs:
         with:
           repository: apnex/mission-kit
           path: .mission-kit
+          persist-credentials: false
       - name: the gate
         run: npm run gate
         env:

@@ -6,7 +6,8 @@
 # own, over the DevTools protocol through Node.js's global WebSocket, no dependency added. mission-kit's style
 # checks are fetched, never copied: mission-kit is checked out at HEAD and MISSION_KIT points at it. Actions are
 # pinned by their full commit, as the four shared parts pin them -- the one place tools/check-public-text.mjs lets
-# a hex identifier stand.
+# a hex identifier stand. Neither checkout persists the job's token into a .git/config (persist-credentials: false),
+# since no step after it needs git's credentials (test/tools/workflows.test.js).
 name: gate
 
 on:
@@ -31,6 +32,7 @@ jobs:
         with:
           # the public-text check reads every commit message reachable from HEAD
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
@@ -41,6 +43,7 @@ jobs:
         with:
           repository: apnex/mission-kit
           path: .mission-kit
+          persist-credentials: false
       - run: npm run gate
         env:
           MISSION_KIT: ${{ github.workspace }}/.mission-kit

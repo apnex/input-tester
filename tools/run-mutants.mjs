@@ -98,6 +98,9 @@ export const MUTANTS = [
 	["N2", "the overlap space without the letters r and U", "src/input-bindings.ts", 'Object.freeze(["x", "r", "I", "j", "C", "f", "U", null]);', 'Object.freeze(["x", "I", "j", "C", "f", null]);', ["test/table-overlaps.test.js"]],
 	["N3", "a touch's or a pen's fact moves the drag line's end", "src/picture-state.ts", "const pointerAt = isMouse ? fact.at : picture.pointerAt;", 'const pointerAt = isMouse || ("pointerType" in fact && (fact.pointerType === "pen" || fact.pointerType === "touch")) ? fact.at : picture.pointerAt;', ["test/picture-state.test.js"]],
 	["N4", "the driver names a move's held button only when it is the left, so Chrome drops the other buttons' drags", "test/browser/tester-in-chrome.js", "const i = BUTTON_BITS.findIndex((bit) => (buttons & bit) !== 0);", "const i = (buttons & 1) !== 0 ? 0 : -1;", ["test/browser/rows.test.js"]],
+	// review B's confirming pass
+	["B-I", "the deploy's smoke run takes its request monitor from the browser tests' helper, which loads the built site", "tools/smoke-run.mjs", 'import { watchRequests } from "../test/browser/request-monitor.js";', 'import { watchRequests } from "../test/browser/tester-in-chrome.js";', ["test/tools/deploy-imports.test.js"]],
+	["B-K", "a workflow's checkout persists the token in .git/config", ".github/workflows/release.yml", "          repository: apnex/mission-kit\n          path: .mission-kit\n          persist-credentials: false\n", "          repository: apnex/mission-kit\n          path: .mission-kit\n", ["test/tools/workflows.test.js"]],
 	["M40", "the overlap space without the fixtures' facts", "src/input-bindings.ts", "for (const buttons of [null, ...Array.from({ length: 32 }, (_, i) => i)])", "for (const buttons of Array.from({ length: 32 }, (_, i) => i))", ["test/table-overlaps.test.js"]],
 ];
 
