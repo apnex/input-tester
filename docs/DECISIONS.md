@@ -76,7 +76,7 @@ Every check is able to fail.\
 Planted builds are part of the gate itself, each run by every gate: seven leaks, each carrying a key in its address -- a same-origin script element, a dynamic import, a stylesheet, a prefetch, an image, a shape's href and a navigation to the page's own origin -- each failing the containment monitor; deliveries waiting 50 ms and 12 ms, each failing the immediacy bound; the router's claim taken away, the pinch's positive control, zooming the page to 2; and an inline script in the entry, refused by the rule.\
 Beside them, the mutants of `tools/run-mutants.mjs`, each edit applied in place, the site rebuilt, the named tests run and the edit taken back: the first build's 40; review A's 15, `MU1` to `MU15`, which its gate let survive, two of them run again against trusted input; review B's deploy mutants; and one for each other finding folded.\
 In the run after the reviews, 76 of the 77 were killed at once, and the one that survived, `B-N`, was killed once its test was made to refuse the object's reading alone; in the final run before the driver's correction below, `MU15c` survived, and in the final run after it all 77 were killed, as the table gives.\
-After review A's confirming pass, three more, `N2` to `N4`, and after review B's, two, `B-I` and `B-K`, were planted and each killed, run alone by the director's ruling `H26-15` that a test-strength finding is fixed with one targeted check; they close the table.
+After review A's confirming pass, three more, `N2` to `N4`, after review B's, two, `B-I` and `B-K`, and after GitHub's gate, one, `W1`, were planted and each killed, run alone by the director's ruling `H26-15` that a test-strength finding is fixed with one targeted check; they close the table.
 
 | Mutant | What it breaks | Failed by |
 |---|---|---|
@@ -161,6 +161,7 @@ After review A's confirming pass, three more, `N2` to `N4`, and after review B's
 | `N4` | the driver names a move's held button only when it is the left, so Chrome drops the other buttons' drags | `test/browser/rows.test.js`, 5 failing |
 | `B-I` | the deploy's smoke run takes its request monitor from the browser tests' helper, which loads the built site | `test/tools/deploy-imports.test.js`, 1 failing |
 | `B-K` | a workflow's checkout persists the token in .git/config | `test/tools/workflows.test.js`, 1 failing |
+| `W1` | the header rule without worker-src 'none' | `test/browser/containment.test.js`, 3 failing |
 | `M40` | the overlap space without the fixtures' facts | `test/table-overlaps.test.js`, 1 failing |
 
 **Amended, 2026-10-25, after two reviews of the first release, each of which failed it.**\
@@ -192,6 +193,12 @@ The overlap proof's space gives every letter the browser's own letter keys name,
 `tools/deploy` crashed on a checkout never built, its smoke run taking the request monitor from the browser tests' helper, which loads the built site at import time; the monitor is now a module of its own that loads nothing, a test imports every module the deploy imports in a copy with no `site/`, and the README's prerequisites build the checkout all the same (`B-I`).\
 `actions/checkout` persists the job's token into `.git/config` by default, so the release workflow's comment that only the `gh` steps hold it was false; all four checkouts now set `persist-credentials: false`, and a test holds both that and the `gh` steps alone holding `GH_TOKEN` (`B-K`).\
 The release a deploy downloads into the checkout, `release-<tag>/`, is ignored by git.
+
+**GitHub's gate, 2026-10-26: a worker refused by an error event, not a throw (`H26-15`).** [MEASURED]\
+On GitHub's runner, whose Chrome is newer than this machine's 136, the IT-D5 test failed: there a worker the rule's `worker-src 'none'` refuses is made, fires an `error` event and has its script's fetch blocked, where Chrome 136 throws `SecurityError` from the constructor and makes no request.\
+The test judged the refusal by the throw alone; it now judges a worker refused when its construction throws or it fires an `error` event within a bounded wait and posts no message -- the planted worker script posting one the moment it runs -- and no byte of its script is delivered, every request the monitor saw for it blocked and the gate's server answering none.\
+A second test shows each witness failing on Chrome 136 under the rule without `worker-src`, which section 11 measured letting a worker load: a worker whose script runs is judged made by its message, the monitor and the server, and one whose script is missing fires an `error` event yet is judged not refused, the server having answered it.\
+No other browser test judged a refusal synchronously: the fetch is judged by its promise, the planted leaks by the monitor after a wait, the inline script after the page loaded, and a `style` attribute where the browser blocks it as it is set, which passed on GitHub's Chrome too (`W1`).
 
 The reviews' other findings, folded without a ruling:
 - The tests no longer read their expectations from the code under test: section 6's rows' words and Claims column, its per-platform list of the browser's own keys, its modifier codes and chord modifiers and the Mouse button entity's bits are literals in `test/support/architecture-section-6.js`, and every fact of the overlap proof's space hits exactly one row but those section 6 gives none -- a mouse's plain move, its boundary facts and its cancel, and pointer facts no platform makes -- which hit none.
