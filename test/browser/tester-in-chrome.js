@@ -9,6 +9,7 @@
 // travelling 4 pixels travels exactly the session's threshold of 4 drawing units.
 import { importBuilt, importVendored } from "../support/built-site.js";
 import { launchChrome, sleep } from "./chrome-driver.js";
+import { watchRequests } from "./request-monitor.js";
 import { serveSite } from "./site-server.js";
 
 const { QUARTER_KEY_GRID, KEYBOARD_PLANS, placePlanOnGrid } = await importBuilt("keyboard-plans.js");
@@ -36,24 +37,6 @@ export function heldButtonName(buttons) {
 	return i === -1 ? "none" : BUTTON_NAMES[i];
 }
 
-/**
- * Watches every request a Chrome session makes, from the moment it is called: each `Network.requestWillBeSent`,
- * a request the browser rule refused among them, with `loadingFailed`'s reason beside it.
- */
-export function watchRequests(chrome) {
-	const requests = [];
-	const byId = new Map();
-	chrome.on("Network.requestWillBeSent", (p) => {
-		const record = { url: p.request.url, type: p.type, blocked: null };
-		byId.set(p.requestId, record);
-		requests.push(record);
-	});
-	chrome.on("Network.loadingFailed", (p) => {
-		const record = byId.get(p.requestId);
-		if (record) record.blocked = p.blockedReason ?? p.errorText ?? "failed";
-	});
-	return requests;
-}
 
 /**
  * Opens the tester: a server for `siteDir`, Chrome, the request monitor, scripts evaluated before the page's

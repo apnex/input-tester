@@ -2,7 +2,9 @@
 // smoke-run - the gate's smoke run against a host (docs/ARCHITECTURE-TARGET.md section 8, The deploy's checks):
 // headless Chrome opens the page at an origin, with the containment monitor watching every request from before
 // navigation; the tester composes with no problem, a key and a click are each delivered and named, and the
-// page requested the entry first, then each file it loads from the release once, and nothing after.
+// page requested the entry first, then each file it loads from the release once, and nothing after. It, and every
+// module it imports, loads nothing at import time, so the deploy that runs it needs no prior build
+// (test/tools/deploy-imports.test.js).
 //
 // Usage:  node tools/smoke-run.mjs ORIGIN RELEASE_DIR    (e.g. https://input-lab.apnex.io release/)
 import path from "node:path";
@@ -10,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import { launchChrome, sleep } from "../test/browser/chrome-driver.js";
 import { containmentProblems, filesThePageLoads } from "../test/support/containment.js";
-import { watchRequests } from "../test/browser/tester-in-chrome.js";
+import { watchRequests } from "../test/browser/request-monitor.js";
 
 /** Runs the smoke run against `origin` for the release extracted at `releaseDir`; answers its problems, empty when it passed. */
 export async function smokeRunAt(origin, releaseDir) {
