@@ -194,7 +194,7 @@ The overlap proof's space gives every letter the browser's own letter keys name,
 `actions/checkout` persists the job's token into `.git/config` by default, so the release workflow's comment that only the `gh` steps hold it was false; all four checkouts now set `persist-credentials: false`, and a test holds both that and the `gh` steps alone holding `GH_TOKEN` (`B-K`).\
 The release a deploy downloads into the checkout, `release-<tag>/`, is ignored by git.
 
-**GitHub's gate, 2026-10-26: a worker refused by an error event, not a throw (`H26-15`).** [MEASURED]\
+**GitHub's gate, 2026-10-26, as measured: a worker refused by an error event, not a throw (`H26-15`).**\
 On GitHub's runner, whose Chrome is newer than this machine's 136, the IT-D5 test failed: there a worker the rule's `worker-src 'none'` refuses is made, fires an `error` event and has its script's fetch blocked, where Chrome 136 throws `SecurityError` from the constructor and makes no request.\
 The test judged the refusal by the throw alone; it now judges a worker refused when its construction throws or it fires an `error` event within a bounded wait and posts no message -- the planted worker script posting one the moment it runs -- and no byte of its script is delivered, every request the monitor saw for it blocked and the gate's server answering none.\
 A second test shows each witness failing on Chrome 136 under the rule without `worker-src`, which section 11 measured letting a worker load: a worker whose script runs is judged made by its message, the monitor and the server, and one whose script is missing fires an `error` event yet is judged not refused, the server having answered it.\
