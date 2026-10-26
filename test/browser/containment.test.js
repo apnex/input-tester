@@ -5,7 +5,9 @@
 // script element, a dynamic import, a stylesheet and a prefetch, which the rule lets through; an image and a
 // shape's href, which it refuses; and a navigation to the page's own origin, which no rule stops. The gate's
 // server sends the rule in every response, and under it an inline script, a `fetch`, a worker and a `style`
-// attribute written by script are each refused, while the release's own files load by relative path.
+// attribute written by script are each refused, while the release's own files load by relative path -- the worker
+// judged refused whether the browser refuses it at once, as Chrome 136 throws, or by an `error` event with its
+// script's fetch blocked, as a later Chrome does, and in either case no byte of its script delivered.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -142,8 +144,52 @@ for (const [name, code] of LEAKS) {
 	});
 }
 
-test("IT-D5: under the rule an inline script, a fetch, a worker and a style attribute written by script are each refused, while the release's own files load by relative path", TEST, async () => {
-	const planted = plantedSite([{ entry: true, find: "</body>", replace: "<script>window.inlineRan = true;</script></body>" }]);
+/** How long the page waits on a worker for an `error` event or a message before judging it silent. */
+const WORKER_WAIT_MS = 3000;
+
+/** A worker script that posts a message the moment it runs, planted beside the release's own modules. */
+const WORKER_PROBE = { add: "app/worker-probe.js", text: 'postMessage("loaded");\n' };
+
+/**
+ * The page's own account of a worker made from `scriptPath`: whether its construction threw, as Chrome 136 refuses
+ * one; whether it fired an `error` event, as a later Chrome refuses one, its script's fetch blocked; and whether it
+ * posted a message, which a worker whose script ran does -- each within a bounded wait.
+ */
+function workerSeen(t, scriptPath) {
+	return t.chrome.evaluate(`new Promise((resolve) => {
+		const seen = { threw: null, error: false, message: false };
+		let worker;
+		try {
+			worker = new Worker(${JSON.stringify(scriptPath)});
+		} catch (e) {
+			seen.threw = e.name;
+			resolve(seen);
+			return;
+		}
+		const settle = () => setTimeout(() => resolve(seen), 200);
+		const timer = setTimeout(() => resolve(seen), ${WORKER_WAIT_MS});
+		worker.addEventListener("error", () => { seen.error = true; clearTimeout(timer); settle(); });
+		worker.addEventListener("message", () => { seen.message = true; clearTimeout(timer); settle(); });
+	})`);
+}
+
+/**
+ * Why a worker was not refused, by every witness; empty when it was: the page saw it refused -- its construction
+ * threw, or it fired an error and posted no message -- and no byte of its script was delivered, every request the
+ * monitor saw for the script blocked and the server answering none.
+ */
+function workerRefusalProblems(seen, monitored, served, scriptPath) {
+	const problems = [];
+	if (seen.threw === null && !(seen.error && !seen.message)) problems.push(`the page saw the worker made: ${JSON.stringify(seen)}`);
+	const requested = monitored.filter((r) => new URL(r.url).pathname === scriptPath);
+	if (requested.some((r) => r.blocked === null)) problems.push(`the monitor saw its script requested and not blocked: ${JSON.stringify(requested)}`);
+	if (served.some((r) => r.path === scriptPath)) problems.push("the server answered its script");
+	return problems;
+}
+
+test("IT-D5: under the rule an inline script, a fetch, a worker and a style attribute written by script are each refused, while the release's own files load by relative path -- the worker judged refused whether the browser refuses it at once or by an error event, and no byte of its script delivered", TEST, async () => {
+	const planted = plantedSite([{ entry: true, find: "</body>", replace: "<script>window.inlineRan = true;</script></body>" }, WORKER_PROBE]);
+	const workerPath = `/${releaseFolder}/${WORKER_PROBE.add}`;
 	let t;
 	try {
 		t = await openTesterInChrome({ siteDir: planted.dir });
@@ -151,12 +197,41 @@ test("IT-D5: under the rule an inline script, a fetch, a worker and a style attr
 		assert.equal(await t.chrome.evaluate("window.inlineRan === undefined"), true, "the inline script refused");
 		await t.settle();
 		const mark = t.requests.length;
+		const servedMark = t.server.requests.length;
 		assert.equal(await t.chrome.evaluate("fetch('/index.html').then(() => 'loaded', () => 'refused')"), "refused");
-		assert.match(await t.chrome.evaluate(`(() => { try { new Worker("/${releaseFolder}/app/input-router.js", { type: "module" }); return "made"; } catch (e) { return "refused: " + e.name; } })()`), /^refused/);
+		const seen = await workerSeen(t, workerPath);
 		assert.notEqual(await t.chrome.evaluate("(() => { const r = document.querySelector('#input-surface .key-cap'); r.setAttribute('style', 'fill: rgb(1, 2, 3)'); return getComputedStyle(r).fill; })()"), "rgb(1, 2, 3)", "a style attribute written by script is refused, so the painter states every look by class");
 		await sleep(300);
 		const attempted = t.requests.slice(mark);
+		assert.deepEqual(workerRefusalProblems(seen, attempted, t.server.requests.slice(servedMark), workerPath), [], "the worker refused");
 		assert.ok(attempted.every((r) => r.blocked !== null), `the fetch and the worker refused before any byte arrived: ${JSON.stringify(attempted)}`);
+	} finally {
+		await t?.close();
+		planted.remove();
+	}
+});
+
+test("IT-D5's worker judgment can fail on this Chrome by each witness: under the rule without worker-src, which section 11 measured letting a worker load, a worker whose script runs is judged made by its message, the monitor and the server; one whose script is missing fires an error event, yet is judged not refused, the server having answered it", TEST, async () => {
+	const planted = plantedSite([WORKER_PROBE]);
+	const rule = readResponseHeaders();
+	const withoutWorkerSrc = { ...rule, headers: { ...rule.headers, "Content-Security-Policy": rule.headers["Content-Security-Policy"].replace(" worker-src 'none';", "") } };
+	assert.notEqual(withoutWorkerSrc.headers["Content-Security-Policy"], rule.headers["Content-Security-Policy"]);
+	let t;
+	try {
+		t = await openTesterInChrome({ siteDir: planted.dir, headers: withoutWorkerSrc });
+		await t.settle();
+		for (const [scriptPath, expected] of [[`/${releaseFolder}/${WORKER_PROBE.add}`, { threw: null, error: false, message: true }], [`/${releaseFolder}/app/no-such-worker.js`, { threw: null, error: true, message: false }]]) {
+			const mark = t.requests.length;
+			const servedMark = t.server.requests.length;
+			const seen = await workerSeen(t, scriptPath);
+			await sleep(300);
+			assert.deepEqual(seen, expected, scriptPath);
+			const problems = workerRefusalProblems(seen, t.requests.slice(mark), t.server.requests.slice(servedMark), scriptPath);
+			assert.ok(problems.some((p) => p === "the server answered its script"), `${scriptPath}: ${JSON.stringify(problems)}`);
+			assert.ok(problems.some((p) => p.startsWith("the monitor saw its script requested and not blocked")), `${scriptPath}: ${JSON.stringify(problems)}`);
+			if (expected.message) assert.ok(problems.some((p) => p.startsWith("the page saw the worker made")));
+			else assert.ok(!problems.some((p) => p.startsWith("the page saw the worker made")), "an error event and no message is the page's refusal, judged by the witnesses beside it");
+		}
 	} finally {
 		await t?.close();
 		planted.remove();

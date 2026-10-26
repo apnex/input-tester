@@ -101,6 +101,8 @@ export const MUTANTS = [
 	// review B's confirming pass
 	["B-I", "the deploy's smoke run takes its request monitor from the browser tests' helper, which loads the built site", "tools/smoke-run.mjs", 'import { watchRequests } from "../test/browser/request-monitor.js";', 'import { watchRequests } from "../test/browser/tester-in-chrome.js";', ["test/tools/deploy-imports.test.js"]],
 	["B-K", "a workflow's checkout persists the token in .git/config", ".github/workflows/release.yml", "          repository: apnex/mission-kit\n          path: .mission-kit\n          persist-credentials: false\n", "          repository: apnex/mission-kit\n          path: .mission-kit\n", ["test/tools/workflows.test.js"]],
+	// GitHub's newer Chrome refuses a worker by an error event, not a throw
+	["W1", "the header rule without worker-src 'none'", "tools/response-headers.json", " worker-src 'none';", "", ["test/browser/containment.test.js"]],
 	["M40", "the overlap space without the fixtures' facts", "src/input-bindings.ts", "for (const buttons of [null, ...Array.from({ length: 32 }, (_, i) => i)])", "for (const buttons of Array.from({ length: 32 }, (_, i) => i))", ["test/table-overlaps.test.js"]],
 ];
 

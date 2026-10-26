@@ -39,11 +39,11 @@ export function heldButtonName(buttons) {
 
 
 /**
- * Opens the tester: a server for `siteDir`, Chrome, the request monitor, scripts evaluated before the page's
- * own, and the page loaded at `query`. Answers the session and helpers; `close()` tears every part down.
+ * Opens the tester: a server for `siteDir` -- sending `headers`, a response-headers.json of a test's own, when given
+ * -- Chrome, the request monitor, scripts evaluated before the page's own, and the page loaded at `query`. Answers the session and helpers; `close()` tears every part down.
  */
-export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [], metadata, navigate = true } = {}) {
-	const server = await serveSite(siteDir, metadata ? { metadata } : {});
+export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [], metadata, headers, navigate = true } = {}) {
+	const server = await serveSite(siteDir, { ...(metadata ? { metadata } : {}), ...(headers ? { headers } : {}) });
 	let chrome;
 	try {
 		chrome = await launchChrome({ width: VIEWPORT.width, height: VIEWPORT.height });

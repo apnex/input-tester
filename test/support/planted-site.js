@@ -10,12 +10,22 @@ import { releaseFolder, siteRoot } from "./built-site.js";
 
 /**
  * Copies the built site and applies each edit -- `{ file, find, replace }`, `file` relative to the release folder,
- * or `{ entry: true, find, replace }` for the entry document -- answering `{ dir, remove }`.
+ * `{ entry: true, find, replace }` for the entry document, or `{ add, text }`, a file the release does not hold
+ * added at `add` in its folder, refused if it would replace one -- answering `{ dir, remove }`.
  */
 export function plantedSite(edits, from = siteRoot) {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-planted-"));
 	fs.cpSync(from, dir, { recursive: true });
 	for (const edit of edits) {
+		if (edit.add !== undefined) {
+			const added = path.join(dir, releaseFolder, edit.add);
+			if (fs.existsSync(added)) {
+				fs.rmSync(dir, { recursive: true, force: true });
+				throw new Error(`planted-site: ${edit.add} is a file of the release, so adding it would replace it`);
+			}
+			fs.writeFileSync(added, edit.text);
+			continue;
+		}
 		const file = edit.entry ? path.join(dir, "index.html") : path.join(dir, releaseFolder, edit.file);
 		const text = fs.readFileSync(file, "utf8");
 		const found = text.split(edit.find).length - 1;
