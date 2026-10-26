@@ -212,10 +212,10 @@ test("IT-D5: under the rule an inline script, a fetch, a worker and a style attr
 });
 
 test("IT-D5's worker judgment can fail on this Chrome by each witness: under the rule without worker-src, which section 11 measured letting a worker load, a worker whose script runs is judged made by its message, the monitor and the server; one whose script is missing fires an error event, yet is judged not refused, the server having answered it", TEST, async () => {
-	const planted = plantedSite([WORKER_PROBE]);
 	const rule = readResponseHeaders();
 	const withoutWorkerSrc = { ...rule, headers: { ...rule.headers, "Content-Security-Policy": rule.headers["Content-Security-Policy"].replace(" worker-src 'none';", "") } };
-	assert.notEqual(withoutWorkerSrc.headers["Content-Security-Policy"], rule.headers["Content-Security-Policy"]);
+	assert.notEqual(withoutWorkerSrc.headers["Content-Security-Policy"], rule.headers["Content-Security-Policy"], "the rule holds worker-src 'none' to take away");
+	const planted = plantedSite([WORKER_PROBE]);
 	let t;
 	try {
 		t = await openTesterInChrome({ siteDir: planted.dir, headers: withoutWorkerSrc });
