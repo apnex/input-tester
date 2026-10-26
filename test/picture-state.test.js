@@ -192,6 +192,35 @@ test("IT-D4: the item under the pointer is itemOf the target, and, when that ans
 	}
 });
 
+test("section 7: during a live mouse drag, a touch's or a pen's every pointer fact leaves every drawn entry unchanged -- the buttons, the pointer's position and so the drag line, the press, the gesture, the held keys and the item under the pointer -- and is logged as delivered", () => {
+	let under = [];
+	const platform = fakePlatform({ elementsAt: () => under });
+	const page = composeTesterPage(platform);
+	const firstKey = platform.root.children[0].children[0];
+	platform.key("key-down", { key: "Shift", code: "ShiftLeft", shiftKey: true });
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
+	platform.pointer("move", { clientX: 130, clientY: 110, button: -1, buttons: 1, target: platform.root });
+	assert.deepEqual([page.picture.gesture.name, page.picture.gesture.live], ["drag-0", true], "a live mouse drag");
+	const drawn = (p) => ({ buttons: p.buttons, pointerAt: p.pointerAt, press: p.press, gesture: p.gesture, heldKeys: p.heldKeys, under: p.under });
+	const before = drawn(page.picture);
+	const lineOf = () => platform.elements().find((e) => e.tag === "line" && e.attributes.get("class") === "drag-line");
+	const line = () => Object.fromEntries(lineOf().attributes);
+	const lineBefore = line();
+	assert.deepEqual([lineBefore.x2, lineBefore.y2], ["130", "110"]);
+	under = [firstKey];
+	for (const pointerType of ["pen", "touch"]) {
+		for (const type of ["over", "down", "move", "up", "out", "leave", "cancel"]) {
+			platform.pointer(type, { clientX: 400, clientY: 220, button: type === "move" ? -1 : 0, buttons: type === "down" || type === "move" ? 1 : 0, pointerType, pointerId: 9, target: platform.root });
+			const now = drawn(page.picture);
+			for (const entry of Object.keys(before)) assert.equal(now[entry], before[entry], `a ${pointerType}'s ${type} leaves ${entry} unchanged`);
+			assert.deepEqual(line(), lineBefore, `a ${pointerType}'s ${type} leaves the drag line where the mouse left it`);
+			assert.equal(page.picture.log[0].fact.pointerType, pointerType, `a ${pointerType}'s ${type} logged as delivered`);
+		}
+	}
+	platform.pointer("move", { clientX: 160, clientY: 120, button: -1, buttons: 1, target: platform.root });
+	assert.deepEqual([line().x2, line().y2], ["160", "120"], "the mouse's next move still draws the line's end");
+});
+
 test("every held key is shown: the first three a line each, the rest named on one line, and the latest key with no identity beside them", () => {
 	const { platform, page } = freshPage();
 	for (const code of ["KeyA", "KeyS", "KeyD", "KeyF", "KeyJ", "KeyK"]) platform.key("key-down", { key: code.slice(3).toLowerCase(), code });
