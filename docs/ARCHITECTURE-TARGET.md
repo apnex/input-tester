@@ -5,7 +5,7 @@ instant: target
 # input-tester - system architecture, target
 
 **Instant: target.** input-tester described as the system it is when the ratified decisions about it are built.\
-Its current architecture is empty: no code exists yet, and `docs/ARCHITECTURE.md` is derived from the code once it does (section 10, row 1).
+Its current architecture is `docs/ARCHITECTURE.md`, derived from the code and the gate's results by `tools/generate-architecture.mjs`, never written by hand.
 
 Written in the present tense of a system that exists.\
 It contains no plan, order or estimate; those belong to a board and to deltas.\
@@ -16,21 +16,21 @@ Every section is approved; each reopens on the trigger section 1 names for it.
 ## 1. Status and authority
 
 Authored by the architect, ratified by the director per section; approval is aggregate-only.\
-Revision 4, 2026-10-24, folding in the first three readings (section 12).\
-Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26-14`), every decision of section 11 at its recommendation, on top of what `H26-12` and `H26-13`, each as amended, had settled; recorded as this repository's own ruling `0001` in `docs/DECISIONS.md`.
+Revision 5, 2026-10-26, absorbing `0004`, the director's ratification of the first build's record, `0002` as amended, with its seven errata.\
+Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26-14`), every decision of section 11 at its recommendation, on top of what `H26-12` and `H26-13`, each as amended, had settled; recorded as this repository's own ruling `0001` in `docs/DECISIONS.md`; revision 4 folded in the first three readings (section 12).
 
 | Section | Maturity | Reopens on |
 |---|---|---|
 | 2 Identity, scope, non-goals | approved: the repository, the name, the address, the touchpad in scope and the non-goals by `H26-12` and `H26-13`; the rest, the covered browsers among it (IT-D12), by `H26-14` | A ruling that changes scope, or an input a person can make that the scope leaves out |
 | 3 Justification chain | approved (`H26-14`) | A ruling recorded in `docs/DECISIONS.md`, or an amendment of `VISION.md` |
-| 4 Axiom alignment | approved (`H26-14`) | A change to the tester's traits, or a tension discharged or found |
+| 4 Axiom alignment | approved (`H26-14`; `0004`) | A change to the tester's traits, or a tension discharged or found |
 | 5 Anchored core | approved (`H26-14`) | A duty with no owner, owned twice, or held here that a shared part should hold |
-| 6 Entities, data, interfaces | approved (`H26-14`) | A shown thing with no entity behind it |
-| 7 Run time | approved (`H26-14`) | A sequence of inputs whose picture is not listed |
-| 8 Verification | approved (`H26-14`) | A success dimension, or a claim, with no check |
+| 6 Entities, data, interfaces | approved (`H26-14`; `0004`) | A shown thing with no entity behind it |
+| 7 Run time | approved (`H26-14`; `0004`) | A sequence of inputs whose picture is not listed |
+| 8 Verification | approved (`H26-14`; `0004`) | A success dimension, or a claim, with no check |
 | 9 Delivery and hosting | approved: the buckets, the two hosts, IAP left out, a deploy that copies one release to the lab first, and a browser rule in the response headers by `H26-13` as amended; the rest by `H26-14` | A change of host, or a deploy that is not a copy of one release |
-| 10 Owed and open | approved (`H26-14`) | Any row closed or added |
-| 11 Decisions | approved, each at its recommendation (`H26-14`) | A ruling that changes one |
+| 10 Owed and open | approved (`H26-14`); its rows as `docs/BACKLOG.md` holds them after `0003` | Any row closed or added |
+| 11 Decisions | approved, each at its recommendation (`H26-14`), IT-D2 and IT-D9 as `0004` reads them | A ruling that changes one |
 | 12 Readings | a record | A reading |
 
 | Field | Value |
@@ -116,7 +116,7 @@ One stream through single-duty parts: a platform event becomes one fact (`input-
 The M7 audit of this design.
 
 **Identity.**\
-This document's third revision, read against the four parts' published contracts at `v0.1.0` and the design of their next releases at its third revision, mission-kit at `e33c850`, the cold-agent experiment that first built a tester from the four, and the first two readings of both.
+This document's fifth revision: revision 4, read against the four parts' published contracts and the design of their next releases, mission-kit at `e33c850`, the cold-agent experiment that first built a tester from the four, and three readings, with the first build's errata (`0004`) absorbed.
 
 **Traits.**\
 Stateful, narrowly -- the page writes what is held and what is live, and reads it back at the next event; were that record wrong, a key would stay lit, so T1's test holds, for one page's life, with nothing persisted.\
@@ -126,14 +126,14 @@ Not autonomous -- the person watching the page sees every response, and the page
 Not llm-in-the-loop.
 
 **Verdict.**\
-Revision 3 is `pass, with guardrails`, by its author; its standing is to be confirmed by a confirming reading.
+Revision 5 is `pass, with guardrails`, by its author; the errata it absorbs were found by the first build and checked by its reviews (`0002`).
 
 | Axiom | Weight | How the design stands | Tension |
 |---|---|---|---|
 | `A3` | load-bearing | Parts of one duty each (section 5); the four shared parts reached only through their contracts; the press's routing held by `input-binding` (`resolvePress`), the tester's router keeping no protocol of its own; a gap in a part is fixed in the part (P2) | Open: the two keyboard plans are held here, one application's data, until a second application draws a keyboard |
 | `A1` | supporting | One record of picture state, made only from verdicts, frozen, readable whole at any moment (the proof reads it); held keys read from `input-binding`'s session, never kept twice | Transient by design: a reload ends it, and nothing should survive one |
 | `A4` | supporting | The tester's rulings in `docs/DECISIONS.md`, every workaround in `docs/BACKLOG.md` with the release that retires it (IT-D7); each reading's findings on this document and their dispositions in section 12 | Open: the experiment and each reading's full record are kept outside this repository, with the programme |
-| `A8` | load-bearing | The gate drives trusted input in headless Chrome over every binding row, proves no input matches two rows over the rows' whole cross-product, proves every request belongs to the release, fails planted leaks and a planted slow delivery, and runs a positive control for the claimed pinch (section 8) | Open: a real touchpad, the Chromebook plan's codes, a real input method, other browsers and a mouse wheel's page zoom are not in the gate; each rests on a recorded acceptance or on IT-D12's scope |
+| `A8` | load-bearing | The gate drives trusted input in headless Chrome over every binding row, proves no input matches two rows over the space section 6 states, proves every request belongs to the release, fails planted leaks and planted slow deliveries, and runs a positive control for the claimed pinch (section 8) | Open: a real touchpad, the Chromebook plan's codes, a real input method, other browsers and a mouse wheel's page zoom are not in the gate; each rests on a recorded acceptance or on IT-D12's scope |
 | `A9` | supporting | A deploy copies a release's versioned folder to the lab, measures its bytes and headers and runs a smoke run there, switches the entry last, and only then production; old folders stay, so a rollback is an entry copied back | Deliberate: no telemetry, by containment, so a failure in production has no witness but its visitor |
 | `A14` | supporting | Every gap the first build and the readings met is a part's release, the guide, or a row here with its trigger | Open: what the tester meets outside the covered browsers is unmeasured, and said so on the page |
 
@@ -144,18 +144,18 @@ Integrity: the gate proves fidelity, immediacy's bound and containment in a real
 Director attention: section 11 asks one decision at a time, each with a recommendation.
 
 **Deltas.**\
-From the empty current instant to this target: the shared parts' releases -- `input-capture`, `input-binding` and `vector-scene` at `0.2.0`, `snap-grid` at `0.1.1`; the guide; this repository's first code, gate and release; two buckets, each a backend of the load balancer with the rule in its response headers and the edge cache off; the first deploy; and the generator of the current architecture.
+With the first build's errata absorbed, the current instant -- `v0.1.0`, as `docs/ARCHITECTURE.md` derives it, deployed at both hosts (`0003`) -- departs from this target only where section 10 holds a row open.
 
 **Guardrails for the build.**
 - GT1: the source names no network interface, no navigation, no storage, no clock or timer and no dynamic import, and makes no element but through `vector-scene`, held by a source check in the gate.
 - GT2: every put for an input happens inside that input's delivery, held by a test.
 - GT3: each shared part's files are served byte-identical to its release, held by the deploy check.
 - GT4: no workaround row is open while the release named to retire it is installed, held by the gate.
-- GT5: every row the browser can produce is matched by the gate's trusted input and every other row by a synthetic fixture, as section 6 names each; no two rows hit together over the rows' whole cross-product; and a plain drag of every button matches no chord row.
+- GT5: every row the browser can produce is matched by the gate's trusted input and every other row by a synthetic fixture, as section 6 names each; no two rows hit together over the space section 6 states; and a plain drag of every button matches no chord row.
 - GT6: the browser rule is one text, in every response's header, the same for every release, sent by the backends and by the gate's own server, with no report endpoint.
 - GT7: the source holds none of the words the shared parts' vocabulary check refuses on behalf of their first consumer, held by running that check here.
 - GT8: every shape the painter puts is within its allowlist (section 6, Shape), and the stylesheet holds no `url(` and no `@import`, held by a test.
-- GT9: every delivery completes within the gate's bound, held by a timed run that a planted slow build fails.
+- GT9: the deliveries' 95th percentile, by nearest rank, falls within 10 ms in the gate's Chrome, the maximum and the median reported beside it, held by a timed run that planted builds waiting 50 ms and 12 ms in every delivery each fail.
 
 **Closeout hooks.**\
 The tester's first release is checked against GT1 to GT9 and section 8's table by a verifier who did not build it.
@@ -175,7 +175,7 @@ Each part has one duty and serves at least one principle.
 | **Picture state** | Keeps what the person is shown, as data | Verdicts; the session's state | One frozen record (section 6) | P1, P6 |
 | **Painter** | Describes the picture as shapes, within an allowlist | The picture state; the plan; the labels | Puts and removes in `vector-scene`'s layers (VS6); the fixed lines of what is not reported (IT-D8) | P3, P4, P6 |
 | **Composition root** | Composes the page from its parts, and switches each fact to the router by its family | Every part; the four shared parts' opening functions, each imported by relative path from the release's `vendor` folder (IT-D1) | Nothing; a refused opening shows its problems on the page | P8 |
-| **Page shell** | Serves the page's entry | The release's files | The entry document: its stylesheet and its one module script, both in the release's versioned folder; no inline script | P4, P7 |
+| **Page shell** | Serves the page's entry | The release's files | The entry document: its stylesheet and its one module script, both in the release's versioned folder, and two plain hyperlinks choosing the plan; no inline script | P4, P7 |
 
 **The shared parts it consumes.**\
 The tester composes `input-capture`, `input-binding` and `vector-scene` at their next minor releases, `0.2.0`, which carry what the first build and the readings found missing, and `snap-grid` at `0.1.1`, whose change is its documents alone.
@@ -209,15 +209,15 @@ The tester composes `input-capture`, `input-binding` and `vector-scene` at their
 `threshold` 4 and the gestures `press-0` to `press-4`, `engaged` false, and `drag-0` to `drag-4`, `engaged` true, each declaring its button; the threshold is in drawing units, the units of capture's `at`, which the scene's `toDrawing` gives, a quarter key being 10 of them, so a press is a drag once it travels more than a tenth of a key, as the status line says.
 
 **The table's rows.**\
-Terms: a *keyed* fact is a key fact whose `code` is a non-empty string that is not one of the browser's own keys, the union of the table below, so no platform is detected and a combination that is the browser's on one platform is left unclaimed on all; a *fresh press* is a keyed `key-down` whose `repeat` is false; the *modifier codes* are `ShiftLeft`, `ShiftRight`, `ControlLeft`, `ControlRight`, `AltLeft`, `AltRight`, `MetaLeft` and `MetaRight`; a *chord modifier* is Ctrl, Alt or Meta held.\
+Terms: a key fact whose `code` is a non-empty string is one of the browser's own keys when its `code`, or its `key` case-folded to the letter an entry's letter key names, matches an entry of any row of the table below, with each modifier as the entry asks -- by the letter too, since Chrome matches its shortcuts by the letter a key prints, Dvorak's Ctrl+R arriving as `code` `KeyO` and `key` "r" -- so no platform is detected and a combination that is the browser's on one platform is left unclaimed on all; a *keyed* fact is a key fact whose `code` is a non-empty string and which is not one of the browser's own keys; a *fresh press* is a keyed `key-down` whose `repeat` is false; the *modifier codes* are `ShiftLeft`, `ShiftRight`, `ControlLeft`, `ControlRight`, `AltLeft`, `AltRight`, `MetaLeft` and `MetaRight`; a *chord modifier* is Ctrl, Alt or Meta held.\
 Shift makes no chord: Shift's own press is a modifier press, and a key pressed with Shift held is that key's first press or roll-over, its `key` the shifted character.\
 Since a row's claim does not depend on its `when` (IB7), every claiming row's `on` refuses the browser's own keys.
 
-| Platform | The browser's own keys -- reload, fullscreen, developer tools -- that reach a page | Source, not measured on the platform |
+| Platform | The browser's own keys -- reload, fullscreen, developer tools, view source -- that reach a page | Source, not measured on the platform |
 |---|---|---|
-| Windows, Linux, ChromeOS | `F5`, with or without Ctrl or Shift; `KeyR` with Ctrl, with or without Shift; `F11`; `F12`; `KeyI`, `KeyJ` and `KeyC` with Ctrl and Shift; on Linux `BrowserRefresh` too | Chromium's accelerator table (`accelerator_table.cc`); Chrome's keyboard-shortcut help |
+| Windows, Linux, ChromeOS | `F5`, with or without Ctrl or Shift; `KeyR` with Ctrl, with or without Shift; `F11`; `F12`; `KeyI`, `KeyJ` and `KeyC` with Ctrl and Shift; `KeyU` with Ctrl; on Linux `BrowserRefresh` too | Chromium's accelerator table (`accelerator_table.cc`); Chrome's keyboard-shortcut help |
 | ChromeOS, beside those | `BrowserRefresh` and `ZoomToggle`, should the Chromebook acceptance find them reaching a page: Chromium reserves the Refresh, Back and Forward keys, which never reach one, and leaves the keys from Fullscreen up to the system | Chromium's `browser_command_controller.cc` |
-| macOS | `KeyR` with Meta, with or without Shift; `KeyF` with Control and Meta, the fullscreen shortcut, which Chromium also marks with the Fn key no fact carries; `KeyI`, `KeyJ` and `KeyC` with Meta and Alt; `KeyC` with Meta and Shift | Chromium's `accelerators_cocoa.mm` and `global_keyboard_shortcuts_mac.mm`; Chrome's help naming Fn and F the fullscreen key |
+| macOS | `KeyR` with Meta, with or without Shift; `KeyF` with Control and Meta, the fullscreen shortcut, which Chromium also marks with the Fn key no fact carries; `KeyI`, `KeyJ`, `KeyC` and `KeyU` with Meta and Alt; `KeyC` with Meta and Shift | Chromium's `accelerators_cocoa.mm` and `global_keyboard_shortcuts_mac.mm`; Chrome's help naming Fn and F the fullscreen key |
 
 Headless Chrome delivers each of these over the protocol to the page without acting on it (measured), so the gate proves they match the unclaimed row, not what each browser then does; the browser's reserved shortcuts -- a new or closed tab or window, switching tabs -- never reach a page, and are among what no page can know (IT-D8).
 
@@ -231,7 +231,7 @@ Headless Chrome delivers each of these over the protocol to the page without act
 | a release | a keyed `key-up` | `wasHeld` | yes | trusted |
 | a release whose press was not seen | a keyed `key-up` | not `wasHeld` | yes | trusted |
 | a key with no identity | a key fact whose `code` is `''` or `null` | -- | yes | trusted for `''`, fixture for `null` |
-| left to the browser | a key fact of one of the browser's own keys | -- | no | trusted |
+| left to the browser | one of the browser's own keys | -- | no | trusted |
 | a press of button b, for b from 0 to 4 | a `down` whose `pointerType` is `mouse` and `button` b; opens `press-b` | -- | yes | trusted |
 | a release of button b | an `up` whose `pointerType` is `mouse` and `button` b | -- | yes | trusted |
 | a chorded press, a chorded release | a `move` whose `pointerType` is `mouse`, `button` 0 to 4 and `buttons` an integer, that button's bit set, or clear | -- | yes | trusted |
@@ -246,10 +246,11 @@ Headless Chrome delivers each of these over the protocol to the page without act
 | focus lost | a `blur` | -- | yes | trusted |
 
 *Trusted* rows are driven by the gate's trusted input in `test/browser/rows.test.js` -- a wheel of no distance, a pen's and a touch's pointers and the browser's own keys among them, each measured reaching a page over the protocol; *fixture* rows, which Chromium never produces -- a `move` whose `buttons` is `null`, a button above 4, a `code` of `null` -- are driven in `test/rows-fixtures.test.js` by events handed to a capture opened over fakes, so each fact is the one capture makes; `test/table-overlaps.test.js` runs the overlap check over both.\
-Composed by the released `input-binding` and run through that check over every key fact's type, repeat flag, code class and sixteen modifier states with the four contexts, and every pointer, wheel, `blur` and derived fact -- 46,661 facts -- these 42 rows hit no two together, and no fact of a browser's own key is claimed; revision 2's rows, run the same way, hit Ctrl and A twice (measured).
+The space is built by method: key facts of both types and both repeat flags over 119 codes -- every code either plan draws or the browser's own keys name, `Fn`, `Unidentified` and `IntlBackslash`, `''` and `null` -- each with eight `key` values, a letter no entry names, each of the six letters the browser's own letter keys name in lower or upper case by turns, and none, and sixteen modifier states; pointer facts of their nine types, four pointer types, `button` -1 to 6 and `buttons` `null` or 0 to 31, the fixtures' facts among them; wheels over both Ctrl states, five values of each delta and three units; a `blur`; and each gesture's derived click and drop; each with the four contexts.\
+Composed by the released `input-binding` and run through that check, these 42 rows hit no two together, no fact of a browser's own key is claimed, and every row is hit by some fact -- 70,603 facts, 282,412 combinations (measured); revision 2's rows, run over that revision's space, hit Ctrl and A twice (measured).
 
 **Which facts change what.**
-- The mouse buttons drawn follow `buttons`, when not `null`, of a fact whose `pointerType` is `mouse` -- a mouse's `context-menu` among them -- and of a `wheel`; a `double`, which carries no pointer type, a `context-menu` invoked from the keyboard, whose pointer type is not `mouse`, and key, `blur`, touch and pen facts never change them.
+- The mouse buttons drawn follow `buttons`, when not `null`, of a mouse's `down`, `move`, `up`, `cancel` and `context-menu` and of every `wheel`, never of `over`, `out` or `leave`: in Chrome the boundary facts that follow a taken press carry `buttons` 1 while only button 1 is held and 0 while only button 2 is, Chromium synthesizing a hover move that sets only the left button's flag when the page changes under a pressed button (measured), and section 2 draws no event the browser derives from an input already shown; a `double`, which carries no pointer type, a `context-menu` invoked from the keyboard, whose pointer type is not `mouse`, and key, `blur`, touch and pen facts never change them.
 - Only mouse facts reach the session's pointer operations: `down` through `resolvePress`, `move` through `pointerMove`, `up` through `pointerUp`, `cancel` through `pointerLost`; key facts reach `keyDown` and `keyUp`; a `blur` reaches `keysLost` and then `pointerLost`; every other fact is traced and matched alone.
 
 **Worked verdicts.**\
@@ -284,8 +285,9 @@ The labels answer once, possibly later than the first paint, and the painter put
 The entry document names its stylesheet and one module script, both in the release's versioned folder; that module imports the four parts' files from the folder's `vendor` folder by relative path; the rule arrives with every response.\
 The composition root opens the grid, the table and the session, the scene on the page's `<svg>` -- which appends its four layers -- and the capture; any refusal is shown as its problems.\
 Outside a Chromium-based browser -- no `navigator.userAgentData` naming Chromium -- a line says that coverage is not proved here.\
-The plan is chosen on the page, or by the address's `plan` parameter, so a bookmark keeps it and nothing is stored; the keys are painted with their printed labels, the Keyboard Map is asked once, and when it answers each key is painted again with the person's label.\
-Every request the page makes is one of the release's files, and after the last of them it makes none.
+The plan is the address's `plan` parameter, full-size ANSI when it names neither plan; two plain hyperlinks in the entry document, `?plan=ansi` and `?plan=chromebook`, set it by an ordinary navigation the person makes, which reloads the page and ends what it showed, and the code changes no address, so a bookmark keeps the choice and nothing is stored.\
+The keys are painted with their printed labels, the Keyboard Map is asked once, and when it answers each key is painted again with the person's label.\
+Every request the page makes is the entry, its stylesheet or a module its one module script reaches by static import, each once, and after the last of them it makes none.
 
 **A key held, repeated and released.**\
 A `key-down` fact is traced and matched and, when its row claims, claimed (IC8), so the browser does nothing with it; `keyDown` records the key held, and the picture records its first observed `time`.\
@@ -304,7 +306,7 @@ The `up` is handed to `pointerUp`; on a commit the router derives its fact and t
 The item under the pointer is `hit`'s answer: `itemOf` of the target, and, when that is `null` -- as it is while the pointer is taken and every event targets the `<svg>` -- `itemAt` of the fact's `screen`.
 
 **A chorded press.**\
-A second button pressed while one is held arrives as a `move` naming that button, and its release likewise; the buttons drawn follow each mouse fact's `buttons`, and the chorded rows name each.\
+A second button pressed while one is held arrives as a `move` naming that button, and its release likewise; the buttons drawn follow each such `move`'s `buttons` (section 6), and the chorded rows name each.\
 The last release commits the gesture whichever button it names, since the press the gesture's own button began has ended (IB11).
 
 **The back and forward buttons.**\
@@ -333,9 +335,9 @@ Its pointer facts arrive with their `pointerType`, match their one row and are l
 | Success dimension | How it is proved |
 |---|---|
 | Fidelity | The gate opens the page in headless Chrome and drives trusted input over the DevTools protocol -- keys held and repeated, every button, chords in both release orders, plain drags of every button, presses travelling exactly the threshold and just beyond it, double clicks, wheels, a synthesized touchpad pinch, the context menu, a media key with no `code`, and focus lost by opening a second tab, once during a captured drag released in the other tab and returned to with no `up` or `cancel` -- and checks after each input that the picture record, the page and the verdict show exactly what section 6's worked verdicts give; a claimed pinch leaves `visualViewport.scale` 1, and with claiming disabled in a test build makes it 2, the positive control (measured) |
-| Immediacy | A test spies on the scene and finds every put for an input made inside that input's delivery (GT2); a harness around the composition root's `deliver` finds every delivery done within 10 ms in the gate's Chrome, a bound generous against one frame of 16.7 ms, and a planted build that waits 50 ms in its delivery fails it (GT9); the time from each fact's `time` to the end of its put is reported; on the director's Chromebook, typing fast, chords and a drag are watched for any lag a person sees, and the result recorded in `docs/DECISIONS.md`, not gated |
-| Coverage | Every row the browser can produce is matched by trusted input and every other by its fixture, and the overlap check over the rows' whole cross-product finds none (GT5); a native input method used on the director's Chromebook, the keys it delivers and any committed text the page did not receive recorded (IT-D12); every `code` in each plan is a UI Events code value or one of Chromium's, marked so; every input family in section 2's scope has a row; the fixed lines of what no page can know are shown, the Ctrl row's sentence among them (IT-D8); a page without `navigator.userAgentData` naming Chromium, simulated, shows its line; a `code` not drawn is logged as "not on the drawn keyboard" |
-| Containment | The gate watches every request from before navigation through teardown, input dispatched from the navigation's commit, before the load event, and finds the entry first, then each of the release's files once, and none after; planted leaks, each carrying a key in its address, each fail -- a same-origin script element, a dynamic import, a stylesheet and a prefetch, which the rule lets through, an image and a shape's `href`, which it refuses, and a navigation to the page's own origin, which no rule stops (each measured); the painter's shapes held to its allowlist (GT8); the source check (GT1); the gate's server and the deploy check find the rule in every response (GT6) |
+| Immediacy | A test spies on the scene and finds every put for an input made inside that input's delivery (GT2); a harness, set into the page before its own scripts, times each listener the capture adds, which calls the delivery synchronously, so the capture's reading of the event is timed with it, and finds the deliveries' 95th percentile, by nearest rank, within 10 ms in the gate's Chrome, a bound generous against one frame of 16.7 ms, the maximum and the median reported beside it; planted builds waiting 50 ms and 12 ms in every delivery each fail it (GT9); the time from each fact's `time` to the end of its put is reported; on the director's Chromebook fast typing, chords and drags show no lag a person sees (`0003`), not gated |
+| Coverage | Every row the browser can produce is matched by trusted input and every other by its fixture, and the overlap check over the space section 6 states finds none (GT5); a native input method used on the director's Chromebook, the keys it delivers and any committed text the page did not receive recorded (IT-D12; owed, section 10, row 5); every `code` in each plan is a UI Events code value or one of Chromium's, marked so; every input family in section 2's scope has a row; the fixed lines of what no page can know are shown, the Ctrl row's sentence among them (IT-D8); a page without `navigator.userAgentData` naming Chromium, simulated, shows its line; a `code` not drawn is logged as "not on the drawn keyboard" |
+| Containment | The gate watches every request from before navigation through teardown, input dispatched from the navigation's commit, before the load event, and finds the entry first, then each file the page loads -- its stylesheet and every module its one module script reaches by static import -- each once, and nothing else, so no request for the release's files no page loads, the parts' declarations and maps and the manifest; planted leaks, each carrying a key in its address, each fail -- a same-origin script element, a dynamic import, a stylesheet and a prefetch, which the rule lets through, an image and a shape's `href`, which it refuses, and a navigation to the page's own origin, which no rule stops (each measured); the painter's shapes held to its allowlist (GT8); the source check (GT1); the gate's server and the deploy check find the rule in every response (GT6) |
 | Proof of reuse | The lockfile pins each part's release file by its hash; the deploy check finds each part's files byte-identical to its release (GT3); the gate holds GT4 against `docs/BACKLOG.md` |
 | Teachability | Every code example in the guide is run in the gate; a cold reader, given the guide and this repository alone, builds a small application from the four, and what they could not do is recorded (section 10, row 14) |
 
@@ -377,21 +379,21 @@ There is no server logic.
 
 | # | Owed or open | Why it matters |
 |---|---|---|
-| 1 | The current architecture, `docs/ARCHITECTURE.md`, is derived by a generator from the code and the gate's results, never written by hand; the generator is owed with the first code | AR1 forbids a hand-written current instant |
-| 2 | The Keyboard Map is offered by Chromium browsers (measured present in headless Chrome) | Where it is absent every label is the plan's printing, marked as assumed |
-| 3 | A real touchpad, keyboards other than the two plans, and Chromium browsers other than Chrome are not proved by the gate | Fidelity is proved for what Chrome delivers to synthesized input |
-| 4 | The Chromebook plan's action-key codes are Chromium's, not measured on a Chromebook | The director's keyboard, run on the page with what each key sends recorded, is the plan's acceptance; a code it sends that is not drawn is logged meanwhile |
-| 5 | What a native input method delivers to a page with nothing editable is not measured: injected composition reached no listener there, which says nothing of a native one's key events | Coverage of typing through one is not established until IT-D12's acceptance has been run on the director's Chromebook |
-| 6 | Caps Lock's and Num Lock's state is not shown: no shared part carries it | Lock state is not an input, so coverage holds |
+| 1 | Chrome sends a taken press's boundary facts with `buttons` contradicting the press (section 6); whether real hardware does the same is not measured (B13) | The buttons drawn can lag a boundary fact that was right, until the next press, move or release |
+| 2 | The Keyboard Map is offered by Chromium browsers (measured present in headless Chrome) and asked once, at load (B11) | Where it is absent every label is the plan's printing, marked as assumed; a keyboard's language switched while the page is open leaves the labels it loaded with |
+| 3 | Keyboards other than the two plans are not drawn, and browsers not Chromium-based are not covered, as the page says (B8, B10) | Fidelity is proved for what Chrome delivers to trusted input and for the director's Chromebook (`0003`) |
+| 4 | The Chromebook plan's top-row codes and its Search key's `MetaLeft` are accepted on the director's report that every key responded as drawn, so each sent the code drawn for it, though no code was written down one by one (`0003`); the page still marks them unmeasured (B1) | The mark stands until a release drops it on that report, or a person reports a top-row key drawn wrong |
+| 5 | What a native input method delivers to a page with nothing editable is not measured: injected composition reached no listener there, which says nothing of a native one's key events, and the director's acceptance used none (`0003`, B2) | Coverage of typing through one is not established until it is used on the director's Chromebook and the keys delivered recorded (IT-D12) |
+| 6 | Caps Lock's and Num Lock's state is not shown: no shared part carries it (B9) | Lock state is not an input, so coverage holds |
 | 7 | The rule cannot stop a same-origin script, stylesheet or prefetch, or a navigation carrying data in its address (each measured in Chrome) | Those rest on GT1, the allowlist and the request monitor |
 | 8 | No telemetry, by containment | A failure in production is seen only by its visitor |
-| 9 | Ctrl and a mouse wheel make no page zoom in headless Chrome, claimed or not (measured) | Their claim is proved only by the Chromebook acceptance |
-| 10 | Old release folders accumulate in both buckets | Pruning is held, the trigger "a bucket's size or listing becomes a cost" |
-| 11 | The trusted-input driver is the fifth copy of one harness -- each shared part keeps its own | A shared test driver, once a change must be made in more than one copy |
-| 12 | Immediacy on real hardware rests on a recorded acceptance, not on the gate | Headless timing is no person's screen |
-| 13 | Should `input-binding` not hold the keys held, the picture state holds them itself | One record of held keys either way, never two |
-| 14 | The guide's cold reading is owed | Teachability is claimed until a newcomer has built from it |
-
+| 9 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured (B12) | The rule refuses an image either way |
+| 10 | Old release folders accumulate in both buckets (B5) | Pruning is held, the trigger "a bucket's size or listing becomes a cost" |
+| 11 | The trusted-input driver is the fifth copy of one harness -- each shared part keeps its own (B6) | A shared test driver, once a change must be made in more than one copy |
+| 12 | In Chrome a pen's first press is followed by a mouse `move` at the pen's position, moving a live mouse drag's line there, shown as the mouse fact delivered; a real pen or finger not measured (B15) | A drag's line can jump to where a pen or a finger touched |
+| 13 | The parts' documents left six things to guess, none needing a workaround: the conservative scale's recipe, `takePointer` on a synthetic event, boundary facts after `takePointer`, the vocabulary list, the held button a trusted move must name, and a painter typed over any scene (D1 to D6) | Each belongs to its part's next release |
+| 14 | The guide's cold reading is owed (B7) | Teachability is claimed until a newcomer has built from it |
+| 15 | Matching the browser's own keys by `code` or by letter leaves a few other shortcuts to the browser on Dvorak and Colemak -- Ctrl+P on `KeyR`, Colemak's Ctrl+L and Dvorak's Ctrl+G each on `KeyU` -- argued from Chromium's source, not measured; raised by the first build's review A and held by the recorder | On Dvorak and Colemak the page leaves those keys unclaimed and the browser acts on them; the refinement, matching by the letter when `key` is a Latin letter and by `code` otherwise, is held with the trigger "a person on Dvorak or Colemak reports a shortcut taken by the browser while the page is open" |
 ---
 
 ## 11. Decisions
@@ -419,7 +421,7 @@ Each with its options and their costs, and a recommendation given apart; the dir
 | Several physical keyboards now, chosen by the person or guessed from the Keyboard Map | Three or four plans to keep exact; a guess is not "exactly" |
 | No drawn keyboard, a list of keys pressed | Fails the vision's "a picture of the keyboard" |
 
-**Recommended:** both plans, chosen on the page or by the address's `plan` parameter, nothing stored, labels from the Keyboard Map marked as reported or assumed; the Chromebook plan's codes marked unmeasured until the director's keyboard has been run on the page and what each key sends recorded, its acceptance; other keyboards held with the trigger "a person on another physical keyboard reports a key drawn wrong or missing".
+**Recommended:** both plans, chosen by two plain hyperlinks in the entry document setting the address's `plan` parameter, the code changing no address and nothing stored, labels from the Keyboard Map marked as reported or assumed; the Chromebook plan's codes marked unmeasured until the director's keyboard has been run on the page and what each key sends recorded, its acceptance; other keyboards held with the trigger "a person on another physical keyboard reports a key drawn wrong or missing".
 
 **IT-D3 -- Where the routing between capture and binding lives.**\
 Answered by the shared parts' releases: the mechanism every consumer wrote out -- the press, its match, a cancel and a second start -- is `input-binding`'s `resolvePress` (IB15); the router passes the match it found and keeps no protocol of its own, and the switch over fact families is the composition root's wiring, since no shared part imports another.
@@ -483,7 +485,7 @@ Under it, with no import map, the four parts' release files load by relative pat
 
 | Option | Cost |
 |---|---|
-| Every key, every button's press and release, every wheel, double click and context menu, except the browser's own keys -- reload, fullscreen, the developer tools, per platform as section 6 lists them -- which match their own row, claim off, and no claiming row | The page keeps Tab, so focus never wanders, and a person can still reload; the browser still keeps what it never lets a page claim |
+| Every key, every button's press and release, every wheel, double click and context menu, except the browser's own keys -- reload, fullscreen, the developer tools and view source, per platform as section 6 lists them, matched by `code` or by the letter a key prints -- which match their own row, claim off, and no claiming row | The page keeps Tab, so focus never wanders, and a person can still reload; the browser still keeps what it never lets a page claim |
 | Everything claimable | A person cannot reload by keyboard |
 | Nothing | Wheels scroll, pinches zoom, the back button leaves the page, Tab moves focus |
 
@@ -567,3 +569,5 @@ Read by two of the three; one found nothing to raise, the other six findings, ea
 | Section 6: the second press over a live gesture, of its own button, taken with nothing cancelled or started | o:F4 |
 | Section 3, section 10 and IT-D12: the composition measurement stated as only that, a native input method's acceptance a condition of the coverage claim | o:F5 |
 | Section 6 and IT-D9: the browser's own keys per platform, with their sources, macOS's fullscreen shortcut among them | o:F6 |
+
+The first build's reviews -- two of its first release, each failing it, and their confirming passes -- are recorded in `0002` itself, which `0004` ratified and revision 5 absorbs.

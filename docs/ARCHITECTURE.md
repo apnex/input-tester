@@ -5,7 +5,7 @@ instant: current
 # input-tester - system architecture, current
 
 **Instant: current.** input-tester as its code and its gate's last run show it, derived by `tools/generate-architecture.mjs` and never written by hand.\
-Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 4, which this document cites and never restates.\
+Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 5, which this document cites and never restates.\
 Every section is derived; each changes when the code, the gate's results or the records it is read from change, and `npm run gate` fails while this file differs from what the generator derives.
 
 ---
@@ -15,8 +15,8 @@ Every section is derived; each changes when the code, the gate's results or the 
 | Field | Value |
 |---|---|
 | Version | `0.1.0`, its release folder `v0.1.0` |
-| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 4 |
-| Rulings recorded | `0001`, `0002`, `0003`, in `docs/DECISIONS.md` |
+| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 5 |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -199,6 +199,7 @@ Workarounds open: 0.
 | B12 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured; the browser rule refuses an image either way |
 | B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is, measured again with the held button named on every move; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
 | B15 | In Chrome a pen's first press on the page is followed by a mouse `move` at the pen's position, which moves a live mouse drag's line there; the tester shows the mouse fact as delivered, and whether a real pen, or a finger on a touch screen, makes the browser send it is not measured |
+| B16 | Matching the browser's own keys by `code` or by the letter a key prints (`0002` erratum 6) leaves a few shortcuts no entry names to the browser on Dvorak and Colemak -- Ctrl+P on `KeyR` opens printing, Colemak's Ctrl+L on `KeyU` takes focus to the address bar, Dvorak's Ctrl+G on `KeyU` finds the next match -- since Chromium takes a Latin letter's shortcut by its letter first; argued from Chromium's source (`xkb_keyboard_layout_engine.cc`), not measured on those layouts; the refinement is to match by the letter when `key` is a Latin letter and by `code` otherwise |
 
 ---
 
@@ -209,3 +210,4 @@ Workarounds open: 0.
 | `0001` | The architecture ratified as recommended |
 | `0002` | The first build: what it settled, and its errata against the architecture |
 | `0003` | v0.1.0 accepted on the director's Chromebook and deployed to production |
+| `0004` | The first build's record ratified as written |

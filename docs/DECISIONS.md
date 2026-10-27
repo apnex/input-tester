@@ -234,3 +234,19 @@ The director's report, whole: "Look fine, buttons, touchpad and keys all seem to
 The acceptance `0001` owed was run on the device the tester was built around: the mouse buttons, the touchpad's scroll and pinch, and the keys, the top row among them, responded as drawn, with no lag seen (B3 and B4 retired; B1 narrowed to the page's mark).\
 No input method was used, so typing through one stays outside the covered inputs until it is tried (B2, IT-D12).\
 The deploy ran as section 9 states, the lab first; every file served by both hosts was read back byte-identical to the release (B14 retired).
+
+---
+
+## 0004 - The first build's record ratified as written
+
+**Ruled by:** the director, 2026-10-26.\
+**Ratifies:** `0002`, as amended.\
+**Affects:** `docs/ARCHITECTURE-TARGET.md` sections 4, 6, 7, 8 and 11, which absorb its seven errata in revision 5.
+
+**Ruling.**\
+`0002` is ratified as written, its seven errata among it: the buttons drawn follow no boundary fact; the overlap proof counted as it states; the monitor holding the files a page loads, each once; the plan chosen by two plain links; the immediacy harness timing each listener the capture adds; the browser's own keys matched by the letter a key prints as well as its code, view source among them; and GT9 judged at the deliveries' 95th percentile.\
+The two the recorder ruled, 6 and 7, are the director's from this ruling.
+
+**Why.**\
+Each erratum was found by the build or by an independent review, and checked by the reviews that followed (`0002`); the director was shown all seven, the two that change what a person meets named apart, and ratified them as written rather than one at a time.
+
