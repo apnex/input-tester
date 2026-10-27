@@ -16,7 +16,7 @@ Every section is derived; each changes when the code, the gate's results or the 
 |---|---|
 | Version | `0.1.0`, its release folder `v0.1.0` |
 | Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 4 |
-| Rulings recorded | `0001`, `0002`, in `docs/DECISIONS.md` |
+| Rulings recorded | `0001`, `0002`, `0003`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -187,10 +187,8 @@ Workarounds open: 0.
 | D4 | The vocabulary list the parts refuse on behalf of their first consumer, which GT7 runs here, is held only in each part's repository, `tools/consumer-vocabulary.json`, in no published document or release file; the tester copied it from there |
 | D6 | No part's `README.md` or `CONTRACT.md` says that a protocol move of trusted input must name its held button in `button`, not only in `buttons`, or Chrome drops the taken pointer; only `input-capture`'s own test code shows it, by example, and this build's driver, missing it, tested no taken pointer until a review's mutant exposed it |
 | D5 | `vector-scene`'s scene is generic in the root's kind of element, so a painter written for any scene types its target as `Scene["put"]` and `Scene["remove"]`, which hold for every kind; no document says those two do not depend on it, and it was found by compiling |
-| B1 | The Chromebook plan's action-key codes are Chromium's, and the Search key's `MetaLeft` is the architecture's; none is measured on a Chromebook, so each is marked unmeasured on the page |
+| B1 | The page marks the Chromebook plan's top-row codes and the Search key's `MetaLeft` unmeasured, though the director's acceptance on their Chromebook, 2026-10-26, found the keys responding correctly (`0003`): a key whose `code` the plan did not draw would light nothing and be logged as not on the drawn keyboard, so each key the director pressed sent the code drawn for it; each key's code was not written down one by one |
 | B2 | Typing through a native input method is not covered: injected composition reached no listener, which says nothing of a native one's key events (IT-D12) |
-| B3 | A real touchpad's scroll and pinch, and a mouse wheel's page zoom with Ctrl, are proved only as Chrome delivers synthesized input; headless Chrome makes no page zoom for Ctrl and the wheel, claimed or not |
-| B4 | Immediacy on real hardware rests on an acceptance, not the gate: the gate measured every delivery within 3.5 ms in headless Chrome |
 | B5 | Old release folders accumulate in both buckets, since no deploy step deletes |
 | B6 | The trusted-input driver is the fifth copy of one harness; each shared part keeps its own |
 | B7 | The guide's cold reading is owed: a newcomer, given the guide and this repository alone, builds a small application from the four parts |
@@ -200,7 +198,6 @@ Workarounds open: 0.
 | B11 | The Keyboard Map is asked once, at load: a keyboard's language switched while the page is open leaves the labels the page loaded with |
 | B12 | Headless Chrome requests no favicon, so whether a headful browser asks for one beside the entry's empty icon is not measured; the browser rule refuses an image either way |
 | B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is, measured again with the held button named on every move; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
-| B14 | `tools/deploy` has never run against the buckets: it is the operator's, run with their own credentials, and the lab's measurement of the backends' headers (IT-D5), a missing object's 404 among them, is owed with it; the recorder reports, 2026-10-26, both buckets made -- `gs://input-lab-apnex-io` and `gs://input-apnex-io`, public read, main page `index.html` -- served at `input-lab.apnex.io` and `input.apnex.io` through backend buckets with their edge cache off, and both hosts answering with the rule, `Referrer-Policy` and `X-Content-Type-Options`, a 404 among them, which this build has not measured, having touched no cloud resource; its `gcloud` forms -- `storage objects describe --format=value(generation)`, `storage cp --if-generation-match`, 0 meaning no object, and the missing object's `not found: 404.` -- are taken from the Cloud SDK's documentation and messages and proved only against a stand-in |
 | B15 | In Chrome a pen's first press on the page is followed by a mouse `move` at the pen's position, which moves a live mouse drag's line there; the tester shows the mouse fact as delivered, and whether a real pen, or a finger on a touch screen, makes the browser send it is not measured |
 
 ---
@@ -211,3 +208,4 @@ Workarounds open: 0.
 |---|---|
 | `0001` | The architecture ratified as recommended |
 | `0002` | The first build: what it settled, and its errata against the architecture |
+| `0003` | v0.1.0 accepted on the director's Chromebook and deployed to production |

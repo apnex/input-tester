@@ -218,3 +218,19 @@ The buttons drawn can lag a boundary fact that was right, until the next press, 
 
 **Consequences.**\
 The target absorbs errata 1 to 7 in sections 6 to 8 when ratified; `docs/BACKLOG.md` carries B13 until real hardware is measured.
+
+---
+
+## 0003 - v0.1.0 accepted on the director's Chromebook and deployed to production
+
+**Ruled by:** the director, 2026-10-26.\
+**Affects:** `input.apnex.io`; `docs/BACKLOG.md` rows B1 to B4 and B14.
+
+**Ruling.**\
+`v0.1.0`, in the lab at `input-lab.apnex.io`, is accepted on the director's Chromebook and deployed to production at `input.apnex.io`.\
+The director's report, whole: "Look fine, buttons, touchpad and keys all seem to respond correctly without lag."
+
+**Why.**\
+The acceptance `0001` owed was run on the device the tester was built around: the mouse buttons, the touchpad's scroll and pinch, and the keys, the top row among them, responded as drawn, with no lag seen (B3 and B4 retired; B1 narrowed to the page's mark).\
+No input method was used, so typing through one stays outside the covered inputs until it is tried (B2, IT-D12).\
+The deploy ran as section 9 states, the lab first; every file served by both hosts was read back byte-identical to the release (B14 retired).
