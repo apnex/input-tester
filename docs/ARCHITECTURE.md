@@ -16,7 +16,7 @@ Every section is derived; each changes when the code, the gate's results or the 
 |---|---|
 | Version | `0.1.0`, its release folder `v0.1.0` |
 | Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 5 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, in `docs/DECISIONS.md` |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -190,7 +190,7 @@ Workarounds open: 0.
 | B1 | The page marks the Chromebook plan's top-row codes and the Search key's `MetaLeft` unmeasured, though the director's acceptance on their Chromebook, 2026-10-26, found the keys responding correctly (`0003`): a key whose `code` the plan did not draw would light nothing and be logged as not on the drawn keyboard, so each key the director pressed sent the code drawn for it; each key's code was not written down one by one |
 | B2 | Typing through a native input method is not covered: injected composition reached no listener, which says nothing of a native one's key events (IT-D12) |
 | B5 | Old release folders accumulate in both buckets, since no deploy step deletes |
-| B6 | The trusted-input driver is the fifth copy of one harness; each shared part keeps its own |
+| B17 | `tools/serve-site.mjs` passes each connection to its fixed port, byte for byte, to the gate's server, since `test-harness`'s `serveStatic` listens only on a port the system gives it |
 | B7 | The guide's cold reading is owed: a newcomer, given the guide and this repository alone, builds a small application from the four parts |
 | B8 | Keyboards other than the two plans are not drawn |
 | B9 | Caps Lock's and Num Lock's state is not shown: no shared part carries it |
@@ -211,3 +211,4 @@ Workarounds open: 0.
 | `0002` | The first build: what it settled, and its errata against the architecture |
 | `0003` | v0.1.0 accepted on the director's Chromebook and deployed to production |
 | `0004` | The first build's record ratified as written |
+| `0005` | The tests run on test-harness |
