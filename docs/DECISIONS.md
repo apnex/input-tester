@@ -250,3 +250,22 @@ The two the recorder ruled, 6 and 7, are the director's from this ruling.
 **Why.**\
 Each erratum was found by the build or by an independent review, and checked by the reviews that followed (`0002`); the director was shown all seven, the two that change what a person meets named apart, and ratified them as written rather than one at a time.
 
+---
+
+## 0005 - The tests run on test-harness
+
+**Ruled by:** the director, 2026-10-31 (draw's `H26-19` as amended: no test run may leave anything behind, and what the repositories' copies share is one component, `test-harness`, taken by each in its tests alone, pinned to its release file).\
+**Affects:** `package.json` and its lockfile, `test/browser/`, the tests that make scratch folders, `tools/run-gate.mjs`, `tools/smoke-run.mjs`, `tools/serve-site.mjs`, `tools/run-mutants.mjs` and `docs/BACKLOG.md`; nothing in `src/` or `page/`, and nothing the release or the site holds.
+
+**Ruling.**\
+`@apnex/test-harness` `0.1.0` is a development dependency, pinned to its release file by its URL and, in the lockfile, by its hash; the release packs the site alone, so no file of it is released or deployed.\
+The gate's two test steps, and `npm test`, run under its runner, `test-harness run`, each in a run folder of its own, which fails the step on anything left in it or still running after it -- the gate's one check of leftovers -- and the gate shows the runner's verdict beside the counts.\
+`test/browser/chrome-driver.js` is gone: Chrome is its `launchChrome`, in a folder of its own, and the protocol session, events and all, its `connectToPage`; the button tables and each mouse event's params are its `BUTTON_NAMES`, `BUTTON_BITS` and `mouseEventParams`, its bits held equal to the Mouse button entity's in `test/table-overlaps.test.js`, as the driver's own were by construction; and the focus loss of the rows and containment tests is its `loseFocus`, which also fails when the focus does not move as it must.\
+`test/browser/site-server.js` keeps the rule, its table and a bucket copy's metadata, and serves through its `serveStatic`, whose headers function adds the rule and its companions to every answer, a missing file's among them, and each object's Cache-Control and content type as before.\
+`tools/serve-site.mjs` must be found at a fixed port, and `serveStatic` listens only on one the system gives it, so the tool passes each connection to its fixed port, byte for byte, to the gate's server: the one local piece, recorded as `B17`, until `test-harness`'s server takes a port.\
+The deploy's smoke run, `tools/smoke-run.mjs`, launches its Chrome the same way; the deploy's checkout installs its packages with `npm ci`, which installs the development dependencies, and `test/tools/deploy-imports.test.js` still loads every module the deploy imports in a checkout never built.\
+`test/browser/deploy-cli.test.js` starts `tools/deploy` tethered with `spawnTethered`, so the deploy, and its smoke run's Chrome, end with the test however it ends; its time bound kills the deploy's whole process group, which a tethered child's `kill()` signals.\
+The request monitor, the page steps, the fake cloud and the local buckets are this repository's, as before, and so are the tests' scratch folders' names, each now a `scratchFolder`.\
+Mutant `N4`, which made the driver name a move's held button only when it is the left, now makes the same fault where the held button is named, the `mouse` helper's call to `mouseEventParams`; the old text is `test-harness`'s, held by its own tests.\
+`B6`, the driver as the fifth copy of one harness, is retired.\
+The runner is not given `--test-force-exit`, which `test-harness`'s README recommends: on Node.js 22 it cut the results a test file reports when they are many -- `snap-grid`'s `test/contract/declared-grid.test.js` reported 61 of its 78 tests with it -- and no test here leaves anything running for it to end.
