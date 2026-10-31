@@ -3,14 +3,14 @@
 // request the browser makes watched from before navigation through teardown; trusted input dispatched over the
 // DevTools protocol's Input domain, the held buttons named on every move; and the page's record read whole from
 // `globalThis.inputTester`, where the page leaves it for the proof. Chrome, its protocol session, the button tables and
-// each mouse event's params are test-harness's: launchChrome, connectToPage and mouseEventParams.
+// each mouse event's params are headless-chromium's: launchChrome, connectToPage and mouseEventParams.
 //
 // The page is laid out so a screen pixel is one drawing unit: the viewport is 1656 CSS pixels wide, so the
 // `<svg>`, between the page's 8-pixel margins, is 1640 pixels wide, its viewBox's width -- and a press
 // travelling 4 pixels travels exactly the session's threshold of 4 drawing units.
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { BUTTON_BITS, BUTTON_NAMES, connectToPage, launchChrome, mouseEventParams } from "@apnex/test-harness";
+import { BUTTON_BITS, BUTTON_NAMES, connectToPage, launchChrome, mouseEventParams } from "@apnex/headless-chromium";
 
 import { importBuilt, importVendored } from "../support/built-site.js";
 import { watchRequests } from "./request-monitor.js";
@@ -25,7 +25,7 @@ const grid = openGrid(QUARTER_KEY_GRID).grid;
 /** The protocol's modifiers bitmask: Alt 1, Ctrl 2, Meta 4, Shift 8. */
 export const MODIFIERS = Object.freeze({ alt: 1, ctrl: 2, meta: 4, shift: 8 });
 
-/** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`: test-harness's, held equal to the Mouse button entity's (test/table-overlaps.test.js). */
+/** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`: headless-chromium's, held equal to the Mouse button entity's (test/table-overlaps.test.js). */
 export { BUTTON_BITS, BUTTON_NAMES };
 
 /**
@@ -101,7 +101,7 @@ function makeHelpers(browser, chrome, server, requests) {
 		 * A trusted mouse event; `buttons` names every button held after it. A move names a held button in `button` too,
 		 * the lowest-numbered held unless `button` is given, as a real mouse's move does and as Chrome needs to keep a
 		 * taken pointer: a move naming none, its bits held, loses the capture at once (measured; docs/DECISIONS.md 0002,
-		 * the driver's correction). The params are test-harness's mouseEventParams.
+		 * the driver's correction). The params are headless-chromium's mouseEventParams.
 		 */
 		mouse: (type, point, options = {}) => chrome.send("Input.dispatchMouseEvent", mouseEventParams(type, point, options)),
 		/** Whether the page's `<svg>` holds the capture of the mouse's pointer, 1. */

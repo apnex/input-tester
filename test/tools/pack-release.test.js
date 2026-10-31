@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { scratchFolder } from "@apnex/test-harness";
+import { scratchFolder } from "@apnex/clean-runner";
 
 import { sha256Of } from "../../tools/build-site.mjs";
 import { readRelease } from "../../tools/deploy-steps.mjs";

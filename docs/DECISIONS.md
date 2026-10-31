@@ -269,3 +269,15 @@ The request monitor, the page steps, the fake cloud and the local buckets are th
 Mutant `N4`, which made the driver name a move's held button only when it is the left, now makes the same fault where the held button is named, the `mouse` helper's call to `mouseEventParams`; the old text is `test-harness`'s, held by its own tests.\
 `B6`, the driver as the fifth copy of one harness, is retired.\
 The runner is not given `--test-force-exit`, which `test-harness`'s README recommends: on Node.js 22 it cut the results a test file reports when they are many -- `snap-grid`'s `test/contract/declared-grid.test.js` reported 61 of its 78 tests with it -- and no test here leaves anything running for it to end.
+
+---
+
+## 0006 - The tests run on clean-runner and headless-chromium
+
+**Ruled by:** the director, 2026-10-31 (draw's `H26-19`, amended again: the shared component split by its two duties into `clean-runner` and `headless-chromium`, and purged, no legacy retained).\
+**Affects:** `package.json` and its lockfile, `README.md`, `test/`, `tools/run-gate.mjs`, `tools/smoke-run.mjs`, `tools/serve-site.mjs` and `docs/BACKLOG.md`; nothing in `src/` or `page/`, and nothing the release or the site holds.
+
+**Ruling.**\
+The development dependency `0005` names is replaced by two, each pinned to its release file by its URL and, in the lockfile, by its hash: `@apnex/clean-runner` `0.2.0`, for the runner -- the gate's two test steps and `npm test` under `clean-runner run` -- `scratchFolder` and `spawnTethered`, which starts `tools/deploy` in `deploy-cli.test.js`; and `@apnex/headless-chromium` `0.1.0`, for `launchChrome`, `connectToPage`, `mouseEventParams`, the button tables, `loseFocus` and `serveStatic`.\
+The deploy's smoke run, `tools/smoke-run.mjs`, launches its Chrome through `headless-chromium`, which the deploy's checkout installs with `npm ci`; the deploy still loads in a checkout never built (`test/tools/deploy-imports.test.js`).\
+`B17`, the fixed port `tools/serve-site.mjs` relays, now names `headless-chromium`'s `serveStatic`; the calls are otherwise `0005`'s, and the runner is still given no `--test-force-exit`.

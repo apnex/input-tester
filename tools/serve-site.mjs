@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // serve-site - the built site served on this machine as its backends serve it (README.md, Open it): every
 // response carrying the browser rule and its two companions, the entry `no-store` and the release's folder
-// immutable, by the gate's own server (test/browser/site-server.js). That server, test-harness's serveStatic, listens
+// immutable, by the gate's own server (test/browser/site-server.js). That server, headless-chromium's serveStatic, listens
 // on a port the system gives it, and this tool is found at a fixed one: each connection to the fixed port is passed,
-// byte for byte, to it -- the one local piece, until test-harness's server takes a port (docs/DECISIONS.md 0005).
+// byte for byte, to it -- the one local piece, until headless-chromium's server takes a port (docs/DECISIONS.md 0005).
 //
 // Usage:  node tools/serve-site.mjs [PORT]    (default: 8080; build first with npm run build)
 import fs from "node:fs";

@@ -11,7 +11,8 @@ import { after, before, test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
-import { connectToPage, launchChrome, scratchFolder } from "@apnex/test-harness";
+import { scratchFolder } from "@apnex/clean-runner";
+import { connectToPage, launchChrome } from "@apnex/headless-chromium";
 
 import { serveSite } from "./site-server.js";
 import { openTesterInChrome } from "./tester-in-chrome.js";

@@ -44,7 +44,7 @@ npm run vendor
 ```
 
 Run the gate, which every push runs too -- the vendoring, the build, the tests in Node and in headless Chrome, and the source, vocabulary, backlog, public-text and style checks.\
-The tests run under `test-harness`'s runner, a development dependency pinned to its release file, which fails a run that leaves a file, a folder or a process behind:
+The tests run under `clean-runner`'s runner, a development dependency pinned to its release file, which fails a run that leaves a file, a folder or a process behind:
 ```bash
 npm run gate
 ```

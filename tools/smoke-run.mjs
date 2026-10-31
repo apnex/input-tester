@@ -4,7 +4,7 @@
 // navigation; the tester composes with no problem, a key and a click are each delivered and named, and the
 // page requested the entry first, then each file it loads from the release once, and nothing after. It, and every
 // module it imports, loads nothing at import time, so the deploy that runs it needs no prior build
-// (test/tools/deploy-imports.test.js). Chrome and its session are test-harness's, a development dependency the
+// (test/tools/deploy-imports.test.js). Chrome and its session are headless-chromium's, a development dependency the
 // deploy's checkout installs and nothing it deploys holds.
 //
 // Usage:  node tools/smoke-run.mjs ORIGIN RELEASE_DIR    (e.g. https://input-lab.apnex.io release/)
@@ -12,7 +12,7 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import { connectToPage, launchChrome } from "@apnex/test-harness";
+import { connectToPage, launchChrome } from "@apnex/headless-chromium";
 
 import { containmentProblems, filesThePageLoads } from "../test/support/containment.js";
 import { watchRequests } from "../test/browser/request-monitor.js";

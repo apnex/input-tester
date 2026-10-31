@@ -4,7 +4,7 @@
 // object's Cache-Control and content type as a bucket would: the entry `no-store`, every file of a release's
 // folder `public, max-age=31536000, immutable`, or what a bucket copy's own metadata names.
 //
-// The server is test-harness's serveStatic, its headers function adding the rule, its companions and each object's
+// The server is headless-chromium's serveStatic, its headers function adding the rule, its companions and each object's
 // Cache-Control and content type to every answer; the rule, its table and the bucket's metadata are this
 // repository's. It records every request it answers, so a test holds the browser's own account of its requests
 // against a second witness. It never holds the process open, and close() ends every connection and never throws.
@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { serveStatic } from "@apnex/test-harness";
+import { serveStatic } from "@apnex/headless-chromium";
 
 import { contentTypeOf } from "../../tools/content-types.mjs";
 

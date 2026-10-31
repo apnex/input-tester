@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { loseFocus } from "@apnex/test-harness";
+import { loseFocus } from "@apnex/headless-chromium";
 
 import { importBuilt, siteRoot } from "../support/built-site.js";
 import { CLAIM_IN_ROUTER, plantedSite } from "../support/planted-site.js";

@@ -5,7 +5,7 @@
 // .gate/results.json and its whole output to .gate/<step>.log, every failing test's block -- its error, expected
 // and actual values and stack -- printed in full; last, the current architecture checked against what the code
 // and those results derive. It fails when any step fails, having run every step, so one run names every failure.
-// The two test steps run under test-harness's runner, in a run folder of its own, which fails the step on any file,
+// The two test steps run under clean-runner's runner, in a run folder of its own, which fails the step on any file,
 // folder or process the tests leave behind -- the gate's one check of leftovers -- and whose verdict is shown.
 //
 // Usage:  node tools/run-gate.mjs
@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const node = process.execPath;
-const runner = [node, path.join(root, "node_modules", ".bin", "test-harness"), "run"];
+const runner = [node, path.join(root, "node_modules", ".bin", "clean-runner"), "run"];
 
 /** Every test file under a directory of `test/`, sorted. */
 const testFiles = (dir) =>
@@ -78,7 +78,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 		const logFile = path.join(".gate", `${step.name.replace(/\W+/g, "-")}.log`);
 		fs.writeFileSync(path.join(root, logFile), output);
 		if (step.tests) {
-			console.log(output.split("\n").filter((l) => /^# (?!Subtest)\S/.test(l) || l.startsWith("test-harness: ")).join("\n"));
+			console.log(output.split("\n").filter((l) => /^# (?!Subtest)\S/.test(l) || l.startsWith("clean-runner: ")).join("\n"));
 			const blocks = failureBlocks(output);
 			if (blocks.length) console.log(`${blocks.length} failing test(s), each in full:\n${blocks.join("\n")}`);
 			if (run.status !== 0 && blocks.length === 0) console.log(output.trim());

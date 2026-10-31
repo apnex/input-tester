@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { BUTTON_BITS as HARNESS_BUTTON_BITS } from "@apnex/test-harness";
+import { BUTTON_BITS as CHROMIUM_BUTTON_BITS } from "@apnex/headless-chromium";
 
 import { importBuilt, importVendored } from "./support/built-site.js";
 import { SPEC_BROWSERS_OWN_KEYS, SPEC_BUTTON_BITS, SPEC_CHORD_MODIFIERS, SPEC_MODIFIER_CODES, SPEC_ROW_CLAIMS, hitsNoRowBySpec, keyFact, ownBySpec, signatureOf } from "./support/architecture-section-6.js";
@@ -32,7 +32,7 @@ test("section 6: the table holds exactly its rows, in its order, each with its w
 	assert.deepEqual(table.rows.map((r) => [r.row.words, r.row.claims]), SPEC_ROW_CLAIMS.map(([words, claims]) => [words, claims]));
 	assert.deepEqual(table.rows.filter((r) => r.opens !== null).map((r) => [r.row.words, r.opens]), [0, 1, 2, 3, 4].map((b) => [`a press of button ${b}`, `press-${b}`]), "only the press rows open a gesture, each its button's press gesture");
 	assert.deepEqual(BUTTON_BITS, SPEC_BUTTON_BITS, "the one definition of the buttons' bits is the Mouse button entity's");
-	assert.deepEqual(HARNESS_BUTTON_BITS, SPEC_BUTTON_BITS, "the bits the browser tests' trusted input sends, test-harness's, are the entity's too");
+	assert.deepEqual(CHROMIUM_BUTTON_BITS, SPEC_BUTTON_BITS, "the bits the browser tests' trusted input sends, headless-chromium's, are the entity's too");
 });
 
 test("section 6: the browser's own keys are its per-platform list, with the recorder's view source, and nothing else", () => {

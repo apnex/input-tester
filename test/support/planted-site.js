@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { scratchFolder } from "@apnex/test-harness";
+import { scratchFolder } from "@apnex/clean-runner";
 
 import { releaseFolder, siteRoot } from "./built-site.js";
 

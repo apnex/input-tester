@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { scratchFolder } from "@apnex/test-harness";
+import { scratchFolder } from "@apnex/clean-runner";
 
 import { findConfigProblems, findSourceProblems } from "../../tools/check-source.mjs";
 import { candidateWords, findVocabulary, readVocabulary } from "../../tools/check-vocabulary.mjs";

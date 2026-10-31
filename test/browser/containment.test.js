@@ -14,7 +14,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { loseFocus } from "@apnex/test-harness";
+import { loseFocus } from "@apnex/headless-chromium";
 
 import { releaseFolder, siteRoot } from "../support/built-site.js";
 import { containmentProblems, filesThePageLoads } from "../support/containment.js";

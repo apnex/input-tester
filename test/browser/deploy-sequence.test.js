@@ -14,7 +14,8 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { connectToPage, launchChrome, scratchFolder } from "@apnex/test-harness";
+import { scratchFolder } from "@apnex/clean-runner";
+import { connectToPage, launchChrome } from "@apnex/headless-chromium";
 
 import { readRelease, runDeploy, sha256 } from "../../tools/deploy-steps.mjs";
 import { siteRoot } from "../support/built-site.js";
