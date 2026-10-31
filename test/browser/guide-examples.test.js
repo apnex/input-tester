@@ -6,20 +6,22 @@
 // dependencies held equal to package.json's.
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
-import { launchChrome, sleep } from "./chrome-driver.js";
+import { connectToPage, launchChrome, scratchFolder } from "@apnex/test-harness";
+
 import { serveSite } from "./site-server.js";
 import { openTesterInChrome } from "./tester-in-chrome.js";
 import { releaseFolder, repositoryRoot, siteRoot } from "../support/built-site.js";
 
 const guide = fs.readFileSync(path.join(repositoryRoot, "docs", "GUIDE.md"), "utf8");
 const blocks = [...guide.matchAll(/^```(js|mjs|json)\n([\s\S]*?)^```$/gm)].map((m, i) => ({ index: i + 1, language: m[1], code: m[2], line: guide.slice(0, m.index).split("\n").length + 1 }));
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-guide-"));
+const scratch = scratchFolder("input-tester-guide-");
 let server;
+let browser;
 let chrome;
 
 before(async () => {
@@ -29,14 +31,16 @@ before(async () => {
 		fs.writeFileSync(path.join(scratch, `guide-example-${b.index}.html`), `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>example ${b.index}</title><link rel="stylesheet" href="${releaseFolder}/input-tester.css"></head>\n<body><svg id="example-surface" width="400" height="300" viewBox="0 0 400 300"></svg>\n<script type="module" src="${releaseFolder}/app/guide-example-${b.index}.js"></script></body></html>\n`);
 	}
 	server = await serveSite(scratch);
-	chrome = await launchChrome();
+	browser = await launchChrome({ args: ["--window-size=1600,1000"] });
+	chrome = await connectToPage(browser.port);
 	await chrome.send("Runtime.enable");
 	await chrome.send("Page.enable");
 }, { timeout: 60000 });
 
 after(async () => {
 	try {
-		await chrome?.close();
+		chrome?.close();
+		await browser?.close();
 		await server?.close();
 	} finally {
 		fs.rmSync(scratch, { recursive: true, force: true });

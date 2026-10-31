@@ -16,7 +16,7 @@
   "scripts": {
     "vendor": "node tools/vendor-parts.mjs",
     "build": "node tools/build-site.mjs",
-    "test": "npm run build && node --test --test-concurrency=1 \"test/**/*.test.js\"",
+    "test": "npm run build && test-harness run --test-concurrency=1 \"test/**/*.test.js\"",
     "gate": "node tools/run-gate.mjs",
     "architecture": "node tools/generate-architecture.mjs",
     "serve": "node tools/serve-site.mjs"
@@ -28,6 +28,7 @@
     "@apnex/vector-scene": "https://github.com/apnex/vector-scene/releases/download/v0.2.0/apnex-vector-scene-0.2.0.tgz"
   },
   "devDependencies": {
+    "@apnex/test-harness": "https://github.com/apnex/test-harness/releases/download/v0.1.0/apnex-test-harness-0.1.0.tgz",
     "typescript": "5.9.3"
   }
 }

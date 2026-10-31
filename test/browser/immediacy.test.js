@@ -9,10 +9,10 @@
 // reported.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { siteRoot } from "../support/built-site.js";
 import { DELIVERY_OPENS, plantedSite } from "../support/planted-site.js";
-import { sleep } from "./chrome-driver.js";
 import { MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
 
 const TEST = { timeout: 120000 };

@@ -4,9 +4,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { scratchFolder } from "@apnex/test-harness";
 
 import { findConfigProblems, findSourceProblems } from "../../tools/check-source.mjs";
 import { candidateWords, findVocabulary, readVocabulary } from "../../tools/check-vocabulary.mjs";
@@ -70,7 +71,7 @@ test("GT1: the source check fails a tsconfig.json that compiles more than src, o
 	assert.deepEqual(findConfigProblems(JSON.parse(fs.readFileSync(path.join(repositoryRoot, "tsconfig.json"), "utf8"))), []);
 	assert.equal(findConfigProblems({ compilerOptions: { lib: ["ES2022", "DOM", "WebWorker"], types: [] }, include: ["src"] }).length, 1);
 	assert.equal(findConfigProblems({ compilerOptions: { lib: ["ES2022", "DOM"], types: [] }, include: ["src", "test"] }).length, 1);
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-source-"));
+	const dir = scratchFolder("input-tester-source-");
 	try {
 		fs.writeFileSync(path.join(dir, "leak.ts"), "export const k = fetch('/k');\n");
 		const r = run("check-source.mjs", dir);
@@ -98,7 +99,7 @@ test("GT7: the vocabulary check passes over the tester's own words, and fails on
 	assert.deepEqual(caught("const layoutMap = keyboard.getLayoutMap();"), ["layout"], "the allowance is the exact text, never the word");
 	assert.deepEqual(caught('<link rel="stylesheet" href="x.css">'), [], "the stylesheet's element, allowed by its exact text");
 	assert.deepEqual(caught('<link rel="prefetch" href="x">'), ["link"], "any other use of the word refused");
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-vocabulary-"));
+	const dir = scratchFolder("input-tester-vocabulary-");
 	try {
 		fs.writeFileSync(path.join(dir, "a.ts"), "// snaps to a waypoint\nexport const a = 1;\n");
 		const failed = run("check-vocabulary.mjs", dir);
@@ -148,7 +149,7 @@ test("the public-text check passes over the repository and its commit messages, 
 test("GT3 at build: the vendoring check passes, and fails vendor/ with a byte changed, a file added or a file missing", () => {
 	const r = run("vendor-parts.mjs", "--check");
 	assert.equal(r.status, 0, r.stdout);
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-vendor-"));
+	const dir = scratchFolder("input-tester-vendor-");
 	try {
 		for (const f of ["package.json", "package-lock.json"]) fs.copyFileSync(path.join(repositoryRoot, f), path.join(dir, f));
 		fs.mkdirSync(path.join(dir, "node_modules"));

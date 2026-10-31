@@ -12,11 +12,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
+
+import { loseFocus } from "@apnex/test-harness";
 
 import { releaseFolder, siteRoot } from "../support/built-site.js";
 import { containmentProblems, filesThePageLoads } from "../support/containment.js";
 import { DELIVERY_OPENS, plantedSite } from "../support/planted-site.js";
-import { sleep } from "./chrome-driver.js";
 import { readResponseHeaders, serveSite } from "./site-server.js";
 import { MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
 
@@ -73,11 +75,7 @@ async function driveASitting(t) {
 	await t.wheel(at, 0, 120);
 	await t.wheel(at, 0, -120, MODIFIERS.ctrl);
 	await t.chrome.send("Input.synthesizePinchGesture", { x: at.x, y: at.y, scaleFactor: 1.5, relativeSpeed: 800, gestureSourceType: "mouse" });
-	await t.chrome.send("Page.bringToFront");
-	const { targetId } = await t.chrome.send("Target.createTarget", { url: "about:blank" });
-	await sleep(200);
-	await t.chrome.send("Target.closeTarget", { targetId });
-	await t.chrome.send("Page.bringToFront");
+	await loseFocus(t.chrome, () => sleep(200));
 	await t.settle();
 }
 

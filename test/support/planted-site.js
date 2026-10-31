@@ -3,8 +3,9 @@
 // shows that a check fails it. Every edit must find its text exactly once, or the plant refuses, so a plant
 // that silently planted nothing can never pass for a check that failed to fail.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+
+import { scratchFolder } from "@apnex/test-harness";
 
 import { releaseFolder, siteRoot } from "./built-site.js";
 
@@ -14,7 +15,7 @@ import { releaseFolder, siteRoot } from "./built-site.js";
  * added at `add` in its folder, refused if it would replace one -- answering `{ dir, remove }`.
  */
 export function plantedSite(edits, from = siteRoot) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-planted-"));
+	const dir = scratchFolder("input-tester-planted-");
 	fs.cpSync(from, dir, { recursive: true });
 	for (const edit of edits) {
 		if (edit.add !== undefined) {

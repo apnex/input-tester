@@ -10,21 +10,23 @@
 // written.
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
+
+import { connectToPage, launchChrome, scratchFolder } from "@apnex/test-harness";
 
 import { readRelease, runDeploy, sha256 } from "../../tools/deploy-steps.mjs";
 import { siteRoot } from "../support/built-site.js";
 import { buildPlantedRelease, localBucket, localHost, localStorage, manifestMap, serveBucket } from "../support/local-buckets.js";
-import { launchChrome, sleep } from "./chrome-driver.js";
 import { readResponseHeaders, serveSite } from "./site-server.js";
 
 const TEST = { timeout: 300000 };
 const rule = readResponseHeaders();
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-deploy-"));
+const scratch = scratchFolder("input-tester-deploy-");
 let releaseA;
 let releaseB;
+let browser;
 let chrome;
 
 /**
@@ -67,7 +69,8 @@ async function loadWhole(origin) {
 before(async () => {
 	releaseA = readRelease(siteRoot);
 	releaseB = readRelease(buildPlantedRelease(scratch, path.join(scratch, "release-b")));
-	chrome = await launchChrome();
+	browser = await launchChrome({ args: ["--window-size=1600,1000"] });
+	chrome = await connectToPage(browser.port);
 	await chrome.send("Network.enable");
 	await chrome.send("Network.setCacheDisabled", { cacheDisabled: true });
 	await chrome.send("Page.enable");
@@ -75,7 +78,8 @@ before(async () => {
 
 after(async () => {
 	try {
-		await chrome?.close();
+		chrome?.close();
+		await browser?.close();
 	} finally {
 		fs.rmSync(scratch, { recursive: true, force: true });
 	}

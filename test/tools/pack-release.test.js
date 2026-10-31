@@ -5,9 +5,10 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { scratchFolder } from "@apnex/test-harness";
 
 import { sha256Of } from "../../tools/build-site.mjs";
 import { readRelease } from "../../tools/deploy-steps.mjs";
@@ -15,7 +16,7 @@ import { packRelease, releaseFileNames } from "../../tools/pack-release.mjs";
 import { repositoryRoot } from "../support/built-site.js";
 
 test("a release packs into an archive of the entry and its tag's folder, its digest and its manifest, the same bytes each time, and extracts to a release the deploy reads", { timeout: 120000 }, () => {
-	const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-pack-"));
+	const scratch = scratchFolder("input-tester-pack-");
 	try {
 		const first = packRelease("v0.1.0", path.join(scratch, "first"));
 		const second = packRelease("v0.1.0", path.join(scratch, "second"));
@@ -38,7 +39,7 @@ test("a release packs into an archive of the entry and its tag's folder, its dig
 });
 
 test("a release packed under a umask of 077 and one of 022 is the same bytes, every file's mode set by the packing", { timeout: 180000 }, () => {
-	const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-umask-"));
+	const scratch = scratchFolder("input-tester-umask-");
 	try {
 		for (const mask of ["077", "022"]) {
 			const run = spawnSync("sh", ["-c", `umask ${mask} && "${process.execPath}" tools/pack-release.mjs v0.1.0 "${path.join(scratch, mask)}"`], { cwd: repositoryRoot, encoding: "utf8" });

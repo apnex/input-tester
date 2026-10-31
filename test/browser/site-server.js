@@ -4,12 +4,15 @@
 // object's Cache-Control and content type as a bucket would: the entry `no-store`, every file of a release's
 // folder `public, max-age=31536000, immutable`, or what a bucket copy's own metadata names.
 //
-// It records every request it answers, so a test holds the browser's own account of its requests against a
-// second witness. It never holds the process open, and close() ends every connection and never throws.
+// The server is test-harness's serveStatic, its headers function adding the rule, its companions and each object's
+// Cache-Control and content type to every answer; the rule, its table and the bucket's metadata are this
+// repository's. It records every request it answers, so a test holds the browser's own account of its requests
+// against a second witness. It never holds the process open, and close() ends every connection and never throws.
 import fs from "node:fs";
-import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { serveStatic } from "@apnex/test-harness";
 
 import { contentTypeOf } from "../../tools/content-types.mjs";
 
@@ -25,41 +28,22 @@ export function readResponseHeaders(file = headersFile) {
 export { CONTENT_TYPES, contentTypeOf } from "../../tools/content-types.mjs";
 
 /**
- * Serves `root` on a port of its own, or on `port`. `metadata(relativePath)` may answer `{ cacheControl, contentType }`
- * for an object, as a bucket copy's sidecar does, each served as stored; otherwise `index.html` is the entry, every
- * other file a folder's, and the content type the one table's.
- * Unless `hold` is set the server never holds the process open.
- * Answers { origin, requests, close }.
+ * Serves `root` on a port of its own. `metadata(relativePath)` may answer `{ cacheControl, contentType }` for an
+ * object, as a bucket copy's sidecar does, each served as stored; otherwise `index.html` is the entry, every other
+ * file a folder's, and the content type the one table's. A missing file is answered 404, `text/plain` and `no-store`,
+ * the rule with it. Unless `hold` is set the server never holds the process open.
+ * Answers { origin, requests, close }, each request recorded with its method, path, query and status.
  */
-export async function serveSite(root, { metadata = () => null, headers = readResponseHeaders(), port = 0, hold = false } = {}) {
-	const requests = [];
-	const server = http.createServer((req, res) => {
-		const url = new URL(req.url, "http://localhost");
-		requests.push({ method: req.method, path: url.pathname, query: url.search });
-		const rule = { ...headers.headers };
-		let rel = decodeURIComponent(url.pathname).replace(/^\/+/, "");
-		if (rel === "") rel = "index.html";
-		const file = path.resolve(root, rel);
-		const inside = file.startsWith(path.resolve(root) + path.sep);
-		if (!inside || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
-			res.writeHead(404, { ...rule, "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
-			res.end("not found");
-			return;
-		}
-		const meta = metadata(rel) ?? {};
-		const cacheControl = meta.cacheControl ?? (rel === "index.html" ? headers.cacheControl.entry : headers.cacheControl.folder);
-		res.writeHead(200, { ...rule, "Content-Type": meta.contentType ?? contentTypeOf(rel), "Cache-Control": cacheControl });
-		res.end(req.method === "HEAD" ? undefined : fs.readFileSync(file));
+export async function serveSite(root, { metadata = () => null, headers = readResponseHeaders(), hold = false } = {}) {
+	const folder = path.resolve(root);
+	return serveStatic({
+		folders: { "/": folder },
+		hold,
+		headers: ({ file }) => {
+			if (file === null) return { ...headers.headers };
+			const rel = path.relative(folder, file).split(path.sep).join("/");
+			const meta = metadata(rel) ?? {};
+			return { ...headers.headers, "content-type": meta.contentType ?? contentTypeOf(rel), "cache-control": meta.cacheControl ?? (rel === "index.html" ? headers.cacheControl.entry : headers.cacheControl.folder) };
+		},
 	});
-	await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
-	if (!hold) server.unref();
-	const close = async () => {
-		try {
-			server.closeAllConnections?.();
-			await Promise.race([new Promise((resolve) => server.close(() => resolve())), new Promise((resolve) => setTimeout(resolve, 2000))]);
-		} catch (error) {
-			process.stderr.write(`site-server: warning: did not close cleanly: ${error?.message ?? error}\n`);
-		}
-	};
-	return { origin: `http://127.0.0.1:${server.address().port}`, requests, close };
 }

@@ -2,13 +2,17 @@
 // (docs/ARCHITECTURE-TARGET.md section 8): served by the gate's own server, which sends the browser rule; every
 // request the browser makes watched from before navigation through teardown; trusted input dispatched over the
 // DevTools protocol's Input domain, the held buttons named on every move; and the page's record read whole from
-// `globalThis.inputTester`, where the page leaves it for the proof.
+// `globalThis.inputTester`, where the page leaves it for the proof. Chrome, its protocol session, the button tables and
+// each mouse event's params are test-harness's: launchChrome, connectToPage and mouseEventParams.
 //
 // The page is laid out so a screen pixel is one drawing unit: the viewport is 1656 CSS pixels wide, so the
 // `<svg>`, between the page's 8-pixel margins, is 1640 pixels wide, its viewBox's width -- and a press
 // travelling 4 pixels travels exactly the session's threshold of 4 drawing units.
+import { setTimeout as sleep } from "node:timers/promises";
+
+import { BUTTON_BITS, BUTTON_NAMES, connectToPage, launchChrome, mouseEventParams } from "@apnex/test-harness";
+
 import { importBuilt, importVendored } from "../support/built-site.js";
-import { launchChrome, sleep } from "./chrome-driver.js";
 import { watchRequests } from "./request-monitor.js";
 import { serveSite } from "./site-server.js";
 
@@ -21,22 +25,8 @@ const grid = openGrid(QUARTER_KEY_GRID).grid;
 /** The protocol's modifiers bitmask: Alt 1, Ctrl 2, Meta 4, Shift 8. */
 export const MODIFIERS = Object.freeze({ alt: 1, ctrl: 2, meta: 4, shift: 8 });
 
-/** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`. */
-export const BUTTON_NAMES = Object.freeze(["left", "middle", "right", "back", "forward"]);
-import { SPEC_BUTTON_BITS } from "../support/architecture-section-6.js";
-
-export const BUTTON_BITS = SPEC_BUTTON_BITS;
-
-/**
- * The protocol's name for the lowest-numbered button a `buttons` value holds, or "none". Chrome keeps a taken
- * pointer only while the protocol's move names a held button in `button` as well as in `buttons`: a move naming
- * none, its bits held, loses the capture at once (measured; docs/DECISIONS.md 0002, the driver's correction).
- */
-export function heldButtonName(buttons) {
-	const i = BUTTON_BITS.findIndex((bit) => (buttons & bit) !== 0);
-	return i === -1 ? "none" : BUTTON_NAMES[i];
-}
-
+/** The protocol's names for the five mouse buttons, by number, and each one's bit in `buttons`: test-harness's, held equal to the Mouse button entity's (test/table-overlaps.test.js). */
+export { BUTTON_BITS, BUTTON_NAMES };
 
 /**
  * Opens the tester: a server for `siteDir` -- sending `headers`, a response-headers.json of a test's own, when given
@@ -44,25 +34,27 @@ export function heldButtonName(buttons) {
  */
 export async function openTesterInChrome({ siteDir, query = "", beforeLoad = [], metadata, headers, navigate = true } = {}) {
 	const server = await serveSite(siteDir, { ...(metadata ? { metadata } : {}), ...(headers ? { headers } : {}) });
-	let chrome;
+	let browser, chrome;
 	try {
-		chrome = await launchChrome({ width: VIEWPORT.width, height: VIEWPORT.height });
+		browser = await launchChrome({ args: [`--window-size=${VIEWPORT.width},${VIEWPORT.height}`] });
+		chrome = await connectToPage(browser.port);
 		const requests = watchRequests(chrome);
 		await chrome.send("Network.enable");
 		await chrome.send("Page.enable");
 		await chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 		for (const source of beforeLoad) await chrome.send("Page.addScriptToEvaluateOnNewDocument", { source });
-		const tester = makeHelpers(chrome, server, requests);
+		const tester = makeHelpers(browser, chrome, server, requests);
 		if (navigate) await tester.load(query);
 		return tester;
 	} catch (error) {
-		await chrome?.close();
+		chrome?.close();
+		await browser?.close();
 		await server.close();
 		throw error;
 	}
 }
 
-function makeHelpers(chrome, server, requests) {
+function makeHelpers(browser, chrome, server, requests) {
 	let screenMatrix = null;
 	let plan = null;
 	const page = async (expression) => JSON.parse(await chrome.evaluate(`JSON.stringify(${expression})`));
@@ -108,9 +100,10 @@ function makeHelpers(chrome, server, requests) {
 		/**
 		 * A trusted mouse event; `buttons` names every button held after it. A move names a held button in `button` too,
 		 * the lowest-numbered held unless `button` is given, as a real mouse's move does and as Chrome needs to keep a
-		 * taken pointer.
+		 * taken pointer: a move naming none, its bits held, loses the capture at once (measured; docs/DECISIONS.md 0002,
+		 * the driver's correction). The params are test-harness's mouseEventParams.
 		 */
-		mouse: (type, { x, y }, { button, buttons = 0, clickCount, modifiers = 0, pointerType = "mouse" } = {}) => chrome.send("Input.dispatchMouseEvent", { type, x, y, button: button ?? (type === "mouseMoved" ? heldButtonName(buttons) : "none"), buttons, clickCount: clickCount ?? (type === "mouseMoved" ? 0 : 1), modifiers, pointerType }),
+		mouse: (type, point, options = {}) => chrome.send("Input.dispatchMouseEvent", mouseEventParams(type, point, options)),
 		/** Whether the page's `<svg>` holds the capture of the mouse's pointer, 1. */
 		taken: () => chrome.evaluate("document.getElementById('input-surface').hasPointerCapture(1)"),
 		/** Starts recording the target of every mouse move the `<svg>` sees, forgetting those recorded before; on a page loaded since, it listens anew. */
@@ -158,13 +151,11 @@ function makeHelpers(chrome, server, requests) {
 		newestLogLine: () => chrome.evaluate("document.querySelector('#input-surface .log-line.newest')?.textContent ?? null"),
 		/** Whether the key drawn at a screen point is lit. */
 		litAt: ({ x, y }) => chrome.evaluate(`(() => { const g = document.elementFromPoint(${x}, ${y})?.closest('g.key, g.mouse-button'); return g ? g.classList.contains('lit') : null; })()`),
-		/** Tears down Chrome and the server; never throws. */
+		/** Tears down the session, Chrome and the server, none of which throws. */
 		async close() {
-			try {
-				await chrome.close();
-			} finally {
-				await server.close();
-			}
+			chrome.close();
+			await browser.close();
+			await server.close();
 		},
 	};
 	return tester;

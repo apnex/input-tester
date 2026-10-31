@@ -5,6 +5,8 @@
 // .gate/results.json and its whole output to .gate/<step>.log, every failing test's block -- its error, expected
 // and actual values and stack -- printed in full; last, the current architecture checked against what the code
 // and those results derive. It fails when any step fails, having run every step, so one run names every failure.
+// The two test steps run under test-harness's runner, in a run folder of its own, which fails the step on any file,
+// folder or process the tests leave behind -- the gate's one check of leftovers -- and whose verdict is shown.
 //
 // Usage:  node tools/run-gate.mjs
 import { spawnSync } from "node:child_process";
@@ -14,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const node = process.execPath;
+const runner = [node, path.join(root, "node_modules", ".bin", "test-harness"), "run"];
 
 /** Every test file under a directory of `test/`, sorted. */
 const testFiles = (dir) =>
@@ -27,8 +30,8 @@ const testFiles = (dir) =>
 export const GATE_STEPS = [
 	{ name: "vendoring", holds: "vendor/ is the pinned release files, byte for byte (GT3, P7)", command: [node, "tools/vendor-parts.mjs", "--check"] },
 	{ name: "build", holds: "tsc builds src/ into the site, laid out as a release (IT-D1, section 9)", command: [node, "tools/build-site.mjs"] },
-	{ name: "tests", holds: "the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8)", command: [node, "--test", "--test-reporter=tap", "--test-concurrency=1", ...testFiles("."), ...testFiles("tools")], tests: true },
-	{ name: "browser tests", holds: "trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8)", command: [node, "--test", "--test-reporter=tap", "--test-concurrency=1", ...testFiles("browser")], tests: true },
+	{ name: "tests", holds: "the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8)", command: [...runner, "--test-reporter=tap", "--test-concurrency=1", ...testFiles("."), ...testFiles("tools")], tests: true },
+	{ name: "browser tests", holds: "trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8)", command: [...runner, "--test-reporter=tap", "--test-concurrency=1", ...testFiles("browser")], tests: true },
 	{ name: "source check", holds: "no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1)", command: [node, "tools/check-source.mjs"] },
 	{ name: "vocabulary check", holds: "no word of another application in the tester's own words (GT7, P8)", command: [node, "tools/check-vocabulary.mjs"] },
 	{ name: "backlog check", holds: "no workaround open while its retiring release is installed; every deferral with a revival trigger (GT4)", command: [node, "tools/check-backlog.mjs"] },
@@ -75,7 +78,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 		const logFile = path.join(".gate", `${step.name.replace(/\W+/g, "-")}.log`);
 		fs.writeFileSync(path.join(root, logFile), output);
 		if (step.tests) {
-			console.log(output.split("\n").filter((l) => /^# (?!Subtest)\S/.test(l)).join("\n"));
+			console.log(output.split("\n").filter((l) => /^# (?!Subtest)\S/.test(l) || l.startsWith("test-harness: ")).join("\n"));
 			const blocks = failureBlocks(output);
 			if (blocks.length) console.log(`${blocks.length} failing test(s), each in full:\n${blocks.join("\n")}`);
 			if (run.status !== 0 && blocks.length === 0) console.log(output.trim());

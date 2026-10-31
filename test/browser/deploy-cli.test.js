@@ -6,18 +6,18 @@
 // the one attached to its tag's GitHub release; an object is taken as missing only on gcloud's `not found: 404.`;
 // and the options are read in any order.
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+
+import { spawnTethered, scratchFolder } from "@apnex/test-harness";
 
 import { readRelease } from "../../tools/deploy-steps.mjs";
 import { repositoryRoot, siteRoot } from "../support/built-site.js";
 import { buildPlantedRelease, localBucket, serveBucket } from "../support/local-buckets.js";
 
 const TEST = { timeout: 300000 };
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-deploy-cli-"));
+const scratch = scratchFolder("input-tester-deploy-cli-");
 const fakeBin = path.join(repositoryRoot, "test", "support", "fake-cloud");
 const state = path.join(scratch, "cloud");
 const releases = path.join(scratch, "attached");
@@ -36,7 +36,17 @@ async function deploy(args, env = {}) {
 	const log = path.join(state, "calls.log");
 	fs.rmSync(log, { force: true });
 	const run = await new Promise((resolve) => {
-		execFile(process.execPath, [path.join(repositoryRoot, "tools", "deploy"), ...args], { encoding: "utf8", cwd: repositoryRoot, env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}`, FAKE_GCS_ROOT: state, FAKE_GH_RELEASES: releases, ...env }, maxBuffer: 64 * 1024 * 1024, timeout: 240000 }, (error, stdout, stderr) => resolve({ status: error ? (error.code ?? 1) : 0, stdout, stderr }));
+		const child = spawnTethered(process.execPath, [path.join(repositoryRoot, "tools", "deploy"), ...args], { cwd: repositoryRoot, env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}`, FAKE_GCS_ROOT: state, FAKE_GH_RELEASES: releases, ...env }, stdio: ["ignore", "pipe", "pipe"] });
+		let stdout = "";
+		let stderr = "";
+		child.stdout.setEncoding("utf8").on("data", (chunk) => (stdout += chunk));
+		child.stderr.setEncoding("utf8").on("data", (chunk) => (stderr += chunk));
+		// a tethered child's kill() signals its whole group: the deploy and its smoke run's Chrome alike
+		const timer = setTimeout(() => child.kill("SIGKILL"), 240000);
+		child.on("close", (code) => {
+			clearTimeout(timer);
+			resolve({ status: code ?? 1, stdout, stderr });
+		});
 	});
 	const calls = fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
 	return { status: run.status, output: `${run.stdout}${run.stderr}`, calls };

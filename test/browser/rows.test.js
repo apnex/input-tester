@@ -9,11 +9,13 @@
 // build with its claim taken away makes it 2, the positive control. Every row marked trusted must be hit.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
+
+import { loseFocus } from "@apnex/test-harness";
 
 import { importBuilt, siteRoot } from "../support/built-site.js";
 import { CLAIM_IN_ROUTER, plantedSite } from "../support/planted-site.js";
 import { SPEC_ROW_CLAIMS } from "../support/architecture-section-6.js";
-import { sleep } from "./chrome-driver.js";
 import { BUTTON_BITS, BUTTON_NAMES, MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
 
 const { TESTER_ROWS } = await importBuilt("input-bindings.js");
@@ -419,18 +421,12 @@ test("focus lost by opening a second tab: keysLost then pointerLost, every held 
 	await t.chrome.send("Page.bringToFront");
 	for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
 	await t.key("keyDown", "Shift", "ShiftLeft", { modifiers: MODIFIERS.shift, windowsVirtualKeyCode: 16 });
-	const { targetId } = await t.chrome.send("Target.createTarget", { url: "about:blank" });
-	try {
-		await t.settle();
-	} finally {
-		await t.chrome.send("Target.closeTarget", { targetId });
-		await t.chrome.send("Page.bringToFront");
-	}
+	await loseFocus(t.chrome, () => t.settle());
 	const v = await verdict();
 	assert.deepEqual([v.type, v.hits, v.steps.map((s) => s.operation)], ["blur", ["focus-lost"], ["keysLost", "pointerLost"]]);
 	assert.deepEqual(await t.page("inputTester.picture.heldKeys"), []);
 	assert.match(await t.newestLogLine(), /released ShiftLeft: their releases not reported/);
-	for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
+	// loseFocus answered once the page held the window's focus again
 	await t.key("keyUp", "Shift", "ShiftLeft", { windowsVirtualKeyCode: 16 });
 	assert.deepEqual((await verdict()).hits, ["key-release-press-unseen"], "its release, back in focus, is one whose press was not seen");
 });
@@ -447,15 +443,11 @@ test("focus lost during a captured drag of each button, released in the other ta
 		await t.mouse("mouseMoved", { x: at.x + 30, y: at.y }, { buttons: BUTTON_BITS[b] });
 		await t.assertTaken(`button ${b}'s drag, before focus is lost`);
 		assert.equal(await t.page("inputTester.picture.gesture.name"), `drag-${b}`);
-		const { targetId } = await t.chrome.send("Target.createTarget", { url: "about:blank" });
-		try {
+		await loseFocus(t.chrome, async ({ targetId }) => {
 			const { sessionId } = await t.chrome.send("Target.attachToTarget", { targetId, flatten: true });
 			await t.settle();
 			await t.chrome.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x + 30, y: at.y, button: BUTTON_NAMES[b], buttons: 0, clickCount: 1 }, sessionId);
-		} finally {
-			await t.chrome.send("Target.closeTarget", { targetId });
-			await t.chrome.send("Page.bringToFront");
-		}
+		});
 		await t.settle();
 		const v = await verdict();
 		assert.deepEqual([v.type, v.hits, v.steps.map((s) => [s.operation, s.phase, s.gesture])], ["blur", ["focus-lost"], [["keysLost", null, null], ["pointerLost", "cancel", `drag-${b}`]]], `button ${b}`);

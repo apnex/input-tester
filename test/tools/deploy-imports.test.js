@@ -5,16 +5,17 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+
+import { scratchFolder } from "@apnex/test-harness";
 
 import { repositoryRoot } from "../support/built-site.js";
 
 /** A checkout of the repository's tools and tests, its packages installed, never built: no `site/`, no `build/`. */
 function unbuiltCheckout() {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "input-tester-unbuilt-"));
+	const dir = scratchFolder("input-tester-unbuilt-");
 	for (const name of ["tools", "test"]) fs.cpSync(path.join(repositoryRoot, name), path.join(dir, name), { recursive: true });
 	for (const name of ["package.json", "package-lock.json"]) fs.copyFileSync(path.join(repositoryRoot, name), path.join(dir, name));
 	fs.symlinkSync(path.join(repositoryRoot, "node_modules"), path.join(dir, "node_modules"));
@@ -32,7 +33,7 @@ test("every module the deploy imports loads in a checkout never built, and tools
 	const dir = unbuiltCheckout();
 	try {
 		assert.equal(fs.existsSync(path.join(dir, "site")), false);
-		const deploy = importIn(dir, ["tools/deploy-steps.mjs", "tools/content-types.mjs", "tools/smoke-run.mjs", "test/browser/request-monitor.js", "test/support/containment.js", "test/browser/chrome-driver.js", "tools/deploy"]);
+		const deploy = importIn(dir, ["tools/deploy-steps.mjs", "tools/content-types.mjs", "tools/smoke-run.mjs", "test/browser/request-monitor.js", "test/support/containment.js", "tools/deploy"]);
 		assert.equal(deploy.status, 0, deploy.output);
 		const env = { ...process.env };
 		for (const name of ["TAG", "REPO", "LAB_BUCKET", "LAB_HOST", "LAB_BACKEND", "PROD_BUCKET", "PROD_HOST", "PROD_BACKEND"]) delete env[name];
