@@ -40,7 +40,7 @@ main { padding: 0 8px; }
 .log-line { font-family: ui-monospace, monospace; fill: #444; }
 .log-line.newest { fill: #000; font-weight: 600; }
 .not-reported { fill: #333; }
-.problems { fill: #b03a2e; font-weight: 700; }
+.problems { font-family: ui-monospace, monospace; fill: #b03a2e; font-weight: 700; }
 
 .legend-standing { font-family: ui-monospace, monospace; fill: #999; }
 .legend-words { fill: #666; font-size: 10px; }

@@ -16,7 +16,7 @@ Every section is approved; each reopens on the trigger section 1 names for it.
 ## 1. Status and authority
 
 Authored by the architect, ratified by the director per section; approval is aggregate-only.\
-Revision 9, 2026-11-02, absorbing `0010`, every free text block bounded by construction; revision 8 absorbed `0009`, the picture's text held to one layout; revision 7 absorbed `0008`, the mouse column's lines clear of the legend and open ground as the code tests it; revision 6 absorbed `0007`, the view's rows (the programme's `H26-23`, draw's PAN-ZOOM.md PZ30), and the non-goal it amends; revision 5 absorbed `0004`, the director's ratification of the first build's record, `0002` as amended, with its seven errata.\
+Revision 10, 2026-11-02, absorbing `0011`, a refused opening's problems drawn again, wrapped in the left column's head; revision 9 absorbed `0010`, every free text block bounded by construction; revision 8 absorbed `0009`, the picture's text held to one layout; revision 7 absorbed `0008`, the mouse column's lines clear of the legend and open ground as the code tests it; revision 6 absorbed `0007`, the view's rows (the programme's `H26-23`, draw's PAN-ZOOM.md PZ30), and the non-goal it amends; revision 5 absorbed `0004`, the director's ratification of the first build's record, `0002` as amended, with its seven errata.\
 Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26-14`), every decision of section 11 at its recommendation, on top of what `H26-12` and `H26-13`, each as amended, had settled; recorded as this repository's own ruling `0001` in `docs/DECISIONS.md`; revision 4 folded in the first three readings (section 12).
 
 | Section | Maturity | Reopens on |
@@ -25,7 +25,7 @@ Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26
 | 3 Justification chain | approved (`H26-14`) | A ruling recorded in `docs/DECISIONS.md`, or an amendment of `VISION.md` |
 | 4 Axiom alignment | approved (`H26-14`; `0004`) | A change to the tester's traits, or a tension discharged or found |
 | 5 Anchored core | approved (`H26-14`) | A duty with no owner, owned twice, or held here that a shared part should hold |
-| 6 Entities, data, interfaces | approved (`H26-14`; `0004`; `0007`; `0008`; `0009`; `0010`) | A shown thing with no entity behind it |
+| 6 Entities, data, interfaces | approved (`H26-14`; `0004`; `0007`; `0008`; `0009`; `0010`; `0011`) | A shown thing with no entity behind it |
 | 7 Run time | approved (`H26-14`; `0004`; `0007`) | A sequence of inputs whose picture is not listed |
 | 8 Verification | approved (`H26-14`; `0004`; `0007`) | A success dimension, or a claim, with no check |
 | 9 Delivery and hosting | approved: the buckets, the two hosts, IAP left out, a deploy that copies one release to the lab first, and a browser rule in the response headers by `H26-13` as amended; the rest by `H26-14` | A change of host, or a deploy that is not a copy of one release |
@@ -295,7 +295,7 @@ The labels answer once, possibly later than the first paint, and the painter put
 
 **Page load.**\
 The entry document names its stylesheet and one module script, both in the release's versioned folder; that module imports the four parts' files from the folder's `vendor` folder by relative path; the rule arrives with every response.\
-The composition root opens the grid, the table and the session, the scene on the page's `<svg>` -- which appends its four layers -- and the capture; any refusal is shown as its problems.\
+The composition root opens the grid, the table and the session, the scene on the page's `<svg>` -- which appends its four layers -- and the capture; any refusal is shown as its problems, wrapped in the left column's head (`0011`).\
 Outside a Chromium-based browser -- no `navigator.userAgentData` naming Chromium -- a line says that coverage is not proved here.\
 The plan is the address's `plan` parameter, full-size ANSI when it names neither plan; two plain hyperlinks in the entry document, `?plan=ansi` and `?plan=chromebook`, set it by an ordinary navigation the person makes, which reloads the page and ends what it showed, and the code changes no address, so a bookmark keeps the choice and nothing is stored.\
 The keys are painted with their printed labels, the Keyboard Map is asked once, and when it answers each key is painted again with the person's label.\

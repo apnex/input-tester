@@ -25,7 +25,7 @@ import { askKeyboardMap, labelsFromKeyboardMap, labelsPrintedOnPlan } from "./ke
 import type { KeyboardMapSource } from "./key-labels.js";
 import { FULL_SIZE_ANSI_PLAN, KEYBOARD_PLANS, QUARTER_KEY_GRID, placePlanOnGrid } from "./keyboard-plans.js";
 import type { KeyboardPlan, PlanName } from "./keyboard-plans.js";
-import { SCENE_LAYERS, paintEveryKey, paintPictureChanges, paintWholePage } from "./picture-painter.js";
+import { SCENE_LAYERS, paintEveryKey, paintPictureChanges, paintRefusedOpening, paintWholePage } from "./picture-painter.js";
 import type { PaintView } from "./picture-painter.js";
 import { EMPTY_PICTURE, applyVerdict } from "./picture-state.js";
 import type { Picture } from "./picture-state.js";
@@ -106,7 +106,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	if (!openedSession.ok) problems.push(`the session refused its declaration: ${JSON.stringify(openedSession.problems)}`);
 	const notices = { planLine: planLineWords(plan, asked), coveredBrowser: isChromiumBrowser(platform.browser), problems };
 	if (!openedGrid.ok || !openedTable.ok || !openedSession.ok) {
-		scene.put("panel", "problems", [{ tag: "text", attrs: { x: 0, y: 892, class: "problems" }, text: problems.join(" | ") }]);
+		paintRefusedOpening(scene, problems);
 		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
 	}
 	const table = openedTable.table;

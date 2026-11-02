@@ -1,8 +1,9 @@
 // panel-layout - the picture's text as one layout, in a real browser (docs/ARCHITECTURE-TARGET.md section 6, what
 // is shown; docs/DECISIONS.md 0008 to 0010): the built site opened in headless Chrome and driven by trusted input
 // to the longest realistic wordings -- a key press, a pan pressed at a fractional screen point as a Chromebook at
-// 125% reports one, a four-line wheel of a Chromebook's fractional deltas repeated with every modifier, a long
-// right pan live and released, a middle pan released, an ordinary scroll, a synthesized touchpad pinch, Ctrl and
+// 125% reports one, a four-line wheel of a Chromebook's fractional deltas repeated with every modifier and a
+// five-line wheel of deltas below 1e-6, a long right pan live and released, a middle pan released, a pan of
+// 14,206.4 screen pixels live, an ordinary scroll, a synthesized touchpad pinch, Ctrl and
 // the wheel, a pinch stepping in with the rest dropped -- and then to the longest wording each block's inputs can
 // produce: fourteen keys held and repeated with a key of no identity beside them, during a pan from a fractional
 // point; a wheel of extreme fractional deltas with every modifier; a plan's name in the address hundreds of
@@ -63,6 +64,8 @@ async function assertEveryLineClear(when) {
 			if (line.what.startsWith("legend-words")) widestLegend = Math.max(widestLegend, line.x2);
 			lowest = Math.max(lowest, line.y2);
 			assert.ok(line.x >= picture.x && line.y >= picture.y && line.x2 <= picture.x2 && line.y2 <= picture.y2, `${state}: "${line.what}" (${where(line)}) leaves the picture (${where(picture)})`);
+			const [column, edge] = line.x < 905 ? ["the left column", 900] : line.x < 1155 ? ["the mouse column", 1150] : ["the legend", picture.x2];
+			assert.ok(line.x2 <= edge, `${state}: "${line.what}" (${where(line)}) passes ${column}'s edge, x ${edge} (0010)`);
 			for (const other of lines.slice(i + 1)) assert.ok(!overlaps(line, other), `${state}: "${line.what}" (${where(line)}) overlaps "${other.what}" (${where(other)})`);
 			for (const shape of drawn) assert.ok(!overlaps(line, shape), `${state}: "${line.what}" (${where(line)}) overlaps ${shape.what} (${where(shape)})`);
 		}
@@ -96,6 +99,10 @@ test("the picture's text as one layout: every line -- the mouse column's, the lo
 	await t.settle();
 	assert.equal((await columnLines("wheel-line")).length, 4, `a Chromebook's fractional deltas repeated with every modifier make four wheel lines: ${JSON.stringify(await columnLines("wheel-line"))}`);
 	await assertEveryLineClear("a four-line wheel");
+	for (let i = 0; i < 12; i++) await t.wheel(key, -1.2345678e-7, -9.8765432e-7, every | MODIFIERS.ctrl);
+	await t.settle();
+	assert.equal((await columnLines("wheel-line")).length, 5, `deltas below 1e-6, every modifier, alike in a row, make five wheel lines, the view's below them: ${JSON.stringify(await columnLines("wheel-line"))}`);
+	await assertEveryLineClear("a five-line wheel");
 
 	const ground = t.screenOf({ x: 925, y: 30 });
 	await t.mouse("mouseMoved", ground);
@@ -114,6 +121,15 @@ test("the picture's text as one layout: every line -- the mouse column's, the lo
 	await t.mouse("mouseMoved", { x: middle.x + 300, y: middle.y + 200 }, { buttons: 4 });
 	await t.mouse("mouseReleased", { x: middle.x + 300, y: middle.y + 200 }, { button: "middle", buttons: 0 });
 	await assertEveryLineClear("a middle pan, released");
+
+	await t.mouse("mouseMoved", middle);
+	await t.mouse("mousePressed", middle, { button: "middle", buttons: 4 });
+	await t.mouse("mouseMoved", { x: middle.x + 10, y: middle.y }, { buttons: 4 });
+	await t.mouse("mouseMoved", { x: middle.x + 14216.4, y: middle.y }, { buttons: 4 });
+	await t.settle();
+	assert.equal(await t.page("Math.round(inputTester.picture.view.pan.distance * 10) / 10"), 14206.4, "a pan of 14,206.4 screen pixels, live");
+	await assertEveryLineClear("a pan of 14,206.4 screen pixels, live");
+	await t.mouse("mouseReleased", { x: middle.x + 14216.4, y: middle.y }, { button: "middle", buttons: 0 });
 
 	await t.mouse("mouseMoved", key);
 	await t.wheel(key, 0, -120);

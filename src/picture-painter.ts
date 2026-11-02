@@ -313,7 +313,7 @@ const viewLinesY = (picture: Picture): number => WHEEL_LINES_Y + Math.max(WHEEL_
 export function viewLines(picture: Picture): string[] {
 	const { level, acc, pan, words } = picture.view;
 	const panWords = pan === null ? "no pan" : `${pan.gesture} live, ${Math.round(pan.distance * 10) / 10} screen pixels`;
-	return [`view: ${levelWords(level)}, pinch held ${Math.round(acc * 10) / 10} px`, panWords, ...wrapWords(words ?? "no view row yet", MOUSE_COLUMN_CHARACTERS)];
+	return [`view: ${levelWords(level)}, pinch held ${Math.round(acc * 10) / 10} px`, panWords, words ?? "no view row yet"].flatMap((line) => wrapWords(line, MOUSE_COLUMN_CHARACTERS));
 }
 
 /** The view's lines, in the mouse column below the wheel's, clear of the legend: the view the view's rows would set, as numbers (the view pane is a move of its own). */
@@ -363,14 +363,27 @@ const LABELS_REPORTED_LINE = "Labels: a plain label is the one your keyboard map
 const LABELS_ASSUMED_LINE = "Labels: every label is the plan's printing, assumed -- the browser reported no keyboard map.";
 
 /** The left column's head, fixed for the page: the plan line, the labels line and, outside Chromium, the browser line, each wrapped, and where the flow starts below them. */
-function leftHead(view: PaintView): { plan: string[]; planY: number; labelsY: number; browser: string[]; browserY: number; flowTop: number } {
+function leftHead(view: PaintView): { plan: string[]; planY: number; labelsY: number; browser: string[]; browserY: number; problems: string[]; problemsY: number; flowTop: number } {
 	const plan = view.notices.planLine.split("\n").flatMap((line) => wrapWords(line, LEFT_COLUMN_CHARACTERS));
 	const labelsRoom = Math.max(wrapWords(LABELS_REPORTED_LINE, NOTICE_CHARACTERS).length, wrapWords(LABELS_ASSUMED_LINE, NOTICE_CHARACTERS).length);
 	const browser = view.notices.coveredBrowser ? [] : wrapWords(UNCOVERED_BROWSER_LINE, NOTICE_CHARACTERS);
+	const problems = problemLines(view.notices.problems);
 	const planY = LEFT_COLUMN_TOP;
 	const labelsY = planY + plan.length * NOTICE_LEADING + 2;
 	const browserY = labelsY + labelsRoom * NOTICE_LEADING;
-	return { plan, planY, labelsY, browser, browserY, flowTop: browserY + browser.length * NOTICE_LEADING + 12 };
+	const problemsY = browserY + browser.length * NOTICE_LEADING;
+	return { plan, planY, labelsY, browser, browserY, problems, problemsY, flowTop: problemsY + problems.length * NOTICE_LEADING + 12 };
+}
+
+/** The problems of a refused opening, each wrapped at the left column's monospace width, so a problem of any length stays inside the column. */
+const problemLines = (problems: readonly string[]): string[] => problems.flatMap((p) => wrapWords(p, LEFT_COLUMN_CHARACTERS));
+
+/**
+ * Paints the page of an opening refused before anything else could be drawn -- the grid, the table or the session --
+ * its problems alone, at the left column's top, wrapped as every block is.
+ */
+export function paintRefusedOpening(scene: PaintTarget, problems: readonly string[]): void {
+	scene.put("panel", "problems", [leftText(LEFT_COLUMN_TOP, "problems", problemLines(problems), NOTICE_LEADING)]);
 }
 
 /** The left column's foot, fixed for the page: what no page can know, what is claimed and the notes' key, each wrapped, laid upward from the column's bottom. */
@@ -457,6 +470,7 @@ export function paintWholePage(scene: PaintTarget, view: PaintView, picture: Pic
 	const head = leftHead(view);
 	scene.put("panel", "plan line", [leftText(head.planY, "notice plan-line", head.plan, NOTICE_LEADING)]);
 	if (head.browser.length > 0) scene.put("panel", "browser line", [leftText(head.browserY, "notice uncovered", head.browser, NOTICE_LEADING)]);
+	if (head.problems.length > 0) scene.put("panel", "problems", [leftText(head.problemsY, "problems", head.problems, NOTICE_LEADING)]);
 	const foot = leftFoot(view);
 	scene.put("panel", "not reported", [{ tag: "text", attrs: { x: PANEL_X, y: foot.y, class: "not-reported" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: foot.y, class: "heading" }, text: "What no page can know" }, ...foot.notReported.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: foot.y + 18 + i * FLOW_LEADING }, text: line }))] }]);
 	scene.put("panel", "claims line", [leftText(foot.claimsY, "notice", foot.claims, NOTICE_LEADING)]);

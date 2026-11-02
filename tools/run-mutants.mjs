@@ -126,6 +126,9 @@ export const MUTANTS = [
 	["M60", "the log's heading at a fixed place, whatever the held keys' count", "src/picture-painter.ts", "const headingY = Math.max(heldY + 84, heldY + (held.length - 1) * FLOW_LEADING + 20);", "const headingY = heldY + 84;", ["test/browser/panel-layout.test.js"]],
 	["M61", "the plan line unwrapped, the address's plan name with it", "src/picture-painter.ts", 'const plan = view.notices.planLine.split("\\n").flatMap((line) => wrapWords(line, LEFT_COLUMN_CHARACTERS));', 'const plan = view.notices.planLine.split("\\n");', ["test/browser/panel-layout.test.js"]],
 	["M62", "a word longer than a line left whole", "src/picture-painter.ts", "(word.length <= width ? [word] :", "(true ? [word] :", ["test/browser/panel-layout.test.js"]],
+	["M63", "room for exactly four wheel lines above the view's (move 5's bounded-layout check, b4)", "src/picture-painter.ts", "Math.max(WHEEL_ROOM_LINES, wheelLines(picture).length)", "WHEEL_ROOM_LINES", ["test/browser/panel-layout.test.js"]],
+	["M64", "the view's pan line unwrapped", "src/picture-painter.ts", 'panWords, words ?? "no view row yet"].flatMap((line) => wrapWords(line, MOUSE_COLUMN_CHARACTERS));', 'panWords, ...wrapWords(words ?? "no view row yet", MOUSE_COLUMN_CHARACTERS)];', ["test/browser/panel-layout.test.js"]],
+	["M65", "a refused capture's problems not drawn (move 5's bounded-layout check, B5)", "src/picture-painter.ts", '	if (head.problems.length > 0) scene.put("panel", "problems", [leftText(head.problemsY, "problems", head.problems, NOTICE_LEADING)]);\n', "", ["test/painter-allowlist.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");

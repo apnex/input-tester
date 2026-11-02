@@ -377,3 +377,41 @@ The blocks that can hold an input's own words or numbers -- the plan line, which
 - The proof reads the page's fixed lines as its lines joined by the spaces they were broken at, since a wrapped notice is two lines.
 - `docs/GUIDE.md` and the picture state are unchanged: the layout is the painter's alone.
 
+---
+
+## 0011 - Move 5's bounded-layout check: a refused opening's problems drawn again
+
+**Ruled by:** move 5's bounded-layout check, 2026-11-02, passing `0010`'s layout and failing the build on one blocking finding, B5, with two findings to fix beside it (draw's `H26-23`, PAN-ZOOM.md move 5).\
+**Affects:** `src/picture-painter.ts`, `src/composition-root.ts`, `page/input-tester.css`, `test/painter-allowlist.test.js`, `test/browser/panel-layout.test.js`, `tools/run-mutants.mjs`, and `docs/ARCHITECTURE-TARGET.md`, revision 10.
+
+**Ruling.**\
+`0010`'s rewrite of `paintWholePage` dropped its drawing of `view.notices.problems` and put nothing in its place, so a capture that refused its declaration -- whose problem the composition root adds before painting the whole page again -- left the page showing nothing of it, against the architecture's "a refused opening shows its problems on the page".\
+The removal rested on a wrong reading, that the problems reached `paintWholePage` only on a path that returns before it; the capture's refusal is painted by it.\
+The problems are drawn again, in the left column's head below the browser line, each wrapped at its 132 monospace characters and the flow placed below them; a refusal before anything else is drawn -- the grid, the table or the session -- is painted by the painter's `paintRefusedOpening`, at the column's top, wrapped the same way, where the composition root put one unwrapped line at y 892.\
+The view's pan line, "pan-middle live, N screen pixels", is wrapped as the view's other lines are: at 14,206 pixels it reached x 1162, into the legend.
+
+**Every text the old `paintWholePage` drew, and where it is drawn now.**\
+The list is `b2bceb8`'s `paintWholePage`, line by line, each item held by `test/painter-allowlist.test.js`, "every text the painter drew before 0010 is drawn", but the drag line, a shape drawn only while a drag is live, which `test/browser/rows.test.js` holds:
+- every key, its label and its note's corner, and the labels line (`paintEveryKey`): drawn, the labels line at the head's labels place;
+- the mouse's body and its five buttons with their labels (`paintMouse`): drawn, unchanged;
+- the wheel's arrow and the wheel's line (`paintWheel`): drawn, the line as the wheel's lines;
+- the view's line (`paintViewLine`): drawn, as the view's lines;
+- the drag line (`paintTrail`): drawn, unchanged;
+- the plan line: drawn, wrapped in the head;
+- the browser line, outside Chromium: drawn, wrapped in the head;
+- the problems, when there are any: dropped by `0010`, drawn again here;
+- the log's heading: drawn, in the flow;
+- what no page can know, its heading and its four lines: drawn, in the foot;
+- the claims line: drawn, in the foot;
+- the notes' key: drawn, in the foot;
+- the legend's heading: drawn, unchanged;
+- the status lines and the held keys (`paintStatus`): drawn, in the flow;
+- the log's fourteen lines (`paintLog`): drawn, in the flow;
+- the legend's 42 rows (`paintLegend`): drawn.
+
+**Settled by the build.**
+- `test/painter-allowlist.test.js` composes the page on the fake platform with a key source the capture refuses and a browser naming no Chromium: the problem is drawn whole, each line within 132 characters, between the browser line and the status lines; both its tests fail on the code before this.
+- `test/browser/panel-layout.test.js` drives a five-line wheel -- deltas of -1.2345678e-7 and -9.8765432e-7, below 1e-6, with every modifier, twelve alike -- so the view's lines must move below more than four wheel lines, and a middle pan of 14,206.4 screen pixels, live, whose unwrapped pan line ends at x 1162; it now holds every line within its column's edge too -- x 900, 1150 or the picture's -- as well as clear of every other line.
+- Three mutants: `M63`, room for exactly four wheel lines above the view's (the check's b4); `M64`, the view's pan line unwrapped; `M65`, a refused capture's problems not drawn.
+- The problems are drawn in the monospace face, so their budget in characters is a budget in units.
+

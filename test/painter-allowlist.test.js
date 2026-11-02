@@ -11,7 +11,7 @@ import { importBuilt, releaseFolder, repositoryRoot, siteRoot } from "./support/
 import { fakePlatform } from "./support/fake-platform.js";
 
 const { composeTesterPage } = await importBuilt("composition-root.js");
-const { PAINTER_TAGS, PAINTER_ATTRIBUTES, SCENE_LAYERS } = await importBuilt("picture-painter.js");
+const { PAINTER_TAGS, PAINTER_ATTRIBUTES, SCENE_LAYERS, LEFT_COLUMN_CHARACTERS, CLAIMS_LINE, NOT_REPORTED_LINES } = await importBuilt("picture-painter.js");
 
 /** Drives every family of input the tester names through a page on a fake platform. */
 function driveEveryFamily(platform) {
@@ -109,3 +109,36 @@ test("a page closed before the Keyboard Map answers paints nothing when it does:
 		process.off("unhandledRejection", onRejection);
 	}
 });
+
+/** The lines of each text of the given class, a tspan's text each, or the text's own when it has none, with each line's `y`. */
+function linesOf(platform, className) {
+	return platform
+		.elements()
+		.filter((e) => e.tag === "text" && (e.attributes.get("class") ?? "").split(" ").includes(className))
+		.map((e) => (e.children.length > 0 ? e.children.map((c) => ({ text: c.text, y: Number(c.attributes.get("y")) })) : [{ text: e.text, y: Number(e.attributes.get("y")) }]));
+}
+
+test("a refused opening shows its problems on the page: a key source the capture refuses leaves its problem drawn whole, wrapped within the left column, below the head and above the status lines (0011)", () => {
+	const platform = fakePlatform({ brands: ["Firefox"] });
+	const page = composeTesterPage({ ...platform, keySource: {} });
+	assert.equal(page.problems.length, 1);
+	assert.match(page.problems[0], /^the capture refused its declaration: /);
+	const [problems] = linesOf(platform, "problems");
+	assert.ok(problems !== undefined && problems.length > 0, "a problems text on the page");
+	assert.equal(problems.map((l) => l.text).join("").replace(/\s/g, ""), page.problems[0].replace(/\s/g, ""), "the problem drawn whole");
+	for (const line of problems) assert.ok(line.text.length <= LEFT_COLUMN_CHARACTERS, `a line of ${line.text.length} characters, past the column's ${LEFT_COLUMN_CHARACTERS}`);
+	const [browserLine] = linesOf(platform, "uncovered");
+	const [status] = linesOf(platform, "status-line");
+	assert.ok(problems[0].y > browserLine.at(-1).y && problems.at(-1).y < status[0].y, "between the head's browser line and the status lines");
+});
+
+test("0011: every text the painter drew before 0010 is drawn -- the keys and the mouse, the wheel's and the view's lines, the plan, labels and browser lines, the problems, the status and held keys, the log's heading and lines, what no page can know, the claims, the notes' key, and the legend's heading and rows", () => {
+	const platform = fakePlatform({ brands: ["Firefox"] });
+	composeTesterPage({ ...platform, keySource: {} });
+	const classes = platform.elements().map((e) => e.attributes.get("class") ?? "");
+	const count = (name) => classes.filter((c) => c.split(" ").includes(name)).length;
+	for (const [name, atLeast] of [["key", 104], ["key-label", 104], ["mouse-body", 1], ["mouse-button", 5], ["button-label", 5], ["wheel", 1], ["wheel-line", 1], ["view-line", 1], ["plan-line", 1], ["uncovered", 1], ["problems", 1], ["status-line", 1], ["held-keys", 1], ["log-line", 14], ["not-reported", 1], ["notes-key", 1], ["legend-row", 42], ["legend-standing", 42], ["legend-words", 42]]) assert.ok(count(name) >= atLeast, `${count(name)} of class ${name}, at least ${atLeast}`);
+	const shown = platform.elements().flatMap((e) => (e.tag === "text" ? (e.children.length > 0 ? e.children.map((c) => c.text) : [e.text]) : [])).join(" ");
+	for (const words of ["Log, newest first", "Every rule, and its standing for the latest fact", "What no page can know", "Labels: every label is the plan's printing", "a key's corner marked so:", CLAIMS_LINE, ...NOT_REPORTED_LINES]) assert.ok(shown.includes(words), `the page shows: ${words}`);
+});
+
