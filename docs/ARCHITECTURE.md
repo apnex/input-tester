@@ -5,7 +5,7 @@ instant: current
 # input-tester - system architecture, current
 
 **Instant: current.** input-tester as its code and its gate's last run show it, derived by `tools/generate-architecture.mjs` and never written by hand.\
-Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 5, which this document cites and never restates.\
+Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 6, which this document cites and never restates.\
 Every section is derived; each changes when the code, the gate's results or the records it is read from change, and `npm run gate` fails while this file differs from what the generator derives.
 
 ---
@@ -15,8 +15,8 @@ Every section is derived; each changes when the code, the gate's results or the 
 | Field | Value |
 |---|---|
 | Version | `0.1.0`, its release folder `v0.1.0` |
-| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 5 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, in `docs/DECISIONS.md` |
+| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 6 |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -28,9 +28,9 @@ Each pinned by its release file and hash in `package-lock.json`, vendored unchan
 | Part | Version pinned | Release file | Files vendored |
 |---|---|---|---|
 | `input-capture` | `0.2.0` | `apnex-input-capture-0.2.0.tgz` | 25 |
-| `input-binding` | `0.2.0` | `apnex-input-binding-0.2.0.tgz` | 31 |
-| `vector-scene` | `0.2.0` | `apnex-vector-scene-0.2.0.tgz` | 34 |
-| `snap-grid` | `0.1.1` | `apnex-snap-grid-0.1.1.tgz` | 34 |
+| `input-binding` | `0.3.0` | `apnex-input-binding-0.3.0.tgz` | 31 |
+| `vector-scene` | `0.3.0` | `apnex-vector-scene-0.3.0.tgz` | 37 |
+| `snap-grid` | `0.1.2` | `apnex-snap-grid-0.1.2.tgz` | 34 |
 
 ---
 
@@ -41,13 +41,14 @@ Each part's duty is the first sentence of its module's leading comment; its expo
 | Module | Duty | Exports | Imports |
 |---|---|---|---|
 | `src/composition-root.ts` | Composition root: composes the page from its parts, and switches each fact to the router by its family (docs/ARCHITECTURE-TARGET.md sections 5 and 7, P8) | `BrowserBrands`, `TesterPlatform`, `TesterPage`, `planFromAddress`, `planLineWords`, `isChromiumBrowser`, `routeByFamily`, `composeTesterPage` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `../vendor/snap-grid/index.js`, `./input-bindings.js`, `./input-router.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-painter.js`, `./picture-state.js` |
-| `src/input-bindings.ts` | Bindings: declares what every input is taken to mean, and the session's gestures (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P5) | `ItemUnderPointer`, `DeliveredFact`, `CommitFact`, `TesterFact`, `TesterContext`, `RowProof`, `TesterRow`, `NO_KEY_CONTEXT`, `MODIFIER_CODES`, `BrowsersOwnKey`, `BROWSERS_OWN_KEYS`, `isKeyFact`, `letterOfCode`, `isBrowsersOwnKey`, `isKeyedFact`, `isModifierCode`, `TESTER_ROWS`, `TESTER_TABLE_DECLARATION`, `TESTER_SESSION_DECLARATION`, `DRAG_OF_PRESS`, `OVERLAP_PROOF_CONTEXTS`, `OVERLAP_PROOF_KEYS`, `overlapProofFacts` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./keyboard-plans.js` |
+| `src/input-bindings.ts` | Bindings: declares what every input is taken to mean, and the session's gestures (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P5) | `ItemUnderPointer`, `DeliveredFact`, `CommitFact`, `TesterFact`, `TesterContext`, `RowProof`, `TesterRow`, `NO_KEY_CONTEXT`, `MODIFIER_CODES`, `BrowsersOwnKey`, `BROWSERS_OWN_KEYS`, `isKeyFact`, `letterOfCode`, `isBrowsersOwnKey`, `isKeyedFact`, `isModifierCode`, `TESTER_ROWS`, `TESTER_TABLE_DECLARATION`, `TESTER_SESSION_DECLARATION`, `DRAG_OF_PRESS`, `PAN_GESTURES`, `OVERLAP_PROOF_CONTEXTS`, `overlapProofContextsOf`, `OVERLAP_PROOF_KEYS`, `overlapProofFacts` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./keyboard-plans.js` |
 | `src/input-router.ts` | Router: takes each delivered fact through the table and the session (docs/ARCHITECTURE-TARGET.md sections 5, 6 and 7), and answers one verdict holding every step in order | `FactReply`, `DerivedVerdict`, `VerdictStep`, `Verdict`, `MouseFact`, `InputRouter`, `contextOfFact`, `openInputRouter` | `../vendor/input-binding/index.js`, `../vendor/input-capture/index.js`, `./input-bindings.js` |
 | `src/key-labels.ts` | Labels: names each drawn key as the person's own keyboard does (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `LabelSource`, `KeyLabel`, `KeyLabels`, `KeyboardMapAnswer`, `KeyboardMapSource`, `labelsPrintedOnPlan`, `labelsFromKeyboardMap`, `askKeyboardMap` | `./keyboard-plans.js` |
 | `src/keyboard-plans.ts` | Keyboard plans: where each drawn key and mouse button lies, on the plan the person chose (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `QUARTER_KEY_GRID`, `PlanName`, `CodeSource`, `KeyNote`, `PlanKey`, `PlanMouseButton`, `KeyboardPlan`, `PlacedKey`, `PlacedMouseButton`, `PlacedPlan`, `BUTTON_BITS`, `bitOfButton`, `FULL_SIZE_ANSI_PLAN`, `CHROMEBOOK_PLAN`, `KEYBOARD_PLANS`, `placePlanOnGrid` | `../vendor/snap-grid/index.js` |
 | `src/page-entry.ts` | The page's one module script (docs/ARCHITECTURE-TARGET.md section 7, Page load): composes the tester on the entry document's `<svg>`, with the window as key source, the page's address and the browser's `navigator`, and leaves the composed page readable whole at `globalThis.inputTester`, which the gate's proof reads | none | `./composition-root.js`, `./key-labels.js` |
-| `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `HELD_KEY_LINES`, `heldKeyLines`, `keyShapes`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js` |
-| `src/picture-state.ts` | Picture state: keeps what the person is shown, as data (docs/ARCHITECTURE-TARGET.md sections 5 to 7, P1, P6) | `LOG_LINES`, `HeldKeyPicture`, `WheelPicture`, `GesturePicture`, `LogEntry`, `LegendPicture`, `Picture`, `PictureEntry`, `BUTTONS_REPORTED_BY`, `EMPTY_PICTURE`, `timeBetween`, `wheelFactsAlike`, `applyVerdict` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `./input-bindings.js`, `./input-router.js` |
+| `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `HELD_KEY_LINES`, `heldKeyLines`, `keyShapes`, `viewWords`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js`, `./view-steps.js` |
+| `src/picture-state.ts` | Picture state: keeps what the person is shown, as data (docs/ARCHITECTURE-TARGET.md sections 5 to 7, P1, P6) | `LOG_LINES`, `HeldKeyPicture`, `WheelPicture`, `GesturePicture`, `LogEntry`, `LegendPicture`, `PanPicture`, `ViewPicture`, `Picture`, `PictureEntry`, `BUTTONS_REPORTED_BY`, `EMPTY_PICTURE`, `timeBetween`, `wheelFactsAlike`, `applyVerdict` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `./input-bindings.js`, `./input-router.js`, `./view-steps.js` |
+| `src/view-steps.ts` | View steps: what each of the view's rows does to the view, as numbers (docs/ARCHITECTURE-TARGET.md section 6, the view's rows; draw's PAN-ZOOM.md section 3.6, PZ12, PZ17) | `ZOOM_LEVELS`, `DEFAULT_ZOOM_LEVEL`, `ZOOM_STEP_PIXELS`, `LINE_PIXELS`, `normalisedDelta`, `ZoomStep`, `stepZoom`, `levelWords`, `screenDistance` |  |
 | `page/index.html` | The entry document: its stylesheet and its one module script, both in the release's folder, and the plans to choose | none | `v0.1.0/input-tester.css`, `v0.1.0/app/page-entry.js` |
 
 ---
@@ -92,11 +93,11 @@ Each part's duty is the first sentence of its module's leading comment; its expo
 | `button-2-drag` | a drag of button 2 | no | -- | trusted |
 | `button-3-drag` | a drag of button 3 | no | -- | trusted |
 | `button-4-drag` | a drag of button 4 | no | -- | trusted |
-| `wheel-up` | the wheel up | yes | -- | trusted |
-| `wheel-down` | the wheel down | yes | -- | trusted |
-| `wheel-sideways` | the wheel sideways | yes | -- | trusted |
-| `wheel-still` | the wheel still | yes | -- | trusted |
-| `ctrl-wheel-or-pinch` | Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart | yes | -- | trusted |
+| `scroll-pan` | a scroll pan: the wheel or a two-finger scroll, without Ctrl | yes | -- | trusted |
+| `pinch-zoom` | a pinch zoom: Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart | yes | -- | trusted |
+| `pan-middle` | a pan with the middle button, no gesture live | yes | `press-1` | trusted |
+| `pan-right` | a pan with the right button on open ground, no gesture live | yes | `press-2` | trusted |
+| `pan-space` | a pan with Space held and the left button, no gesture live | yes | `press-0` | trusted |
 | `context-menu` | the context menu | yes | -- | trusted |
 | `touch-or-pen-pointer` | a touch or a pen pointer | no | -- | trusted |
 | `focus-lost` | focus lost | yes | -- | trusted |
@@ -123,7 +124,7 @@ The browser's own keys, left unclaimed on every platform at once:
 | `KeyC` | held | not held | not held | held | macOS | developer tools |
 | `KeyU` | not held | not held | held | held | macOS | view source |
 
-The session's threshold is 4 drawing units; its gestures are `press-0` (button 0), `press-1` (button 1), `press-2` (button 2), `press-3` (button 3), `press-4` (button 4), `drag-0` (button 0, engaged), `drag-1` (button 1, engaged), `drag-2` (button 2, engaged), `drag-3` (button 3, engaged), `drag-4` (button 4, engaged).
+The session's threshold is 4 screen pixels, measured on each fact's `screen`; its gestures are `press-0` (button 0), `press-1` (button 1), `press-2` (button 2), `press-3` (button 3), `press-4` (button 4), `drag-0` (button 0, engaged), `drag-1` (button 1, engaged), `drag-2` (button 2, engaged), `drag-3` (button 3, engaged), `drag-4` (button 4, engaged), `pan-middle` (button 1, engaged), `pan-right` (button 2, engaged), `pan-space` (button 0, engaged).
 
 ---
 
@@ -153,8 +154,8 @@ What no page can know, shown always:
 |---|---|---|---|
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
-| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 67 of 67 passed |
-| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 66 of 66 passed |
+| tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 75 of 75 passed |
+| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 70 of 70 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
 | backlog check | no workaround open while its retiring release is installed; every deferral with a revival trigger (GT4) | pass | -- |
@@ -168,7 +169,7 @@ What no page can know, shown always:
 Every response carries the rule, `default-src 'none'; script-src 'self'; style-src 'self'; worker-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'`, with `Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff` (`tools/response-headers.json`).\
 A release's folder is copied with `Cache-Control: public, max-age=31536000, immutable` and its entry with `no-store`.
 
-A deploy of this release is 274 steps (`tools/deploy-steps.mjs`): for the lab and then production, 134 folder objects copied where none is, the folder checked through the host, the entry copied -- the one object a deploy replaces -- and the entry, a missing object's 404, the edge cache and the smoke run checked; no step deletes.\
+A deploy of this release is 282 steps (`tools/deploy-steps.mjs`): for the lab and then production, 138 folder objects copied where none is, the folder checked through the host, the entry copied -- the one object a deploy replaces -- and the entry, a missing object's 404, the edge cache and the smoke run checked; no step deletes.\
 The release workflow is `.github/workflows/release.yml`; the gate's is `.github/workflows/gate.yml`.
 
 ---
@@ -200,6 +201,7 @@ Workarounds open: 0.
 | B13 | Chrome sends a captured pointer's boundary facts, `over`, `out` and `leave`, with `buttons` 1 while only button 1 is held, and with `buttons` 0 while only button 2 is, measured again with the held button named on every move; the buttons drawn do not follow boundary facts, and whether real hardware does the same is not measured |
 | B15 | In Chrome a pen's first press on the page is followed by a mouse `move` at the pen's position, which moves a live mouse drag's line there; the tester shows the mouse fact as delivered, and whether a real pen, or a finger on a touch screen, makes the browser send it is not measured |
 | B16 | Matching the browser's own keys by `code` or by the letter a key prints (`0002` erratum 6) leaves a few shortcuts no entry names to the browser on Dvorak and Colemak -- Ctrl+P on `KeyR` opens printing, Colemak's Ctrl+L on `KeyU` takes focus to the address bar, Dvorak's Ctrl+G on `KeyU` finds the next match -- since Chromium takes a Latin letter's shortcut by its letter first; argued from Chromium's source (`xkb_keyboard_layout_engine.cc`), not measured on those layouts; the refinement is to match by the letter when `key` is a Latin letter and by `code` otherwise |
+| B18 | The view's rows show their verdicts in numbers alone: the view pane -- a second scene on its own `svg` with a view, a grid of 60 drawn from `visible()`, its scale and centre, a reticle home -- is not built, and with it the view keys, `=` or `+`, `-`, `Shift+0`, `Shift+1` and `h`, the last row of draw's PAN-ZOOM.md 3.6, which act on that pane's view: fit and home have no view to act on, and each would take a key every key row now claims as a press (`0007`) |
 
 ---
 
@@ -213,3 +215,4 @@ Workarounds open: 0.
 | `0004` | The first build's record ratified as written |
 | `0005` | The tests run on test-harness |
 | `0006` | The tests run on clean-runner and headless-chromium |
+| `0007` | The view's rows: pan and zoom, shown as verdicts |
