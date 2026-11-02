@@ -333,7 +333,7 @@ test("a right drag that starts on a precision line pans: the line marks ground, 
 });
 
 
-test("at the Chromebook's likely windows -- 1366 by 657, 1093 by 526 at 125%, 1536 by 750 -- in both sizes of the pane, the page never scrolls and every button, the header's and the pane's, lies wholly inside the window, whatever the header's height (0015)", TEST, async (tc) => {
+test("at the Chromebook's likely windows -- 1366 by 657, 1093 by 526 at 125%, 1536 by 750 -- in both sizes of the pane, the page never scrolls, the header ends at or above the main area, and every button, the header's and the pane's, lies wholly inside the window and is the element at its own centre, so a press there reaches it, whatever the header's height (0015)", TEST, async (tc) => {
 	const seen = [];
 	try {
 		for (const [width, height] of [[1366, 657], [1093, 526], [1536, 750]]) {
@@ -342,14 +342,18 @@ test("at the Chromebook's likely windows -- 1366 by 657, 1093 by 526 at 125%, 15
 				// each load's address differs before its fragment, so it is a new page and not a fragment changed on the old one (L2)
 				await t.load(`?plan=chromebook&window=${width}x${height}${fragment === "" ? "small" : "large"}${fragment}`);
 				await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-				const m = await t.page("(() => { const d = document.documentElement; const pane = document.getElementById('view-pane').getBoundingClientRect(); const buttons = [...document.querySelectorAll('button')].map((b) => { const r = b.getBoundingClientRect(); return [b.id, r.left, r.top, r.right, r.bottom]; }); return { paneWidth: pane.width, paneBottom: pane.bottom, scrollWidth: d.scrollWidth, scrollHeight: d.scrollHeight, innerWidth, innerHeight, header: Math.round(document.querySelector('header').getBoundingClientRect().height), buttons }; })()");
+				const m = await t.page("(() => { const d = document.documentElement; const pane = document.getElementById('view-pane').getBoundingClientRect(); const buttons = [...document.querySelectorAll('button')].map((b) => { const r = b.getBoundingClientRect(); const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return [b.id, r.left, r.top, r.right, r.bottom, at === null ? null : at.closest('button') === b ? b.id : (at.id || at.localName)]; }); const header = document.querySelector('header').getBoundingClientRect(); const main = document.querySelector('main').getBoundingClientRect(); return { paneWidth: pane.width, paneBottom: pane.bottom, scrollWidth: d.scrollWidth, scrollHeight: d.scrollHeight, innerWidth, innerHeight, header: Math.round(header.height), headerBottom: header.bottom, mainTop: main.top, buttons }; })()");
 				const where = `${width} by ${height}${fragment === "" ? ", the pane small" : ", the pane large"}`;
 				seen.push(`${where}: header ${m.header}, pane ${Math.round(m.paneWidth)} wide to y ${Math.round(m.paneBottom)}, document ${m.scrollWidth} by ${m.scrollHeight}`);
 				assert.ok(fragment === "" ? m.paneWidth < 0.25 * width : m.paneWidth > 0.45 * width, `${where}: the pane is ${m.paneWidth} wide`);
 				assert.ok(m.paneBottom <= m.innerHeight, `${where}: the pane ends at ${m.paneBottom}, past the window's ${m.innerHeight}`);
 				assert.ok(m.scrollHeight <= m.innerHeight && m.scrollWidth <= m.innerWidth, `${where}: the document is ${m.scrollWidth} by ${m.scrollHeight}, the window ${m.innerWidth} by ${m.innerHeight}: it scrolls`);
 				assert.equal(m.buttons.length, 5, `${where}: the header's two buttons and the pane's three`);
-				for (const [id, left, top, right, bottom] of m.buttons) assert.ok(left >= 0 && top >= 0 && right <= m.innerWidth && bottom <= m.innerHeight, `${where}: the button ${id} (${left}, ${top} to ${right}, ${bottom}) leaves the window`);
+				assert.ok(m.headerBottom <= m.mainTop, `${where}: the header ends at ${m.headerBottom}, below the main area's top, ${m.mainTop}`);
+				for (const [id, left, top, right, bottom, atCentre] of m.buttons) {
+					assert.ok(left >= 0 && top >= 0 && right <= m.innerWidth && bottom <= m.innerHeight, `${where}: the button ${id} (${left}, ${top} to ${right}, ${bottom}) leaves the window`);
+					assert.equal(atCentre, id, `${where}: at the centre of the button ${id} lies ${atCentre}, so a press there misses it`);
+				}
 			}
 		}
 	} finally {

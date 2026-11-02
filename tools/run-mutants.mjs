@@ -151,6 +151,7 @@ export const MUTANTS = [
 	["M85", "a precision line counted as a thing, not ground, so a right drag on it never pans (move 6's verifier, S2)", "src/input-router.ts", 'openGround: fact.hit === null || fact.hit.layer === "precision" });', "openGround: fact.hit === null });", ["test/browser/view-pane.test.js"]],
 	["M86", "the first paint without the pane's scale (move 6's verifier, low)", "src/composition-root.ts", "	if (pane !== null) picture = applyPaneGeometry(picture, pane.geometry()).picture;\n", "", ["test/worked-verdicts.test.js", "test/browser/view-pane.test.js"]],
 	["M87", "the pane's height a constant below the header, as before, so a taller header scrolls the page (move 6's re-review, L1)", "page/input-tester.css", "flex-basis: round(down, 20vw, 1px); align-self: stretch; }", "flex-basis: round(down, 20vw, 1px); height: calc(100vh - 70px); }", ["test/browser/view-pane.test.js"]],
+	["M88", "the header held at 46 pixels tall, so its wrapped line runs under the picture and its buttons cannot be pressed (the targeted check's x1)", "page/input-tester.css", "header { flex: 0 0 auto; padding: 8px 16px; }", "header { flex: 0 0 auto; padding: 8px 16px; height: 46px; }", ["test/browser/view-pane.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");
