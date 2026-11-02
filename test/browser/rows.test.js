@@ -75,7 +75,7 @@ test("the page composes: no problem, the full-size ANSI plan, a Chromium browser
 	const [a, b, c, d] = t.matrix();
 	assert.deepEqual([a, b, c, d], [1, 0, 0, 1], "the svg is drawn at one pixel to a drawing unit");
 	assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .uncovered') === null"), true);
-	const shown = await t.chrome.evaluate("document.getElementById('input-surface').textContent");
+	const shown = await t.chrome.evaluate("[...document.querySelectorAll('#input-surface text')].flatMap((e) => { const spans = [...e.querySelectorAll('tspan')]; return spans.length === 0 ? [e.textContent] : spans.map((s) => s.textContent); }).join(' ')");
 	for (const line of [...NOT_REPORTED_LINES, CLAIMS_LINE]) assert.ok(shown.includes(line), `the page shows: ${line}`);
 	const pinchRow = await t.page("[...document.querySelectorAll('#input-surface g.legend-row text.legend-words')].map((e) => [...e.querySelectorAll('tspan')].map((s) => s.textContent)).find((lines) => lines.join(' ').includes('touchpad pinch'))");
 	assert.deepEqual(pinchRow, ["a pinch zoom: Ctrl and wheel, or a touchpad pinch:", "the browser does not tell them apart"], "the Ctrl row's sentence beside it in the legend, IT-D8's sentence whole on a line of its own (0009)");

@@ -352,3 +352,28 @@ A legend row's words longer than 64 characters are now drawn on two lines, broke
 - The proof's newest log line joins a wrapped entry's lines by the spaces they were broken at.
 - The status and held-key lines are measured with the rest: at these inputs they end left of the mouse column; they would reach it only with a dozen keys held at once, past any keyboard's measured roll-over here, and are left as they stand.
 
+---
+
+## 0010 - Move 5's targeted check: every free text block bounded by construction
+
+**Ruled by:** move 5's targeted check, 2026-11-02, passing `0009`'s log and legend and failing the build on one blocking finding, B4 (draw's `H26-23`, PAN-ZOOM.md move 5).\
+**Affects:** `src/picture-painter.ts`, `page/input-tester.css`, `test/browser/panel-layout.test.js`, `test/browser/rows.test.js`, `tools/run-mutants.mjs`, and `docs/ARCHITECTURE-TARGET.md`, revision 9.
+
+**Ruling.**\
+During a pan pressed at a fractional screen point, which a Chromebook at 125% reports, the status line wrote the point exact -- "press from screen 933.6000366210938, 86.4000244140625" -- and ran to x 921, into the view's lines from x 910 (the check's measurement, and this build's on the code before it); a left drag from such a point reached 901, and six keys held with one, 907.\
+`0009`'s bound, that the status lines would reach the mouse column "only with a dozen keys held at once", understated it, and is superseded: the press point, not the keys, drove the length, and a bound found by measuring worst cases is no bound.\
+The status line writes its press point to a tenth, as the view's words do.\
+Every free text block is now bounded by construction, each given a column and a width and wrapped within it, a word longer than a line broken into pieces, so no wording of any length reaches a neighbour.\
+The left column, from x 0 to 900 under the keyboard, holds the plan line, the labels line and the browser line at its head, its fixed notices at its foot, laid upward from y 890, and between them a flow: the status lines, the held keys, the log's heading and the log, each wrapped at 132 monospace characters and each placed below the last -- where they stand for ordinary input, or lower when a block above runs longer.\
+The log shows its newest entries whole, as many as fit above the foot; the held keys, which grow only with keys held at once, leave room for the log's heading, their last line saying how many lines found no room when there are more than fit.\
+The mouse column, from x 910 to 1150, holds the wheel's lines and then the view's, each wrapped at 34 monospace characters, the view's starting below room for four of the wheel's, or below its last line when it has more.\
+The legend, from x 1160 to the picture's edge, wraps each row's words at 64 characters, as `0009` settled.\
+The blocks that can hold an input's own words or numbers -- the plan line, which shows a plan named in the address, the status lines, the held keys, the log, the wheel's lines and the view's -- are drawn in the monospace face, so a budget in characters is a budget in units; the fixed notices and the legend hold only the page's own words, measured.
+
+**Settled by the build.**
+- `test/browser/panel-layout.test.js` adds a pan pressed at 933.6000366210938, 86.4000244140625 and live, which the code before this fails -- the status line, to x 921, overlapping the view's line "pan-middle live, 0 screen pixels" -- and a second test driving each block to the longest wording its inputs give: thirty-two keys held, thirty first seen repeating, with a key of no identity, during a pan from a fractional point; a wheel of deltas -123456789.12345679 and -98765432.98765432 with every modifier, alike in a row; a plan named in the address by 400 characters; a browser naming no Chromium, on the Chromebook plan.
+- Seven mutants, `M56` to `M62`: the press point exact; the status lines, the held keys and the plan line each unwrapped; the held keys and the log's heading each at a fixed place whatever the block above; a word longer than a line left whole; `M50` to `M52`, which named the code this replaces, name it as it now stands, `M52` as a fixed room of three wheel lines (the re-review's w2).
+- Two mutants left stale by `0007`, found now, name the code as it stands: `MU3`, whose router text `0007` changed, and `MU7`, whose sideways-wheel row `0007` retired, now a scroll pan for a vertical delta only.
+- The proof reads the page's fixed lines as its lines joined by the spaces they were broken at, since a wrapped notice is two lines.
+- `docs/GUIDE.md` and the picture state are unchanged: the layout is the painter's alone.
+

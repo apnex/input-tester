@@ -1,11 +1,14 @@
 // panel-layout - the picture's text as one layout, in a real browser (docs/ARCHITECTURE-TARGET.md section 6, what
-// is shown; docs/DECISIONS.md 0008 and 0009): the built site opened in headless Chrome and driven by trusted input
-// to the longest realistic wordings -- a key press, a four-line wheel of a Chromebook's fractional deltas repeated
-// with every modifier, a long right pan live and released, a middle pan released, an ordinary scroll, a
-// synthesized touchpad pinch, Ctrl and the wheel, a pinch stepping in with the rest dropped -- and after each every
-// line of text measured on its own, a tspan or a text without one: each inside the picture, clear of every other
-// line and of the drawn keyboard and mouse. Every legend row is measured at rest and again marked bold as the
-// input, so its words fit the picture as it shows them either way.
+// is shown; docs/DECISIONS.md 0008 to 0010): the built site opened in headless Chrome and driven by trusted input
+// to the longest realistic wordings -- a key press, a pan pressed at a fractional screen point as a Chromebook at
+// 125% reports one, a four-line wheel of a Chromebook's fractional deltas repeated with every modifier, a long
+// right pan live and released, a middle pan released, an ordinary scroll, a synthesized touchpad pinch, Ctrl and
+// the wheel, a pinch stepping in with the rest dropped -- and then to the longest wording each block's inputs can
+// produce: fourteen keys held and repeated with a key of no identity beside them, during a pan from a fractional
+// point; a wheel of extreme fractional deltas with every modifier; a plan's name in the address hundreds of
+// characters long; a browser naming no Chromium. After each, every line of text is measured on its own, a tspan or
+// a text without one: each inside the picture, clear of every other line and of the drawn keyboard and mouse.
+// Every legend row is measured at rest and again marked bold as the input, so its words fit either way.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
@@ -77,6 +80,16 @@ test("the picture's text as one layout: every line -- the mouse column's, the lo
 	await t.key("keyUp", "a", "KeyA", { windowsVirtualKeyCode: 65 });
 	await assertEveryLineClear("after a key press");
 
+	const fractional = { x: 933.6000366210938, y: 86.4000244140625 };
+	await t.mouse("mouseMoved", fractional);
+	await t.mouse("mousePressed", fractional, { button: "middle", buttons: 4 });
+	await t.mouse("mouseMoved", { x: fractional.x + 30.4, y: fractional.y + 20.2 }, { buttons: 4 });
+	await t.settle();
+	assert.deepEqual(await t.page("[inputTester.picture.press.at.x, inputTester.picture.press.at.y, inputTester.picture.view.pan.gesture]"), [fractional.x, fractional.y, "pan-middle"], "a pan pressed at a fractional screen point, live");
+	await assertEveryLineClear("a pan pressed at a fractional screen point, live");
+	assert.match(await t.page("[...document.querySelectorAll('#input-surface .status-line tspan')].map((s) => s.textContent).join(' ')"), /press from screen 933\.6, 86\.4, beyond the threshold/, "the press point written to a tenth");
+	await t.mouse("mouseReleased", { x: fractional.x + 30.4, y: fractional.y + 20.2 }, { button: "middle", buttons: 0 });
+
 	const key = t.keyCentre("KeyB");
 	await t.mouse("mouseMoved", key);
 	for (let i = 0; i < 12; i++) await t.wheel(key, -66.66666412353516, -66.66666412353516, every);
@@ -122,5 +135,48 @@ test("the picture's text as one layout: every line -- the mouse column's, the lo
 	assert.match(await t.page("inputTester.picture.view.words"), /the rest dropped at the last level$/);
 	await assertEveryLineClear("a pinch stepping in, the rest dropped, every modifier");
 	tc.diagnostic(`the legend's words reached x ${Math.round(widestLegend)} at most, and the lowest line y ${Math.round(lowest)}`);
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+/** Keys to hold at once, none a browser's own key with Alt or Shift held: two modifiers, twenty letters and the ten digits. */
+const HELD = [["Shift", "ShiftLeft", 16], ["Alt", "AltLeft", 18], ...[..."ASDGHKLZXVBNQWETOPMY"].map((l) => [l.toLowerCase(), `Key${l}`, l.charCodeAt(0)]), ...[..."1234567890"].map((d) => [d, `Digit${d}`, d.charCodeAt(0)])];
+
+test("each block at the longest wording its inputs can produce -- thirty-two keys held, first seen repeating, with a key of no identity, during a pan from a fractional point; a wheel of extreme fractional deltas with every modifier; a plan's name hundreds of characters long; a browser naming no Chromium -- every line inside the picture and clear of every other", TEST, async () => {
+	await t.load("?plan=ansi");
+	await assertEveryLineClear("a fresh page");
+	const at = { x: 401.6000061035156, y: 655.2000122070312 };
+	for (const [key, code, vk] of HELD.slice(0, 2)) await t.key("keyDown", key, code, { windowsVirtualKeyCode: vk, modifiers: MODIFIERS.shift | MODIFIERS.alt });
+	for (const [key, code, vk] of HELD.slice(2)) await t.key("keyDown", key, code, { windowsVirtualKeyCode: vk, autoRepeat: true, modifiers: MODIFIERS.shift | MODIFIERS.alt });
+	for (let i = 0; i < 3; i++) for (const [key, code, vk] of HELD.slice(2, 5)) await t.key("keyDown", key, code, { windowsVirtualKeyCode: vk, autoRepeat: true, modifiers: MODIFIERS.shift | MODIFIERS.alt });
+	await t.key("keyDown", "AudioVolumeUp", "", { windowsVirtualKeyCode: 175 });
+	await t.mouse("mouseMoved", at);
+	await t.mouse("mousePressed", at, { button: "middle", buttons: 4, modifiers: MODIFIERS.shift | MODIFIERS.alt });
+	await t.mouse("mouseMoved", { x: at.x + 1003.7, y: at.y - 604.9 }, { buttons: 4, modifiers: MODIFIERS.shift | MODIFIERS.alt });
+	await t.settle();
+	assert.equal(await t.page("inputTester.picture.heldKeys.length"), HELD.length, "every key held");
+	assert.match(await t.page("[...document.querySelectorAll('#input-surface .held-keys tspan')].map((s) => s.textContent).join(' ')"), /pressed before it was seen, 4 repeats observed, held at least .* ms as of its latest fact, last repeat interval/, "keys first seen repeating, their times held and intervals the facts' own");
+	await assertEveryLineClear("thirty-two keys held, thirty first seen repeating, a key of no identity, a pan from a fractional point live");
+	await t.mouse("mouseReleased", { x: at.x + 1003.7, y: at.y - 604.9 }, { button: "middle", buttons: 0 });
+	for (const [key, code, vk] of HELD) await t.key("keyUp", key, code, { windowsVirtualKeyCode: vk });
+	await t.settle();
+	assert.deepEqual(await t.page("[inputTester.picture.view.pan, inputTester.picture.heldKeys.length]"), [null, 0], "the pan released and every key let go");
+	const key = t.keyCentre("KeyB");
+	const every = MODIFIERS.shift | MODIFIERS.alt | MODIFIERS.meta | MODIFIERS.ctrl;
+	await t.mouse("mouseMoved", key);
+	for (let i = 0; i < 3; i++) await t.wheel(key, -123456789.12345679, -98765432.98765432, every);
+	for (let i = 0; i < 3; i++) await t.wheel(key, -123456789.12345679, -98765432.98765432, every & ~MODIFIERS.ctrl);
+	await assertEveryLineClear("a wheel of extreme fractional deltas, every modifier");
+	await t.load(`?plan=${"W".repeat(400)}`);
+	assert.match(await t.page("document.querySelector('#input-surface .plan-line').textContent"), /WWWW/, "the address's plan name shown");
+	await assertEveryLineClear("a plan's name in the address 400 characters long");
+	const { identifier } = await t.chrome.send("Page.addScriptToEvaluateOnNewDocument", { source: "Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined, configurable: true });" });
+	try {
+		await t.load("?plan=chromebook");
+		assert.equal(await t.page("document.querySelector('#input-surface .uncovered') !== null"), true);
+		await assertEveryLineClear("a browser naming no Chromium, the Chromebook plan");
+	} finally {
+		await t.chrome.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+	}
+	await t.load("?plan=ansi");
 	await t.chrome.evaluate("window.notReloaded = true");
 });

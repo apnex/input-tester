@@ -80,27 +80,42 @@ const LEGEND_X = 1160;
 const MOUSE_TEXT_X = 910;
 
 /**
- * How many characters a line of the mouse column holds: the column runs 250 drawing units from the mouse's text
- * to the legend, and at 11 pixels a digit's advance is at most 7, so 34 characters keep 12 units clear.
+ * The picture's text is laid out in three columns, each block wrapped within its column's width, so no wording of
+ * any length reaches a neighbour (docs/DECISIONS.md 0010): the left column under the keyboard, from the panel's
+ * left edge to x 900; the mouse column, from x 910 to 1150; and the legend, from x 1160 to the picture's edge.
+ * Every block that can hold an input's own words or numbers -- the plan line, the status lines, the held keys, the
+ * log, the wheel's lines and the view's -- is drawn in the monospace face, whose advance at the panel's 11 pixels
+ * is 6.62 units, so a budget in characters is a budget in units.
  */
-export const MOUSE_COLUMN_CHARACTERS = 34;
-
-/** How far apart the mouse column's lines are. */
-const MOUSE_COLUMN_LEADING = 14;
-
-/** Where the wheel's lines start, under the mouse, and where the view's start, below room for four of the wheel's. */
-const WHEEL_LINES_Y = 284;
-const VIEW_LINES_Y = WHEEL_LINES_Y + 4 * MOUSE_COLUMN_LEADING + 6;
+/** How many monospace characters a line of the left column holds: 132, ending by x 874, short of its right edge. */
+export const LEFT_COLUMN_CHARACTERS = 132;
 
 /**
- * How many characters a log line holds: the log runs from the panel's left edge to 10 units short of the legend,
- * 1150 units, in a monospace face whose advance at 11 pixels is 6.62, so 168 characters end by x 1113.
+ * How many characters a line of the left column's fixed notices holds, in the proportional face: their words are
+ * the page's own, never an input's, at most about 7 units a character at 11 pixels, bold, so 120 end short of x 900.
  */
-export const LOG_CHARACTERS = 168;
+export const NOTICE_CHARACTERS = 120;
 
-/** How far apart the log's lines are, and how many it has room for: its entries, newest first, each whole on as many lines as it needs, as many as fit. */
-const LOG_LEADING = 16;
-const LOG_ROOM = LOG_LINES;
+/** How many monospace characters a line of the mouse column holds: 34, ending by x 1135, short of the legend at 1160. */
+export const MOUSE_COLUMN_CHARACTERS = 34;
+
+/** How far apart the mouse column's lines are, and the gap between the wheel's lines and the view's below them. */
+const MOUSE_COLUMN_LEADING = 14;
+const MOUSE_COLUMN_GAP = 6;
+
+/** Where the wheel's lines start, under the mouse; the view's follow them. */
+const WHEEL_LINES_Y = 284;
+
+/** How many monospace characters a log line holds: the left column's 132. */
+export const LOG_CHARACTERS = LEFT_COLUMN_CHARACTERS;
+
+/** How far apart the lines of the left column's flow are -- the status lines, the held keys and the log -- and of its notices. */
+const FLOW_LEADING = 16;
+const NOTICE_LEADING = 14;
+
+/** Where the left column's text starts, under the keyboard, and where its fixed notices must end, inside the picture's 900. */
+const LEFT_COLUMN_TOP = 296;
+const LEFT_COLUMN_BOTTOM = 890;
 
 /**
  * How many characters a legend row's words hold on one line: they run from x 1214 to the picture's edge at 1640,
@@ -127,11 +142,12 @@ export function legendLines(words: string, width: number): string[] {
 	return wrapWords(words, width);
 }
 
-/** Words broken at spaces into lines of at most `width` characters; a word longer than that stands on a line of its own. */
+/** Words broken at spaces into lines of at most `width` characters; a word longer than that is broken into pieces of `width`, so no line is longer, and nothing is dropped. */
 export function wrapWords(words: string, width: number): string[] {
 	const lines: string[] = [];
 	let line = "";
-	for (const word of words.split(" ")) {
+	const pieces = words.split(" ").flatMap((word) => (word.length <= width ? [word] : Array.from({ length: Math.ceil(word.length / width) }, (_, i) => word.slice(i * width, (i + 1) * width))));
+	for (const word of pieces) {
 		if (line === "") line = word;
 		else if (line.length + 1 + word.length <= width) line = `${line} ${word}`;
 		else {
@@ -144,6 +160,12 @@ export function wrapWords(words: string, width: number): string[] {
 
 /** Lines of the mouse column as one text shape, a tspan each, the first at `y`. */
 const columnText = (y: number, className: string, lines: readonly string[]): Shape => ({ tag: "text", attrs: { x: MOUSE_TEXT_X, y, class: className }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: MOUSE_TEXT_X, y: y + i * MOUSE_COLUMN_LEADING }, text: line })) });
+
+/** Lines of the left column as one text shape, a tspan each `leading` apart, the first at `y`. */
+const leftText = (y: number, className: string, lines: readonly string[], leading: number): Shape => ({ tag: "text", attrs: { x: PANEL_X, y, class: className }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: y + i * leading }, text: line })) });
+
+/** A number of screen pixels as the page writes it, to a tenth. */
+const tenthWords = (n: number): string => String(Math.round(n * 10) / 10);
 
 /** A text shape at a point, its look by class. */
 const text = (x: number, y: number, className: string, content: string): Shape => ({ tag: "text", attrs: { x, y, class: className }, text: content });
@@ -201,7 +223,7 @@ export function statusWords(picture: Picture, threshold: number): [string, strin
 	const keys = picture.heldKeys.length === 0 ? "none" : picture.heldKeys.map((k) => k.code).join(" ");
 	const g = picture.gesture;
 	const gesture = g === null ? "none" : `${g.name} ${g.phase}${g.trigger === null ? "" : ` (${g.trigger})`}${g.live ? ", live" : ", ended"}`;
-	const press = picture.press === null ? "no press" : `press from screen ${picture.press.at.x}, ${picture.press.at.y}${picture.press.beyond ? ", beyond the threshold" : ""}`;
+	const press = picture.press === null ? "no press" : `press from screen ${tenthWords(picture.press.at.x)}, ${tenthWords(picture.press.at.y)}${picture.press.beyond ? ", beyond the threshold" : ""}`;
 	const under = picture.under === null ? "nothing" : `${picture.under.key} (${picture.under.layer})`;
 	return [`keys held: ${keys} | buttons held: ${buttonsHeldWords(picture.buttons)} | under the pointer: ${under}`, `gesture: ${gesture} | ${press} | threshold: ${threshold} screen pixels`];
 }
@@ -271,9 +293,21 @@ function paintWheel(scene: PaintTarget, view: PaintView, picture: Picture): void
 	const up = wheel !== null && wheel.latest.deltaY < 0;
 	const d = up ? `M ${cx - 8} ${top + 14} L ${cx} ${top} L ${cx + 8} ${top + 14} Z` : `M ${cx - 8} ${bottom - 14} L ${cx} ${bottom} L ${cx + 8} ${bottom - 14} Z`;
 	scene.put("mouse", "mouse wheel", [{ tag: "path", attrs: { d, class: lit ? "wheel lit" : "wheel" } }]);
-	const words = wheel === null ? "wheel: nothing yet" : `wheel deltaX ${wheel.latest.deltaX} deltaY ${wheel.latest.deltaY} deltaZ ${wheel.latest.deltaZ} in ${unitWords(wheel.latest.deltaMode)}, ${modifierWords(wheel.latest)}${wheel.count > 1 ? `, ${wheel.count} alike in a row` : ""}`;
-	scene.put("panel", "wheel line", [columnText(WHEEL_LINES_Y, "wheel-line", wrapWords(words, MOUSE_COLUMN_CHARACTERS))]);
+	scene.put("panel", "wheel line", [columnText(WHEEL_LINES_Y, "wheel-line", wheelLines(picture))]);
 }
+
+/** The wheel's lines under the mouse: its latest deltas, exact, their unit, its modifiers and how many alike came in a row, wrapped to the mouse column. */
+export function wheelLines(picture: Picture): string[] {
+	const wheel = picture.wheel;
+	const words = wheel === null ? "wheel: nothing yet" : `wheel deltaX ${wheel.latest.deltaX} deltaY ${wheel.latest.deltaY} deltaZ ${wheel.latest.deltaZ} in ${unitWords(wheel.latest.deltaMode)}, ${modifierWords(wheel.latest)}${wheel.count > 1 ? `, ${wheel.count} alike in a row` : ""}`;
+	return wrapWords(words, MOUSE_COLUMN_CHARACTERS);
+}
+
+/** How many of the wheel's lines the view's always leave room for, so the view's lines hold still for any ordinary wheel; a longer wheel moves them down. */
+const WHEEL_ROOM_LINES = 4;
+
+/** Where the view's lines start: below the wheel's room, or below its last line when it has more, by the column's gap. */
+const viewLinesY = (picture: Picture): number => WHEEL_LINES_Y + Math.max(WHEEL_ROOM_LINES, wheelLines(picture).length) * MOUSE_COLUMN_LEADING + MOUSE_COLUMN_GAP;
 
 /** The view's lines: the zoom level and the pinch's held pixels; a live pan's travel; and what the latest view row did, wrapped to the mouse column. */
 export function viewLines(picture: Picture): string[] {
@@ -284,7 +318,7 @@ export function viewLines(picture: Picture): string[] {
 
 /** The view's lines, in the mouse column below the wheel's, clear of the legend: the view the view's rows would set, as numbers (the view pane is a move of its own). */
 function paintViewLine(scene: PaintTarget, picture: Picture): void {
-	scene.put("panel", "view line", [columnText(VIEW_LINES_Y, "view-line", viewLines(picture))]);
+	scene.put("panel", "view line", [columnText(viewLinesY(picture), "view-line", viewLines(picture))]);
 }
 
 /** A drag's line, from its press to the pointer in drawing units, while a drag gesture is live. */
@@ -320,29 +354,85 @@ function legendRowsY(rows: readonly BindingEntry<TesterRow>[]): number[] {
 	});
 }
 
-/** Paints the status line and the held keys' lines. */
-function paintStatus(scene: PaintTarget, view: PaintView, picture: Picture): void {
-	const [first, second] = statusWords(picture, view.threshold);
-	scene.put("panel", "status line", [{ tag: "text", attrs: { x: PANEL_X, y: 352, class: "status-line" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: 352 }, text: first }, { tag: "tspan", attrs: { x: PANEL_X, y: 368 }, text: second }] }]);
-	const lines = heldKeyLines(picture);
-	scene.put("panel", "held keys", [{ tag: "text", attrs: { x: PANEL_X, y: 388, class: "held-keys" }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 388 + i * 16 }, text: line })) }]);
+/** The labels line's words: the keyboard map's labels reported, or every label the plan's printing. */
+function labelsLineWords(view: PaintView): string {
+	const reported = [...view.labels.values()].some((l) => l.source === "reported");
+	return reported ? LABELS_REPORTED_LINE : LABELS_ASSUMED_LINE;
+}
+const LABELS_REPORTED_LINE = "Labels: a plain label is the one your keyboard map reported; a slanted label is the plan's printing, assumed.";
+const LABELS_ASSUMED_LINE = "Labels: every label is the plan's printing, assumed -- the browser reported no keyboard map.";
+
+/** The left column's head, fixed for the page: the plan line, the labels line and, outside Chromium, the browser line, each wrapped, and where the flow starts below them. */
+function leftHead(view: PaintView): { plan: string[]; planY: number; labelsY: number; browser: string[]; browserY: number; flowTop: number } {
+	const plan = view.notices.planLine.split("\n").flatMap((line) => wrapWords(line, LEFT_COLUMN_CHARACTERS));
+	const labelsRoom = Math.max(wrapWords(LABELS_REPORTED_LINE, NOTICE_CHARACTERS).length, wrapWords(LABELS_ASSUMED_LINE, NOTICE_CHARACTERS).length);
+	const browser = view.notices.coveredBrowser ? [] : wrapWords(UNCOVERED_BROWSER_LINE, NOTICE_CHARACTERS);
+	const planY = LEFT_COLUMN_TOP;
+	const labelsY = planY + plan.length * NOTICE_LEADING + 2;
+	const browserY = labelsY + labelsRoom * NOTICE_LEADING;
+	return { plan, planY, labelsY, browser, browserY, flowTop: browserY + browser.length * NOTICE_LEADING + 12 };
+}
+
+/** The left column's foot, fixed for the page: what no page can know, what is claimed and the notes' key, each wrapped, laid upward from the column's bottom. */
+function leftFoot(view: PaintView): { y: number; notReported: string[]; claimsY: number; claims: string[]; notesY: number; notes: KeyNote[] } {
+	const notReported = NOT_REPORTED_LINES.flatMap((line) => wrapWords(line, NOTICE_CHARACTERS));
+	const claims = CLAIMS_LINE.split(" -- ").flatMap((part, i) => wrapWords(i === 0 ? `${part} --` : part, NOTICE_CHARACTERS));
+	const notes = [...new Set([...view.placed.keys.values()].flatMap((k) => k.notes))];
+	const height = 18 + (notReported.length - 1) * FLOW_LEADING + 24 + (claims.length - 1) * NOTICE_LEADING + 20 + Math.max(0, notes.length - 1) * NOTICE_LEADING;
+	const y = LEFT_COLUMN_BOTTOM - height;
+	const claimsY = y + 18 + (notReported.length - 1) * FLOW_LEADING + 24;
+	return { y, notReported, claimsY, claims, notesY: claimsY + (claims.length - 1) * NOTICE_LEADING + 20, notes };
+}
+
+/** The left column's flow between its head and its foot: the status lines, the held keys, the log's heading and its entries, each placed below the last. */
+export interface FlowPlacement {
+	readonly statusY: number;
+	readonly status: readonly string[];
+	readonly heldY: number;
+	readonly held: readonly string[];
+	readonly headingY: number;
+	readonly log: readonly { readonly y: number; readonly lines: readonly string[] }[];
 }
 
 /**
- * Paints the log, newest first, in its room of fixed lines: each entry whole, wrapped at `LOG_CHARACTERS` and never
- * cut, as many entries as fit; an entry with no room left, and every older one, is put empty.
+ * Lays out the flow: the status lines, then the held keys, then the log's heading and its entries, each block
+ * wrapped at the column's width and placed below the last -- at the places they hold for ordinary input, or lower
+ * when a block above runs longer -- down to the foot. The log shows its newest entries whole, as many as fit, an
+ * entry never cut; the held keys, whose lines can only grow with keys held at once, leave room for the log's
+ * heading, their last line saying how many lines found no room when they are more than fit.
  */
-function paintLog(scene: PaintTarget, view: PaintView, picture: Picture): void {
-	let used = 0;
+export function flowPlacement(view: PaintView, picture: Picture): FlowPlacement {
+	const bottom = leftFoot(view).y - 16;
+	const statusY = leftHead(view).flowTop;
+	const status = statusWords(picture, view.threshold).flatMap((line) => wrapWords(line, LEFT_COLUMN_CHARACTERS));
+	const heldY = Math.max(statusY + 36, statusY + (status.length - 1) * FLOW_LEADING + 20);
+	let held = heldKeyLines(picture).flatMap((line) => wrapWords(line, LEFT_COLUMN_CHARACTERS));
+	const heldRoom = Math.max(1, Math.floor((bottom - 20 - heldY) / FLOW_LEADING) + 1);
+	if (held.length > heldRoom) held = [...held.slice(0, heldRoom - 1), `and ${held.length - heldRoom + 1} more lines of held keys than the panel has room for`];
+	const headingY = Math.max(heldY + 84, heldY + (held.length - 1) * FLOW_LEADING + 20);
+	const log: { y: number; lines: string[] }[] = [];
+	let y = headingY + FLOW_LEADING;
+	let full = false;
 	for (let i = 0; i < LOG_LINES; i++) {
 		const entry = picture.log[i];
 		const lines = entry === undefined ? [] : wrapWords(logLineWords(entry, view), LOG_CHARACTERS);
-		const fits = used + lines.length <= LOG_ROOM;
-		const y = 488 + used * LOG_LEADING;
-		const shown = fits ? lines : [];
-		scene.put("panel", `log line ${i}`, [{ tag: "text", attrs: { x: PANEL_X, y, class: i === 0 ? "log-line newest" : "log-line" }, children: shown.map((line, n) => ({ tag: "tspan", attrs: { x: PANEL_X, y: y + n * LOG_LEADING }, text: line })) }]);
-		used = fits ? used + lines.length : LOG_ROOM;
+		full = full || y + (lines.length - 1) * FLOW_LEADING > bottom;
+		log.push({ y, lines: full ? [] : lines });
+		if (!full) y += lines.length * FLOW_LEADING;
 	}
+	return { statusY, status, heldY, held, headingY, log };
+}
+
+/** Paints the status lines and the held keys' lines where the flow puts them. */
+function paintStatus(scene: PaintTarget, flow: FlowPlacement): void {
+	scene.put("panel", "status line", [leftText(flow.statusY, "status-line", flow.status, FLOW_LEADING)]);
+	scene.put("panel", "held keys", [leftText(flow.heldY, "held-keys", flow.held, FLOW_LEADING)]);
+}
+
+/** Paints the log's heading and its entries, newest first, where the flow puts them: each entry whole, as many as fit; an entry with no room, and every older one, put empty. */
+function paintLog(scene: PaintTarget, flow: FlowPlacement): void {
+	scene.put("panel", "log heading", [text(PANEL_X, flow.headingY, "heading", "Log, newest first")]);
+	flow.log.forEach((entry, i) => scene.put("panel", `log line ${i}`, [leftText(entry.y, i === 0 ? "log-line newest" : "log-line", entry.lines, FLOW_LEADING)]));
 }
 
 /** Paints the legend: every row of the table with its standing for the latest fact, a row of long words on lines of its own. */
@@ -354,9 +444,7 @@ function paintLegend(scene: PaintTarget, view: PaintView, picture: Picture): voi
 /** Paints every key, as the labels name them now: at the first paint, and again when the Keyboard Map answers. */
 export function paintEveryKey(scene: PaintTarget, view: PaintView, picture: Picture): void {
 	for (const key of view.placed.keys.values()) putKey(scene, key, view, picture);
-	const sources = new Set([...view.labels.values()].map((l) => l.source));
-	const labelsLine = sources.has("reported") ? "Labels: a plain label is the one your keyboard map reported; a slanted label is the plan's printing, assumed." : "Labels: every label is the plan's printing, assumed -- the browser reported no keyboard map.";
-	scene.put("panel", "labels line", [text(PANEL_X, 326, "notice", labelsLine)]);
+	scene.put("panel", "labels line", [leftText(leftHead(view).labelsY, "notice", wrapWords(labelsLineWords(view), NOTICE_CHARACTERS), NOTICE_LEADING)]);
 }
 
 /** Paints the whole page from the record: every key, the mouse, the panel's fixed lines, and every entry of the record. */
@@ -366,17 +454,17 @@ export function paintWholePage(scene: PaintTarget, view: PaintView, picture: Pic
 	paintWheel(scene, view, picture);
 	paintViewLine(scene, picture);
 	paintTrail(scene, picture);
-	scene.put("panel", "plan line", [{ tag: "text", attrs: { x: PANEL_X, y: 296, class: "notice plan-line" }, children: view.notices.planLine.split("\n").map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 296 + i * 14 }, text: line })) }]);
-	if (!view.notices.coveredBrowser) scene.put("panel", "browser line", [text(PANEL_X, 340, "notice uncovered", UNCOVERED_BROWSER_LINE)]);
-	if (view.notices.problems.length > 0) scene.put("panel", "problems", [{ tag: "text", attrs: { x: PANEL_X, y: 892, class: "problems" }, children: view.notices.problems.map((p, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 892 + i * 14 }, text: p })) }]);
-	scene.put("panel", "log heading", [text(PANEL_X, 472, "heading", "Log, newest first")]);
-	scene.put("panel", "not reported", [{ tag: "text", attrs: { x: PANEL_X, y: 724, class: "not-reported" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: 724, class: "heading" }, text: "What no page can know" }, ...NOT_REPORTED_LINES.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 742 + i * 16 }, text: line }))] }]);
-	scene.put("panel", "claims line", [{ tag: "text", attrs: { x: PANEL_X, y: 814, class: "notice" }, children: CLAIMS_LINE.split(" -- ").map((part, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 814 + i * 14 }, text: i === 0 ? `${part} --` : ` ${part}` })) }]);
-	const notes = [...new Set([...view.placed.keys.values()].flatMap((k) => k.notes))];
-	scene.put("panel", "notes key", [{ tag: "text", attrs: { x: PANEL_X, y: 848, class: "notes-key" }, children: notes.map((n, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 848 + i * 14, class: `note-${n}` }, text: `a key's corner marked so: ${KEY_NOTE_WORDS[n]}` })) }]);
+	const head = leftHead(view);
+	scene.put("panel", "plan line", [leftText(head.planY, "notice plan-line", head.plan, NOTICE_LEADING)]);
+	if (head.browser.length > 0) scene.put("panel", "browser line", [leftText(head.browserY, "notice uncovered", head.browser, NOTICE_LEADING)]);
+	const foot = leftFoot(view);
+	scene.put("panel", "not reported", [{ tag: "text", attrs: { x: PANEL_X, y: foot.y, class: "not-reported" }, children: [{ tag: "tspan", attrs: { x: PANEL_X, y: foot.y, class: "heading" }, text: "What no page can know" }, ...foot.notReported.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: foot.y + 18 + i * FLOW_LEADING }, text: line }))] }]);
+	scene.put("panel", "claims line", [leftText(foot.claimsY, "notice", foot.claims, NOTICE_LEADING)]);
+	scene.put("panel", "notes key", [{ tag: "text", attrs: { x: PANEL_X, y: foot.notesY, class: "notes-key" }, children: foot.notes.map((n, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: foot.notesY + i * NOTICE_LEADING, class: `note-${n}` }, text: `a key's corner marked so: ${KEY_NOTE_WORDS[n]}` })) }]);
 	scene.put("panel", "legend heading", [text(LEGEND_X, 22, "heading", "Every rule, and its standing for the latest fact")]);
-	paintStatus(scene, view, picture);
-	paintLog(scene, view, picture);
+	const flow = flowPlacement(view, picture);
+	paintStatus(scene, flow);
+	paintLog(scene, flow);
 	paintLegend(scene, view, picture);
 }
 
@@ -397,10 +485,14 @@ export function paintPictureChanges(scene: PaintTarget, view: PaintView, previou
 	}
 	if (changed.has("buttons")) paintMouse(scene, view, picture);
 	if (changed.has("wheel") || (changed.has("latestFact") && (previous.latestFact?.type === "wheel") !== (picture.latestFact?.type === "wheel"))) paintWheel(scene, view, picture);
-	if (changed.has("view")) paintViewLine(scene, picture);
+	if (changed.has("view") || changed.has("wheel")) paintViewLine(scene, picture);
 	if (changed.has("gesture") || changed.has("pressFrom") || changed.has("pointerAt")) paintTrail(scene, picture);
-	if (["heldKeys", "unidentifiedKey", "buttons", "gesture", "press", "under"].some((e) => changed.has(e as PictureEntry))) paintStatus(scene, view, picture);
-	if (changed.has("log")) paintLog(scene, view, picture);
+	const statusChanged = ["heldKeys", "unidentifiedKey", "buttons", "gesture", "press", "under"].some((e) => changed.has(e as PictureEntry));
+	if (statusChanged || changed.has("log")) {
+		const flow = flowPlacement(view, picture);
+		if (statusChanged) paintStatus(scene, flow);
+		if (changed.has("log") || (statusChanged && flow.headingY !== flowPlacement(view, previous).headingY)) paintLog(scene, flow);
+	}
 	if (changed.has("legend")) paintLegend(scene, view, picture);
 }
 
