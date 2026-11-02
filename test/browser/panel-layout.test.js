@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 import { siteRoot } from "../support/built-site.js";
+import { plantedSite } from "../support/planted-site.js";
 import { MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
 
 const TEST = { timeout: 90000 };
@@ -196,3 +197,20 @@ test("each block at the longest wording its inputs can produce -- thirty-two key
 	await t.load("?plan=ansi");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
+
+test("a refused capture's problem, planted in a built copy -- a surface and a key source it refuses -- drawn on lines of the left column, every line, the problems' and the status lines' among them, held apart by its box and inside its column (0011)", TEST, async () => {
+	const planted = plantedSite([{ file: "app/composition-root.js", find: "keys: platform.keySource,", replace: "keys: {}," }, { file: "app/composition-root.js", find: "surface: platform.surface,", replace: "surface: {}," }]);
+	const main = t;
+	try {
+		t = await openTesterInChrome({ siteDir: planted.dir });
+		const problems = await t.page("[...document.querySelectorAll('#input-surface text.problems tspan')].map((s) => s.textContent)");
+		assert.equal(problems.length, 2, `the capture's problem of 133 characters on two lines: ${JSON.stringify(problems)}`);
+		assert.match(problems.join(" "), /^the capture refused its declaration: .*"\/keys".*"\/surface"/);
+		await assertEveryLineClear("a refused capture's problem drawn");
+	} finally {
+		await t.close();
+		t = main;
+		planted.remove();
+	}
+});
+

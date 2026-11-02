@@ -129,6 +129,10 @@ export const MUTANTS = [
 	["M63", "room for exactly four wheel lines above the view's (move 5's bounded-layout check, b4)", "src/picture-painter.ts", "Math.max(WHEEL_ROOM_LINES, wheelLines(picture).length)", "WHEEL_ROOM_LINES", ["test/browser/panel-layout.test.js"]],
 	["M64", "the view's pan line unwrapped", "src/picture-painter.ts", 'panWords, words ?? "no view row yet"].flatMap((line) => wrapWords(line, MOUSE_COLUMN_CHARACTERS));', 'panWords, ...wrapWords(words ?? "no view row yet", MOUSE_COLUMN_CHARACTERS)];', ["test/browser/panel-layout.test.js"]],
 	["M65", "a refused capture's problems not drawn (move 5's bounded-layout check, B5)", "src/picture-painter.ts", '	if (head.problems.length > 0) scene.put("panel", "problems", [leftText(head.problemsY, "problems", head.problems, NOTICE_LEADING)]);\n', "", ["test/painter-allowlist.test.js"]],
+	["M66", "the early path draws nothing: paintRefusedOpening puts no problems (move 5's check, p2)", "src/picture-painter.ts", '	scene.put("panel", "problems", [leftText(LEFT_COLUMN_TOP, "problems", problemLines(problems), NOTICE_LEADING)]);\n', "", ["test/painter-allowlist.test.js", "test/browser/panel-layout.test.js"]],
+	["M67", "the early path draws nothing: the composition root never calls paintRefusedOpening (move 5's check, p2)", "src/composition-root.ts", "		paintRefusedOpening(scene, problems);\n", "", ["test/painter-allowlist.test.js", "test/browser/panel-layout.test.js"]],
+	["M68", "the problems left unwrapped (move 5's check, p3)", "src/picture-painter.ts", "problems.flatMap((p) => wrapWords(p, LEFT_COLUMN_CHARACTERS));", "[...problems];", ["test/painter-allowlist.test.js", "test/browser/panel-layout.test.js"]],
+	["M69", "the status lines not moved below the problems (move 5's check, p4)", "src/picture-painter.ts", "flowTop: problemsY + problems.length * NOTICE_LEADING + 12", "flowTop: problemsY + 12", ["test/painter-allowlist.test.js", "test/browser/panel-layout.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");
