@@ -12,9 +12,9 @@ import { test } from "node:test";
 import { BUTTON_BITS as CHROMIUM_BUTTON_BITS } from "@apnex/headless-chromium";
 
 import { importBuilt, importVendored } from "./support/built-site.js";
-import { SPEC_BROWSERS_OWN_KEYS, SPEC_BUTTON_BITS, SPEC_CHORD_MODIFIERS, SPEC_MODIFIER_CODES, SPEC_ROW_CLAIMS, hitsNoRowBySpec, keyFact, ownBySpec, signatureOf } from "./support/architecture-section-6.js";
+import { SPEC_BROWSERS_OWN_KEYS, SPEC_BUTTON_BITS, SPEC_CHORD_MODIFIERS, SPEC_MODIFIER_CODES, SPEC_PAN_GESTURES, SPEC_ROW_CLAIMS, hitsNoRowBySpec, keyFact, ownBySpec, signatureOf } from "./support/architecture-section-6.js";
 
-const { TESTER_ROWS, TESTER_TABLE_DECLARATION, OVERLAP_PROOF_CONTEXTS, overlapProofFacts, isBrowsersOwnKey, BROWSERS_OWN_KEYS, MODIFIER_CODES } = await importBuilt("input-bindings.js");
+const { TESTER_ROWS, TESTER_TABLE_DECLARATION, OVERLAP_PROOF_CONTEXTS, overlapProofContextsOf, overlapProofFacts, isBrowsersOwnKey, BROWSERS_OWN_KEYS, MODIFIER_CODES } = await importBuilt("input-bindings.js");
 const { KEYBOARD_PLANS, BUTTON_BITS } = await importBuilt("keyboard-plans.js");
 const { composeBindingTable } = await importVendored("input-binding");
 
@@ -30,7 +30,9 @@ test("section 6: the table holds exactly its rows, in its order, each with its w
 	assert.equal(composed.ok, true, JSON.stringify(composed.problems));
 	assert.deepEqual(table.rows.map((r) => r.row.words), SPEC_ROW_CLAIMS.map(([words]) => words));
 	assert.deepEqual(table.rows.map((r) => [r.row.words, r.row.claims]), SPEC_ROW_CLAIMS.map(([words, claims]) => [words, claims]));
-	assert.deepEqual(table.rows.filter((r) => r.opens !== null).map((r) => [r.row.words, r.opens]), [0, 1, 2, 3, 4].map((b) => [`a press of button ${b}`, `press-${b}`]), "only the press rows open a gesture, each its button's press gesture");
+	const pans = [["a pan with the middle button, no gesture live", "press-1"], ["a pan with the right button on open ground, no gesture live", "press-2"], ["a pan with Space held and the left button, no gesture live", "press-0"]];
+	assert.deepEqual(table.rows.filter((r) => r.opens !== null).map((r) => [r.row.words, r.opens]), [...[0, 1, 2, 3, 4].map((b) => [`a press of button ${b}`, `press-${b}`]), ...pans], "only the press rows and the pan rows open a gesture, each its button's press gesture");
+	assert.deepEqual(table.rows.filter((r) => r.row.pans !== undefined).map((r) => r.row.pans), SPEC_PAN_GESTURES, "each pan row becomes its own pan gesture once it travels the threshold");
 	assert.deepEqual(BUTTON_BITS, SPEC_BUTTON_BITS, "the one definition of the buttons' bits is the Mouse button entity's");
 	assert.deepEqual(CHROMIUM_BUTTON_BITS, SPEC_BUTTON_BITS, "the bits the browser tests' trusted input sends, headless-chromium's, are the entity's too");
 });
@@ -47,13 +49,13 @@ test("IT-D9: each of the browser's own keys left unclaimed in a positive case, b
 		if (letter !== null) cases.push(keyFact("key-down", "KeyO", held.shift ? letter.toUpperCase() : letter, held), keyFact("key-down", "KeyS", letter, held));
 		for (const f of cases) {
 			assert.equal(isBrowsersOwnKey(f), true, `${e.platform} ${e.code} as ${f.code} "${f.key}" ${JSON.stringify(held)}`);
-			const { match, claimed } = table.matchInput(f, OVERLAP_PROOF_CONTEXTS[0]);
+			const { match, claimed } = table.matchInput(f, OVERLAP_PROOF_CONTEXTS.key[0]);
 			assert.deepEqual([match?.row.words, claimed], ["left to the browser", false], `${e.code} as ${f.code} "${f.key}"`);
 		}
 		for (const m of MODIFIERS.filter((name) => e[name] !== null)) {
 			const flipped = keyFact("key-down", e.code, letter ?? e.code, { ...held, [m]: !held[m] });
 			assert.equal(isBrowsersOwnKey(flipped), ownBySpec(flipped), `${e.platform} ${e.code} with ${m} flipped`);
-			if (!ownBySpec(flipped)) assert.equal(table.matchInput(flipped, OVERLAP_PROOF_CONTEXTS[0]).claimed, true, `${e.code} with ${m} flipped is claimed`);
+			if (!ownBySpec(flipped)) assert.equal(table.matchInput(flipped, OVERLAP_PROOF_CONTEXTS.key[0]).claimed, true, `${e.code} with ${m} flipped is claimed`);
 		}
 	}
 	assert.equal(isBrowsersOwnKey(keyFact("key-down", "KeyO", "o", { ctrl: true })), false, "Dvorak's Ctrl+O, the key printing o, is no reload");
@@ -87,12 +89,16 @@ test("the proof's space holds, for every letter entry of section 6's browser's o
 	assert.ok(facts.some((f) => typeof f.key === "string" && f.key !== f.key.toLowerCase() && /^[A-Z]$/.test(f.key)), "an upper-case letter among them, so case folding is met");
 });
 
-test("GT5, IB8: over the proof's space -- every fact the browser produces and every fixture, with the four contexts -- exactly one row hits, but for the facts section 6 gives no row, which hit none", (t) => {
-	const overlaps = table.findOverlaps(facts, OVERLAP_PROOF_CONTEXTS, [{}]);
+test("GT5, IB8: over the proof's space -- every fact the browser produces and every fixture, a key fact with its four contexts and every other with its eight -- exactly one row hits, but for the facts section 6 gives no row, which hit none", (t) => {
+	const keyFacts = facts.filter((f) => f.type === "key-down" || f.type === "key-up");
+	const otherFacts = facts.filter((f) => f.type !== "key-down" && f.type !== "key-up");
+	const overlaps = [...table.findOverlaps(keyFacts, OVERLAP_PROOF_CONTEXTS.key, [{}]), ...table.findOverlaps(otherFacts, OVERLAP_PROOF_CONTEXTS.pointer, [{}])];
 	assert.deepEqual(overlaps.slice(0, 5).map((o) => ({ fact: o.fact, context: o.context, ids: o.ids })), [], `${overlaps.length} overlap(s)`);
 	let unbound = 0;
+	let combinations = 0;
 	for (const fact of facts) {
-		for (const context of OVERLAP_PROOF_CONTEXTS) {
+		for (const context of overlapProofContextsOf(fact)) {
+			combinations++;
 			const hits = hitsOf(fact, context);
 			if (hitsNoRowBySpec(fact)) {
 				unbound++;
@@ -100,14 +106,14 @@ test("GT5, IB8: over the proof's space -- every fact the browser produces and ev
 			} else assert.equal(hits.length, 1, `exactly one row: ${JSON.stringify(fact)} in ${JSON.stringify(context)}, hit ${hits}`);
 		}
 	}
-	t.diagnostic(`the overlap check ran ${facts.length} facts with ${OVERLAP_PROOF_CONTEXTS.length} contexts: ${facts.length * OVERLAP_PROOF_CONTEXTS.length} combinations over ${codes.length} codes, ${unbound} of them the facts section 6 gives no row`);
+	t.diagnostic(`the overlap check ran ${keyFacts.length} key facts with ${OVERLAP_PROOF_CONTEXTS.key.length} contexts and ${otherFacts.length} others with ${OVERLAP_PROOF_CONTEXTS.pointer.length}: ${combinations} combinations over ${codes.length} codes, ${unbound} of them the facts section 6 gives no row`);
 });
 
 test("IT-D9: a key fact is claimed exactly when the specification does not name it one of the browser's own keys, in every context", () => {
 	let checked = 0;
 	for (const fact of facts) {
 		if (fact.type !== "key-down" && fact.type !== "key-up") continue;
-		for (const context of OVERLAP_PROOF_CONTEXTS) {
+		for (const context of overlapProofContextsOf(fact)) {
 			const { claimed, match } = table.matchInput(fact, context);
 			assert.equal(claimed, !ownBySpec(fact), `${fact.type} ${fact.code} "${fact.key}" ${[fact.shiftKey, fact.ctrlKey, fact.altKey, fact.metaKey]}`);
 			if (ownBySpec(fact)) assert.equal(match?.row.words, "left to the browser");
@@ -120,7 +126,7 @@ test("IT-D9: a key fact is claimed exactly when the specification does not name 
 test("section 6: whatever fact hits a row, its claim is that row's Claims column", () => {
 	const claims = new Map(SPEC_ROW_CLAIMS);
 	for (const fact of facts) {
-		for (const context of OVERLAP_PROOF_CONTEXTS) {
+		for (const context of overlapProofContextsOf(fact)) {
 			const { match, claimed } = table.matchInput(fact, context);
 			if (match !== null) assert.equal(claimed, claims.get(match.row.words), `${match.row.words}: ${JSON.stringify(fact)}`);
 		}
@@ -131,23 +137,39 @@ test("GT5: a plain drag of every button -- moves naming no button, its bit held 
 	for (let b = 0; b <= 4; b++) {
 		for (const buttons of [SPEC_BUTTON_BITS[b], SPEC_BUTTON_BITS[b] | 1]) {
 			const fact = { type: "move", at: { x: 0, y: 0 }, screen: { x: 0, y: 0 }, hit: null, focus: null, button: -1, buttons, pointerId: 1, pointerType: "mouse", key: null, code: null, repeat: null, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, deltaX: null, deltaY: null, deltaZ: null, deltaMode: null, time: 1 };
-			assert.deepEqual(hitsOf(fact, OVERLAP_PROOF_CONTEXTS[0]), [], `drag of button ${b}, buttons ${buttons}`);
+			for (const context of OVERLAP_PROOF_CONTEXTS.pointer) assert.deepEqual(hitsOf(fact, context), [], `drag of button ${b}, buttons ${buttons}, ${JSON.stringify(context)}`);
 		}
 	}
 });
 
 test("every row is hit by some fact of the proof's space, and each row marked fixture is one Chromium never produces", () => {
 	const hit = new Set();
-	for (const fact of facts) for (const context of OVERLAP_PROOF_CONTEXTS) for (const id of hitsOf(fact, context)) hit.add(id);
+	for (const fact of facts) for (const context of overlapProofContextsOf(fact)) for (const id of hitsOf(fact, context)) hit.add(id);
 	assert.deepEqual(table.rows.map((r) => r.id).filter((id) => !hit.has(id)), []);
 	assert.deepEqual(TESTER_ROWS.filter((r) => !r.proof.includes("trusted")).map((r) => r.words), ["a chorded change, buttons not reported", "a button beyond the five"]);
 });
 
 test("section 6's terms: the modifier codes are its eight, each one's fresh press a modifier press; Ctrl, Alt and Meta each make a chord, and Shift none", () => {
 	assert.deepEqual(MODIFIER_CODES, SPEC_MODIFIER_CODES);
-	const context = OVERLAP_PROOF_CONTEXTS[0];
+	const context = OVERLAP_PROOF_CONTEXTS.key[0];
 	const words = (f) => table.matchInput(f, context).match?.row.words;
 	for (const code of SPEC_MODIFIER_CODES) assert.equal(words(keyFact("key-down", code, "Meta", {})), "a modifier press", code);
 	for (const held of SPEC_CHORD_MODIFIERS) assert.equal(words(keyFact("key-down", "KeyA", "a", { [held]: true })), "a modifier chord", `${held} held`);
 	assert.equal(words(keyFact("key-down", "KeyA", "A", { shift: true })), "a first press", "Shift makes no chord");
+});
+
+test("section 6, the view's rows: a mouse's press takes its pan row where section 3.6 says -- the middle button with no gesture live, the right on open ground with no gesture live, the left with Space held and no gesture live -- and its press row everywhere else; a wheel is a scroll pan without Ctrl and a pinch zoom with it, in every context", () => {
+	const panBySpec = (button, c) => (button === 1 && !c.gestureLive ? "pan-middle" : button === 2 && !c.gestureLive && c.openGround ? "pan-right" : button === 0 && !c.gestureLive && c.spaceHeld ? "pan-space" : `button-${button}-press`);
+	let checked = 0;
+	for (const fact of facts) {
+		const mouseDown = fact.type === "down" && fact.pointerType === "mouse" && fact.button >= 0 && fact.button <= 4;
+		if (!mouseDown && fact.type !== "wheel") continue;
+		for (const context of OVERLAP_PROOF_CONTEXTS.pointer) {
+			const expected = fact.type === "wheel" ? (fact.ctrlKey ? "pinch-zoom" : "scroll-pan") : panBySpec(fact.button, context);
+			assert.deepEqual(hitsOf(fact, context), [expected], `${JSON.stringify(fact)} in ${JSON.stringify(context)}`);
+			checked++;
+		}
+	}
+	assert.ok(checked > 500, `${checked} presses and wheels checked`);
+	assert.equal(OVERLAP_PROOF_CONTEXTS.pointer.length, 8, "every combination of the three pointer flags");
 });

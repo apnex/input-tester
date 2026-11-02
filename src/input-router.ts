@@ -2,16 +2,17 @@
  * Router: takes each delivered fact through the table and the session (docs/ARCHITECTURE-TARGET.md sections
  * 5, 6 and 7), and answers one verdict holding every step in order.
  *
- * For every fact it makes the context from the session's held keys before it, traces and matches the fact
- * (IB6, IB7), and asks the reply to claim it when the match says so (IC8). Then each family's route makes the
- * session calls that family names: a key's `keyDown` or `keyUp`; a mouse press's pointer taken and the press
- * handed to `resolvePress` (IB15) with the match already found, so the router keeps no policy between the press
- * and the match; a mouse move's `pointerMove`, and `becomeGesture` to the drag when a press gesture's press
- * crosses the threshold, without `from`, so its release stays a drop (IB10); a mouse release's `pointerUp`,
+ * For every fact it makes the context from the session's state before it, traces and matches the fact (IB6,
+ * IB7), and asks the reply to claim it when the match says so (IC8). Then each family's route makes the session
+ * calls that family names: a key's `keyDown` or `keyUp`; a mouse press's pointer taken -- but a pan row's, taken
+ * when its pan engages -- and the press handed to `resolvePress` (IB15) with the match already found, so the router
+ * keeps no policy between the press and the match; a mouse move's `pointerMove`, and, when a press gesture's press
+ * crosses the threshold, `becomeGesture` without `from`, so its release stays a drop (IB10) -- to the pan gesture
+ * of the pan row that opened it, the pointer taken then, or else to its button's drag; a mouse release's `pointerUp`,
  * whose commit gives a derived fact, traced and matched in its turn; a mouse cancel's `pointerLost`; and focus
  * lost's `keysLost` then `pointerLost`. Which route a fact takes is the composition root's switch.
  */
-import type { BecomeGestureOutcome, BindingEntry, BindingTable, GestureOutcome, GestureSession, KeyOutcome, KeysLostOutcome, PointerMoveOutcome, PointerUpOutcome, ResolvePressOutcome, TraceRecord } from "../vendor/input-binding/index.js";
+import type { BecomeGestureOutcome, BindingEntry, BindingTable, GestureOutcome, GestureSession, KeyOutcome, KeysLostOutcome, PointerMoveOutcome, PointerUpOutcome, ResolvePressOutcome, SessionState, TraceRecord } from "../vendor/input-binding/index.js";
 import type { BlurFact, KeyFact, PointerFact } from "../vendor/input-capture/index.js";
 import { DRAG_OF_PRESS, NO_KEY_CONTEXT, isModifierCode } from "./input-bindings.js";
 import type { CommitFact, DeliveredFact, ItemUnderPointer, TesterContext, TesterFact, TesterRow } from "./input-bindings.js";
@@ -68,23 +69,32 @@ export interface InputRouter {
 	readonly routeFactAlone: (fact: DeliveredFact, reply: FactReply) => Verdict;
 }
 
-/** The context of a fact, from the session's held keys before it: whether they hold its code, and a non-modifier code other than it. */
-export function contextOfFact(fact: DeliveredFact, heldKeys: readonly string[]): TesterContext {
-	if (fact.type !== "key-down" && fact.type !== "key-up") return NO_KEY_CONTEXT;
-	const code = fact.code;
-	return Object.freeze({ wasHeld: code !== null && heldKeys.includes(code), otherHeld: heldKeys.some((held) => held !== code && !isModifierCode(held)) });
+/**
+ * The context of a fact, from the session's state before it: of a key fact, whether the keys held hold its code,
+ * and a non-modifier code other than it; of a pointer fact, whether a gesture is live, whether Space is held, and
+ * whether it lies on open ground, its `hit` naming no key or mouse button drawn; every other flag false.
+ */
+export function contextOfFact(fact: DeliveredFact, state: SessionState): TesterContext {
+	if (fact.type === "key-down" || fact.type === "key-up") {
+		const code = fact.code;
+		return Object.freeze({ ...NO_KEY_CONTEXT, wasHeld: code !== null && state.keys.includes(code), otherHeld: state.keys.some((held) => held !== code && !isModifierCode(held)) });
+	}
+	if (fact.at === null) return NO_KEY_CONTEXT;
+	return Object.freeze({ ...NO_KEY_CONTEXT, gestureLive: state.gesture !== null, spaceHeld: state.keys.includes("Space"), openGround: fact.hit === null });
 }
 
 /** Opens a router over one table and the session it drives. */
 export function openInputRouter(table: BindingTable<TesterFact, TesterContext, TesterRow>, session: GestureSession): InputRouter {
 	/** Traces and matches a fact in its context, and claims it when the match says so: the start of every route. */
 	const traceMatchAndClaim = (fact: DeliveredFact, reply: FactReply) => {
-		const context = contextOfFact(fact, session.state.keys);
+		const context = contextOfFact(fact, session.state);
 		const trace = table.traceInput(fact, context);
 		const { match, claimed } = table.matchInput(fact, context);
 		if (claimed) reply.claim();
 		return { trace, match, claimed };
 	};
+	/** The pan gesture a row becomes once its press travels the threshold, by the row's id, for the rows that pan. */
+	const panOfRow = new Map(table.rows.filter((e) => e.row.pans !== undefined).map((e) => [e.id, e.row.pans as string]));
 	const verdictOf = (fact: DeliveredFact, claimed: boolean, trace: readonly TraceRecord[], steps: readonly VerdictStep[]): Verdict => Object.freeze({ fact, claimed, trace, steps: Object.freeze([...steps]) });
 	const step = <S extends VerdictStep>(s: S): S => Object.freeze(s);
 
@@ -103,8 +113,8 @@ export function openInputRouter(table: BindingTable<TesterFact, TesterContext, T
 			return verdictOf(fact, claimed, trace, [step({ operation, outcome, derived: null })]);
 		},
 		routeMousePress: (fact, reply) => {
-			reply.takePointer();
 			const { trace, match, claimed } = traceMatchAndClaim(fact, reply);
+			if (match === null || !panOfRow.has(match.id)) reply.takePointer();
 			const outcome = session.resolvePress(fact, { match: () => match });
 			return verdictOf(fact, claimed, trace, [step({ operation: "resolvePress", outcome, derived: null })]);
 		},
@@ -113,8 +123,12 @@ export function openInputRouter(table: BindingTable<TesterFact, TesterContext, T
 			const moved = session.pointerMove(fact);
 			const steps: VerdictStep[] = [step({ operation: "pointerMove", outcome: moved, derived: null })];
 			const live = moved.state.gesture;
+			const pan = live === null || live.row === null ? undefined : panOfRow.get(live.row);
 			const drag = live === null ? undefined : DRAG_OF_PRESS[live.name];
-			if (!moved.otherPointer && moved.crossed && drag !== undefined) steps.push(step({ operation: "becomeGesture", outcome: session.becomeGesture({ gesture: drag }), derived: null }));
+			if (!moved.otherPointer && moved.crossed && drag !== undefined) {
+				if (pan !== undefined) reply.takePointer();
+				steps.push(step({ operation: "becomeGesture", outcome: session.becomeGesture({ gesture: pan ?? drag }), derived: null }));
+			}
 			return verdictOf(fact, claimed, trace, steps);
 		},
 		routeMouseRelease: (fact, reply) => {

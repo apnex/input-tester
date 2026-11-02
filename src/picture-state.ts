@@ -6,11 +6,17 @@
  * session step left -- never kept twice; the record keeps of each held key only what the facts showed of it:
  * its first observed time, whether it was first seen pressed or already repeating, its repeats observed and its
  * latest fact, exact. Times are the facts' own; a duration is shown as of the latest fact, and no clock is read.
+ *
+ * It keeps the view the view's rows would set (section 6, the view's rows): the zoom level and the pinch's
+ * accumulator, a live pan's travel on screen from where it engaged, and words for what the latest of those rows
+ * did -- numbers, with no view drawn: the view pane is a move of its own.
  */
 import type { CapturePoint, KeyFact, WheelFact } from "../vendor/input-capture/index.js";
 import type { LiveGesture, Phase, Press, SessionState, TraceRecord, Trigger } from "../vendor/input-binding/index.js";
+import { PAN_GESTURES } from "./input-bindings.js";
 import type { DeliveredFact, ItemUnderPointer, TesterFact } from "./input-bindings.js";
 import type { Verdict, VerdictStep } from "./input-router.js";
+import { DEFAULT_ZOOM_LEVEL, ZOOM_STEP_PIXELS, levelWords, normalisedDelta, screenDistance, stepZoom } from "./view-steps.js";
 
 /** How many lines the log keeps, newest first. */
 export const LOG_LINES = 14;
@@ -59,6 +65,22 @@ export interface LegendPicture {
 	readonly meaning: readonly TraceRecord[] | null;
 }
 
+/** A live pan: its gesture, the screen point it engaged at and the latest, and its travel on screen between them in pixels. */
+export interface PanPicture {
+	readonly gesture: string;
+	readonly from: CapturePoint;
+	readonly at: CapturePoint;
+	readonly distance: number;
+}
+
+/** The view the view's rows would set: its zoom level, the pinch's accumulator in pixels, a live pan or null, and words for what the latest of those rows did, null before any. */
+export interface ViewPicture {
+	readonly level: number;
+	readonly acc: number;
+	readonly pan: PanPicture | null;
+	readonly words: string | null;
+}
+
 /** What the person is shown, as one frozen record. */
 export interface Picture {
 	readonly heldKeys: readonly HeldKeyPicture[];
@@ -67,7 +89,9 @@ export interface Picture {
 	readonly wheel: WheelPicture | null;
 	readonly gesture: GesturePicture | null;
 	readonly press: Press | null;
+	readonly pressFrom: CapturePoint | null;
 	readonly pointerAt: CapturePoint | null;
+	readonly view: ViewPicture;
 	readonly log: readonly LogEntry[];
 	readonly legend: LegendPicture | null;
 	readonly under: ItemUnderPointer;
@@ -87,7 +111,7 @@ export type PictureEntry = keyof Picture;
 export const BUTTONS_REPORTED_BY: readonly string[] = Object.freeze(["down", "move", "up", "cancel", "context-menu"]);
 
 /** The record before any fact. */
-export const EMPTY_PICTURE: Picture = Object.freeze({ heldKeys: Object.freeze([]), unidentifiedKey: null, buttons: null, wheel: null, gesture: null, press: null, pointerAt: null, log: Object.freeze([]), legend: null, under: null, latestFact: null, facts: 0 });
+export const EMPTY_PICTURE: Picture = Object.freeze({ heldKeys: Object.freeze([]), unidentifiedKey: null, buttons: null, wheel: null, gesture: null, press: null, pressFrom: null, pointerAt: null, view: Object.freeze({ level: DEFAULT_ZOOM_LEVEL, acc: 0, pan: null, words: null }), log: Object.freeze([]), legend: null, under: null, latestFact: null, facts: 0 });
 
 /** The difference of two facts' times, or null when either is null: never a clock reading. */
 export function timeBetween(earlier: number | null, later: number | null): number | null {
@@ -181,15 +205,68 @@ function sameItem(a: ItemUnderPointer, b: ItemUnderPointer): boolean {
 	return a.layer === b.layer && a.key === b.key && a.path.length === b.path.length && a.path.every((n, i) => n === b.path[i]);
 }
 
+/** A screen point as the page writes it. */
+const pointWords = (p: CapturePoint): string => `${p.x}, ${p.y}`;
+
+/** A number of pixels as the page writes it, to a tenth. */
+const pixelWords = (n: number): string => String(Math.round(n * 10) / 10);
+
+/** A wheel's view row and its fact: the view after it and the words for what it did. */
+function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly string[], pagePixels: number): ViewPicture {
+	if (fact.type !== "wheel") return view;
+	if (hits.includes("scroll-pan")) {
+		const dx = normalisedDelta(fact.deltaX, fact.deltaMode, pagePixels);
+		const dy = normalisedDelta(fact.deltaY, fact.deltaMode, pagePixels);
+		const words = dx === null || dy === null ? "scroll pan: its unit, or the page's height, not known, so the view kept" : `scroll pan: the centre moved ${pixelWords(dx)}, ${pixelWords(dy)} screen pixels, the drawing the other way`;
+		return Object.freeze({ ...view, words });
+	}
+	if (!hits.includes("pinch-zoom")) return view;
+	const dy = normalisedDelta(fact.deltaY, fact.deltaMode, pagePixels);
+	if (dy === null) return Object.freeze({ ...view, words: "pinch zoom: its unit, or the page's height, not known, so the view kept" });
+	const step = stepZoom(view.level, view.acc, dy);
+	const about = `about screen ${pointWords(fact.screen)}`;
+	const words =
+		step.steps > 0
+			? `pinch zoom: ${levelWords(step.from)} to ${levelWords(step.to)}, ${step.steps} level${step.steps === 1 ? "" : "s"}, the scale times ${Math.round((step.from / step.to) * 1000) / 1000}, ${about}${step.dropped ? ", the rest dropped at the last level" : `, ${pixelWords(step.acc)} pixels held`}`
+			: step.dropped
+				? `pinch zoom: at ${levelWords(step.to)}, no level lies that way, so dropped`
+				: `pinch zoom: at ${levelWords(step.to)}, ${pixelWords(step.acc)} of ${ZOOM_STEP_PIXELS} pixels held toward the next level`;
+	return Object.freeze({ ...view, level: step.to, acc: step.acc, words });
+}
+
+/** A session step and its fact: the view after it -- a pan engaged, moved, released or cancelled, the accumulator set to 0 by a pan's view and by focus lost. */
+function viewAfterStep(view: ViewPicture, step: VerdictStep, fact: DeliveredFact): ViewPicture {
+	const screen = "screen" in fact && fact.screen !== null ? fact.screen : null;
+	if (step.operation === "becomeGesture" && step.outcome.gesture !== null && PAN_GESTURES.includes(step.outcome.gesture.name) && screen !== null) {
+		const gesture = step.outcome.gesture.name;
+		return Object.freeze({ ...view, acc: 0, pan: Object.freeze({ gesture, from: screen, at: screen, distance: 0 }), words: `${gesture} engaged at screen ${pointWords(screen)}: the pointer taken` });
+	}
+	const pan = view.pan;
+	if (step.operation === "pointerMove" && pan !== null && !step.outcome.otherPointer && screen !== null && step.outcome.state.gesture?.name === pan.gesture) {
+		const distance = screenDistance(screen.x - pan.from.x, screen.y - pan.from.y);
+		return Object.freeze({ ...view, acc: 0, pan: Object.freeze({ ...pan, at: screen, distance }), words: `${pan.gesture}: the view follows ${pixelWords(screen.x - pan.from.x)}, ${pixelWords(screen.y - pan.from.y)} screen pixels, ${pixelWords(distance)} in all` });
+	}
+	if (step.operation === "pointerUp" && pan !== null && !step.outcome.otherPointer && step.outcome.gesture?.name === pan.gesture) {
+		return Object.freeze({ ...view, pan: null, words: `${pan.gesture} released after ${pixelWords(pan.distance)} screen pixels: nothing committed, the view left where it is` });
+	}
+	if (step.operation === "pointerLost" && pan !== null && step.outcome.gesture?.name === pan.gesture) {
+		return Object.freeze({ ...view, pan: null, words: `${pan.gesture} cancelled after ${pixelWords(pan.distance)} screen pixels: its release not reported` });
+	}
+	if (step.operation === "keysLost" && view.acc !== 0) return Object.freeze({ ...view, acc: 0, words: "focus lost: the pinch's held pixels set to 0" });
+	return view;
+}
+
 /**
  * Applies one verdict to the picture, its steps in order, answering the record it leaves and which entries
- * changed. An entry that did not change keeps its very value.
+ * changed. An entry that did not change keeps its very value. `pagePixels` is the surface's height, a wheel's
+ * page in pixels (section 3.6's normalisation); without it a delta in pages moves no view.
  */
-export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
+export function applyVerdict(picture: Picture, verdict: Verdict, pagePixels = Number.NaN): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
 	const fact = verdict.fact;
 	const details = new Map(picture.heldKeys.map((k) => [k.code, k]));
 	const notes: string[] = [];
 	let gesture = picture.gesture;
+	let view = picture.view;
 	let state: SessionState | null = null;
 	let meaning: readonly TraceRecord[] | null = null;
 	const derivedLines: LogEntry[] = [];
@@ -197,6 +274,7 @@ export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Pic
 		applyKeyStep(details, step, fact, notes);
 		gestureNotes(step, notes);
 		gesture = gestureAfterStep(gesture, step);
+		view = viewAfterStep(view, step, fact);
 		state = stateAfterStep(step);
 		if (step.operation === "pointerUp" && step.derived !== null) {
 			meaning = step.derived.trace;
@@ -206,6 +284,8 @@ export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Pic
 
 	const heldKeys = state === null ? picture.heldKeys : Object.freeze(state.keys.map((code) => details.get(code)).filter((k): k is HeldKeyPicture => k !== undefined));
 	const press = state === null ? picture.press : state.press;
+	const pressStarted = verdict.steps.some((s) => s.operation === "resolvePress" && !s.outcome.taken);
+	const pressFrom = press === null ? null : pressStarted && fact.at !== null ? fact.at : picture.pressFrom;
 	if (state !== null && gesture !== null) gesture = sameOrNew(picture.gesture, Object.freeze({ ...gesture, live: state.gesture !== null && state.gesture.name === gesture.name }));
 
 	const isMouse = "pointerType" in fact && fact.pointerType === "mouse";
@@ -218,6 +298,8 @@ export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Pic
 	let wheel = picture.wheel;
 	let log = picture.log;
 	const hits = hitsOf(verdict.trace);
+	view = viewAfterWheel(view, fact, hits, pagePixels);
+	if (view !== picture.view && view.words !== null && view.words !== picture.view.words && (fact.type === "wheel" || verdict.steps.some((s) => s.operation !== "pointerMove"))) notes.push(view.words);
 	const newest = log[0];
 	if (fact.type === "wheel") {
 		const alike = wheel !== null && newest !== undefined && newest.fact.type === "wheel" && wheelFactsAlike(wheel.latest, fact);
@@ -243,7 +325,9 @@ export function applyVerdict(picture: Picture, verdict: Verdict): { picture: Pic
 		wheel,
 		gesture,
 		press,
+		pressFrom,
 		pointerAt,
+		view,
 		log,
 		legend,
 		under,

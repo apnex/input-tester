@@ -281,3 +281,33 @@ The runner is not given `--test-force-exit`, which `test-harness`'s README recom
 The development dependency `0005` names is replaced by two, each pinned to its release file by its URL and, in the lockfile, by its hash: `@apnex/clean-runner` `0.2.0`, for the runner -- the gate's two test steps and `npm test` under `clean-runner run` -- `scratchFolder` and `spawnTethered`, which starts `tools/deploy` in `deploy-cli.test.js`; and `@apnex/headless-chromium` `0.1.0`, for `launchChrome`, `connectToPage`, `mouseEventParams`, the button tables, `loseFocus` and `serveStatic`.\
 The deploy's smoke run, `tools/smoke-run.mjs`, launches its Chrome through `headless-chromium`, which the deploy's checkout installs with `npm ci`; the deploy still loads in a checkout never built (`test/tools/deploy-imports.test.js`).\
 `B17`, the fixed port `tools/serve-site.mjs` relays, now names `headless-chromium`'s `serveStatic`; the calls are otherwise `0005`'s, and the runner is still given no `--test-force-exit`.
+
+---
+
+## 0007 - The view's rows: pan and zoom, shown as verdicts
+
+**Ruled by:** the programme, 2026-11-02 (draw's `H26-23`, ratifying `dev/design/components/PAN-ZOOM.md` revision 10: its PZ30 at (a), the tester's step, and its move 5, the view's rows).\
+**Affects:** `src/input-bindings.ts`, `src/input-router.ts`, `src/picture-state.ts`, `src/picture-painter.ts`, `src/composition-root.ts`, the new `src/view-steps.ts`, `page/input-tester.css`, `test/`, `tools/run-mutants.mjs`, `tools/generate-architecture.mjs`, `docs/GUIDE.md`, `docs/BACKLOG.md`, and `docs/ARCHITECTURE-TARGET.md`, revision 6.
+
+**Ruling.**\
+The architecture's non-goal "Pan and zoom of the picture" becomes "Pan and zoom of anything but the view pane": the picture of the keyboard and mouse stays still, and the view's gestures are in scope.\
+The table gains the view's rows of PAN-ZOOM.md 3.6 -- `scroll-pan`, a `wheel` without Ctrl, and `pinch-zoom`, one with it, in place of the five wheel rows, IT-D8's sentence kept beside the pinch; `pan-middle`, a mouse's press of button 1 with no gesture live; `pan-right`, of button 2 on open ground with no gesture live; and `pan-space`, of button 0 with Space held and no gesture live -- each claiming, and the table stays at 42 rows.\
+The session declares the three pan gestures, each under its own name with its one button, `engaged` true, and `measure: 'screen'`, threshold 4, so every press is measured in screen pixels (PZ17, `input-binding` `0.3.0`'s IB16).\
+Each view row's verdict is shown in words beside the wheel, and in the log: a scroll pan by its normalised pixels, a pinch zoom by its levels, its factor and the screen point it keeps, a pan by its travel on screen from where it engaged, its release committing nothing.
+
+**Settled by the build.**
+- A pan row opens its button's press gesture, `press-b`, as the press row does, so a press that never travels the threshold stays a click of button b, as the tester shows it today; once it travels beyond, the router asks `becomeGesture` for the row's pan gesture, without `from`, and takes the pointer then, never at the press (3.6, engagement).
+- The press rows of buttons 0, 1 and 2 take the complement of their pan row's `when`, so each press meets one row: the view's rows are rows of the one table, where draw asks a table of their own first, and the overlap proof holds them exclusive.
+- The context gains three flags of a pointer fact, `gestureLive`, `spaceHeld` and `openGround`; open ground is a fact whose `hit` is `null`, no key or mouse button under it, the tester holding no zones.
+- The overlap proof runs a key fact with the four contexts of its two flags and every other fact with the eight of its three, 321,160 combinations in about 34 seconds.
+- The view is kept in the picture as numbers -- the level among `0.5x`, `1x`, `2x` and `3x`, the pinch's held pixels, a live pan's travel -- by `src/view-steps.ts`, the one place the levels, the step of 100 pixels and the line of 40 are held; a page is the surface's `clientHeight`, read at each wheel fact, and a page of a surface whose height is not a number above 0 moves no view, said so.
+- A scroll pan leaves the pinch's held pixels as they were, since the wheel set that view; a pan's engagement and its every move set them to 0, as a drag's pan does, and focus lost does; a pan cancelled leaves the view where it was.
+- The drag line starts at the press's drawing point, kept beside the session's press, whose point is now on screen; the status line names the press's screen point and the threshold in screen pixels.
+- Seven mutants plant the view's rules wrong -- a right press panning off open ground, a pan taking the pointer at its press, a pan engaging as a drag, the session measuring drawing units, the pinch keeping its held pixels across a change of sign, a line of one pixel, focus lost keeping the held pixels -- `M41` to `M47` in `tools/run-mutants.mjs`, each killed; `M7`, `M8` and `M11` follow the router's new text, and are killed still.
+- The deploy test derives its count of steps from the release's files, three per target beside one per folder object; its literal, 274, went stale when the raised pins added files, a commit that ran no browser test.
+- In headless Chrome a pinch synthesized to twice the scale arrives as Ctrl wheel facts whose `deltaY` sum to -69.3 pixels, -100 times its logarithm, so the step of 100 pixels asks a pinch to about 2.7 times the scale; the step stays 100 until the director's Chromebook calibrates it.
+
+**Not built here.**\
+The view pane and the view keys, `=` or `+`, `-`, `Shift+0`, `Shift+1` and `h`, the last row of 3.6, are move 6's: fit and home act on the pane's view, and a key row would take keys every key row now claims as a press; held as `B18`, its trigger move 6 beginning.\
+PZ27's datum is draw's: the tester holds none, so Space held is a context alone, its own press still a first press.
+

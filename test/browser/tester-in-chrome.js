@@ -6,8 +6,8 @@
 // each mouse event's params are headless-chromium's: launchChrome, connectToPage and mouseEventParams.
 //
 // The page is laid out so a screen pixel is one drawing unit: the viewport is 1656 CSS pixels wide, so the
-// `<svg>`, between the page's 8-pixel margins, is 1640 pixels wide, its viewBox's width -- and a press
-// travelling 4 pixels travels exactly the session's threshold of 4 drawing units.
+// `<svg>`, between the page's 8-pixel margins, is 1640 pixels wide, its viewBox's width; the session measures
+// on screen, so a press travelling 4 pixels travels exactly its threshold of 4 screen pixels at any scale.
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { BUTTON_BITS, BUTTON_NAMES, connectToPage, launchChrome, mouseEventParams } from "@apnex/headless-chromium";

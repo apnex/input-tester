@@ -159,8 +159,8 @@ test("wheel facts with a delta of another sign on any axis start a new line: sid
 	platform.wheel({ deltaX: 40 });
 	platform.wheel({ deltaX: 25 });
 	platform.wheel({ deltaX: -40 });
-	assert.deepEqual(page.picture.log.map((l) => [l.fact.deltaX, l.count, l.hits[0]]), [[-40, 1, "wheel-sideways"], [25, 2, "wheel-sideways"]]);
-	assert.equal(page.latestVerdict.claimed, true, "a leftward turn is the wheel sideways too, claimed");
+	assert.deepEqual(page.picture.log.map((l) => [l.fact.deltaX, l.count, l.hits[0]]), [[-40, 1, "scroll-pan"], [25, 2, "scroll-pan"]]);
+	assert.equal(page.latestVerdict.claimed, true, "a leftward turn is a scroll pan too, claimed");
 });
 
 test("the status line is painted again when only the buttons drawn change", () => {
@@ -234,7 +234,9 @@ test("every held key is shown: the first three a line each, the rest named on on
 	assert.match(platform.textOf("status-line"), /keys held: KeyA KeyS KeyD KeyF KeyJ KeyK \|/);
 });
 
-test("the status line names section 6's threshold, 4 drawing units, a tenth of a key, as the session declares it", () => {
+test("the status line names section 6's threshold, 4 screen pixels, as the session declares it, and a press by its screen point", () => {
 	const { platform } = freshPage();
-	assert.match(platform.textOf("status-line"), /threshold: 4 drawing units, 0\.1 of a key's width/);
+	assert.match(platform.textOf("status-line"), /threshold: 4 screen pixels/);
+	platform.pointer("down", { clientX: 30, clientY: 40, button: 0, buttons: 1 });
+	assert.match(platform.textOf("status-line"), /press from screen 30, 40 \|/);
 });

@@ -15,6 +15,7 @@ import { BUTTON_BITS } from "./keyboard-plans.js";
 import type { KeyNote, PlacedKey, PlacedPlan } from "./keyboard-plans.js";
 import type { LogEntry, Picture, PictureEntry } from "./picture-state.js";
 import { LOG_LINES } from "./picture-state.js";
+import { levelWords } from "./view-steps.js";
 
 /** The tags a painted shape may carry: never `script`, `foreignObject`, `use`, `image`, `a` or `style` (section 6, Shape). */
 export const PAINTER_TAGS: readonly string[] = Object.freeze(["g", "rect", "line", "path", "text", "tspan"]);
@@ -129,14 +130,14 @@ export function buttonsHeldWords(buttons: number | null): string {
 	return held.length === 0 ? "none" : held.join(" ");
 }
 
-/** The status lines: keys held, buttons held and the item under the pointer; the live gesture, its press, and the session's threshold in drawing units and in keys, a key being 40 of them. */
+/** The status lines: keys held, buttons held and the item under the pointer; the live gesture, its press's screen point, and the session's threshold in screen pixels (`measure: 'screen'`). */
 export function statusWords(picture: Picture, threshold: number): [string, string] {
 	const keys = picture.heldKeys.length === 0 ? "none" : picture.heldKeys.map((k) => k.code).join(" ");
 	const g = picture.gesture;
 	const gesture = g === null ? "none" : `${g.name} ${g.phase}${g.trigger === null ? "" : ` (${g.trigger})`}${g.live ? ", live" : ", ended"}`;
-	const press = picture.press === null ? "no press" : `press from ${picture.press.at.x}, ${picture.press.at.y}${picture.press.beyond ? ", beyond the threshold" : ""}`;
+	const press = picture.press === null ? "no press" : `press from screen ${picture.press.at.x}, ${picture.press.at.y}${picture.press.beyond ? ", beyond the threshold" : ""}`;
 	const under = picture.under === null ? "nothing" : `${picture.under.key} (${picture.under.layer})`;
-	return [`keys held: ${keys} | buttons held: ${buttonsHeldWords(picture.buttons)} | under the pointer: ${under}`, `gesture: ${gesture} | ${press} | threshold: ${threshold} drawing units, ${threshold / 40} of a key's width`];
+	return [`keys held: ${keys} | buttons held: ${buttonsHeldWords(picture.buttons)} | under the pointer: ${under}`, `gesture: ${gesture} | ${press} | threshold: ${threshold} screen pixels`];
 }
 
 /** How many held keys the panel describes a line each; past them, one line says how many more are held, and names them. */
@@ -208,14 +209,26 @@ function paintWheel(scene: PaintTarget, view: PaintView, picture: Picture): void
 	scene.put("panel", "wheel line", [text(MOUSE_TEXT_X, 284, "wheel-line", words)]);
 }
 
-/** A drag's line, from its press to the pointer, while a drag gesture is live. */
+/** The view line's words: the zoom level, the pinch's held pixels, a live pan's travel, and what the latest view row did. */
+export function viewWords(picture: Picture): string {
+	const { level, acc, pan, words } = picture.view;
+	const panWords = pan === null ? "no pan" : `${pan.gesture} live, ${Math.round(pan.distance * 10) / 10} screen pixels`;
+	return `view: ${levelWords(level)}, pinch held ${Math.round(acc * 10) / 10} px | ${panWords} | ${words ?? "no view row yet"}`;
+}
+
+/** The view line, under the mouse: the view the view's rows would set, as numbers (the view pane is a move of its own). */
+function paintViewLine(scene: PaintTarget, picture: Picture): void {
+	scene.put("panel", "view line", [text(MOUSE_TEXT_X, 271, "view-line", viewWords(picture))]);
+}
+
+/** A drag's line, from its press to the pointer in drawing units, while a drag gesture is live. */
 function paintTrail(scene: PaintTarget, picture: Picture): void {
 	const g = picture.gesture;
-	if (g === null || !g.live || !g.name.startsWith("drag") || picture.press === null || picture.pointerAt === null) {
+	if (g === null || !g.live || !g.name.startsWith("drag") || picture.pressFrom === null || picture.pointerAt === null) {
 		scene.remove("trails", "drag line");
 		return;
 	}
-	scene.put("trails", "drag line", [{ tag: "line", attrs: { x1: picture.press.at.x, y1: picture.press.at.y, x2: picture.pointerAt.x, y2: picture.pointerAt.y, class: "drag-line" } }]);
+	scene.put("trails", "drag line", [{ tag: "line", attrs: { x1: picture.pressFrom.x, y1: picture.pressFrom.y, x2: picture.pointerAt.x, y2: picture.pointerAt.y, class: "drag-line" } }]);
 }
 
 /** The standing of one row for the latest fact: refused, unbound, unmet, or a hit. */
@@ -264,6 +277,7 @@ export function paintWholePage(scene: PaintTarget, view: PaintView, picture: Pic
 	paintEveryKey(scene, view, picture);
 	paintMouse(scene, view, picture);
 	paintWheel(scene, view, picture);
+	paintViewLine(scene, picture);
 	paintTrail(scene, picture);
 	scene.put("panel", "plan line", [{ tag: "text", attrs: { x: PANEL_X, y: 296, class: "notice plan-line" }, children: view.notices.planLine.split("\n").map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 296 + i * 14 }, text: line })) }]);
 	if (!view.notices.coveredBrowser) scene.put("panel", "browser line", [text(PANEL_X, 340, "notice uncovered", UNCOVERED_BROWSER_LINE)]);
@@ -296,7 +310,8 @@ export function paintPictureChanges(scene: PaintTarget, view: PaintView, previou
 	}
 	if (changed.has("buttons")) paintMouse(scene, view, picture);
 	if (changed.has("wheel") || (changed.has("latestFact") && (previous.latestFact?.type === "wheel") !== (picture.latestFact?.type === "wheel"))) paintWheel(scene, view, picture);
-	if (changed.has("gesture") || changed.has("press") || changed.has("pointerAt")) paintTrail(scene, picture);
+	if (changed.has("view")) paintViewLine(scene, picture);
+	if (changed.has("gesture") || changed.has("pressFrom") || changed.has("pointerAt")) paintTrail(scene, picture);
 	if (["heldKeys", "unidentifiedKey", "buttons", "gesture", "press", "under"].some((e) => changed.has(e as PictureEntry))) paintStatus(scene, view, picture);
 	if (changed.has("log")) paintLog(scene, view, picture);
 	if (changed.has("legend")) paintLegend(scene, view, picture);

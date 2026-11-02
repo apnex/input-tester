@@ -52,18 +52,18 @@ function fakeElement(tag, platform) {
 	return element;
 }
 
-/** The identity transform, as the root's getScreenCTM answers one: screen and drawing coordinates are the same. */
-function identityMatrix() {
-	const m = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0, inverse: () => identityMatrix() };
-	return m;
+/** A screen transform of a uniform scale `s` about 0,0, as the root's getScreenCTM answers one: `s` screen pixels per root unit, 1 making screen and drawing coordinates the same. */
+function scaleMatrix(s) {
+	return { a: s, b: 0, c: 0, d: s, e: 0, f: 0, inverse: () => scaleMatrix(1 / s) };
 }
 
 /**
- * A platform for composeTesterPage: `surface` the root and pointer surface, `keySource` the window, `address` and
- * `browser`; and the means to dispatch events -- `pointer`, `key`, `wheel`, `menu`, `blur` -- each answering what the
- * delivery asked of the platform: whether the event was claimed and whether the pointer was taken.
+ * A platform for composeTesterPage: `surface` the root and pointer surface, `screenScale` screen pixels to its unit
+ * and `clientHeight` pixels high, a wheel's page; `keySource` the window, `address` and `browser`; and the means to
+ * dispatch events -- `pointer`, `key`, `wheel`, `menu`, `blur` -- each answering what the delivery asked of the
+ * platform: whether the event was claimed and whether the pointer was taken.
  */
-export function fakePlatform({ address = "https://input.example/", brands = ["Chromium", "Google Chrome"], keyboardMap = null, elementsAt = () => [] } = {}) {
+export function fakePlatform({ address = "https://input.example/", brands = ["Chromium", "Google Chrome"], keyboardMap = null, elementsAt = () => [], clientHeight = 900, screenScale = 1 } = {}) {
 	const surfaceListeners = new Map();
 	const keyListeners = new Map();
 	const writes = [];
@@ -80,7 +80,8 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 	const root = fakeElement("svg", platform);
 	const surface = Object.assign(root, {
 		ownerDocument: document,
-		getScreenCTM: () => identityMatrix(),
+		getScreenCTM: () => scaleMatrix(screenScale),
+		clientHeight,
 		addEventListener: (name, listener) => surfaceListeners.set(name, listener),
 		removeEventListener: (name) => surfaceListeners.delete(name),
 		setPointerCapture: (pointerId) => {

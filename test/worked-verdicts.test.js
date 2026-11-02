@@ -59,7 +59,7 @@ test("worked verdict: a left drag -- the move crossing the threshold hits no row
 	const { platform, page } = freshPage();
 	platform.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
 	platform.pointer("move", { clientX: 103, clientY: 100, button: -1, buttons: 1 });
-	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerMove", phase: "update", gesture: "press-0", crossed: false }], "three units is within the threshold of four");
+	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerMove", phase: "update", gesture: "press-0", crossed: false }], "three screen pixels is within the threshold of four");
 	platform.pointer("move", { clientX: 110, clientY: 100, button: -1, buttons: 1 });
 	assert.deepEqual(hitsOf(page.latestVerdict.trace), []);
 	assert.deepEqual(stepsOf(page.latestVerdict), [
@@ -87,13 +87,154 @@ test("worked verdict: the right button pressed mid-drag, the left released, then
 	assert.equal(page.picture.buttons, 0, "the buttons drawn follow the facts' buttons");
 });
 
-test("worked verdict: Ctrl and the wheel -- Ctrl and wheel, or a touchpad pinch; no step; claimed and drawn", () => {
+test("worked verdict: Ctrl and the wheel -- a pinch zoom, Ctrl and wheel or a touchpad pinch alike; no step; claimed and drawn; short of a step, the level kept and the delta held", () => {
 	const { platform, page } = freshPage();
 	const { claimed } = platform.wheel({ ctrlKey: true, deltaY: -12.5 });
-	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["ctrl-wheel-or-pinch"]);
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["pinch-zoom"]);
 	assert.deepEqual(stepsOf(page.latestVerdict), []);
 	assert.equal(claimed, true);
 	assert.equal(page.picture.wheel.latest.deltaY, -12.5, "drawn with its delta, exact");
+	assert.deepEqual([page.picture.view.level, page.picture.view.acc], [1, -12.5]);
+	assert.match(platform.textOf("view-line"), /^view: 1x, pinch held -12\.5 px \| no pan \| pinch zoom: at 1x, -12\.5 of 100 pixels held toward the next level$/);
+});
+
+/** The view's level and the pinch's held pixels, as the picture keeps them. */
+const levelAndHeld = (page) => [page.picture.view.level, page.picture.view.acc];
+
+test("worked verdict: a pinch zoom steps one level per 100 pixels -- in to 0.5x about the fact's screen point; one fact of 250 out steps twice, to 2x, keeping 50, and two of 125 step as one; a delta of the other sign starts again; past the farthest level what remains is dropped", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ ctrlKey: true, deltaY: -100, clientX: 30, clientY: 40 });
+	assert.deepEqual(levelAndHeld(page), [0.5, 0]);
+	assert.match(page.picture.view.words, /^pinch zoom: 1x to 0\.5x, 1 level, the scale times 2, about screen 30, 40/);
+	assert.match(page.picture.log[0].notes.join("; "), /pinch zoom: 1x to 0\.5x/, "the step logged beside the fact");
+	platform.wheel({ ctrlKey: true, deltaY: -10 });
+	assert.deepEqual(levelAndHeld(page), [0.5, 0], "no level nearer than 0.5x: dropped");
+	assert.match(page.picture.view.words, /at 0\.5x, no level lies that way, so dropped/);
+	platform.wheel({ ctrlKey: true, deltaY: 250 });
+	assert.deepEqual(levelAndHeld(page), [2, 50]);
+	platform.wheel({ ctrlKey: true, deltaY: -60 });
+	assert.deepEqual(levelAndHeld(page), [2, -60], "the other sign: the 50 held set to 0 first");
+	platform.wheel({ ctrlKey: true, deltaY: 30 });
+	assert.deepEqual(levelAndHeld(page), [2, 30]);
+	platform.wheel({ ctrlKey: true, deltaY: 170 });
+	assert.deepEqual(levelAndHeld(page), [3, 0], "one step to 3x, and the 100 past it dropped");
+	assert.match(page.picture.view.words, /2x to 3x, 1 level, the scale times 0\.667, about screen 0, 0, the rest dropped at the last level/);
+
+	const other = freshPage();
+	other.platform.wheel({ ctrlKey: true, deltaY: -100 });
+	other.platform.wheel({ ctrlKey: true, deltaY: 125 });
+	other.platform.wheel({ ctrlKey: true, deltaY: 125 });
+	assert.deepEqual(levelAndHeld(other.page), [2, 50], "two facts of 125 step as one of 250");
+});
+
+test("worked verdict: a wheel's delta normalised by its unit -- pixels as given, a line 40 pixels, a page the surface's height; a page of a surface whose height is not known moves no view", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ deltaX: 3, deltaY: -1, deltaMode: 1 });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["scroll-pan"]);
+	assert.deepEqual(stepsOf(page.latestVerdict), [], "a scroll pan makes no session step");
+	assert.equal(page.picture.view.words, "scroll pan: the centre moved 120, -40 screen pixels, the drawing the other way");
+	platform.wheel({ deltaY: 0.5, deltaMode: 2 });
+	assert.equal(page.picture.view.words, "scroll pan: the centre moved 0, 450 screen pixels, the drawing the other way", "half a page of a surface 900 high");
+	platform.wheel({ ctrlKey: true, deltaY: 3, deltaMode: 1 });
+	assert.deepEqual(levelAndHeld(page), [2, 20], "three lines are 120 pixels: one level out, 20 held");
+	platform.wheel({ ctrlKey: true, deltaY: 0.25, deltaMode: 2 });
+	assert.deepEqual(levelAndHeld(page), [3, 0], "a quarter of a page of 900 is 225: one step, the rest dropped past 3x");
+
+	const unknown = fakePlatform({ clientHeight: null });
+	const unknownPage = composeTesterPage(unknown);
+	unknown.wheel({ ctrlKey: true, deltaY: 1, deltaMode: 2 });
+	assert.deepEqual(levelAndHeld(unknownPage), [1, 0]);
+	assert.equal(unknownPage.picture.view.words, "pinch zoom: its unit, or the page's height, not known, so the view kept");
+});
+
+test("worked verdict: a middle pan -- a press of button 1, no gesture live, is pan-middle opening press-1, the pointer not taken; 4 screen pixels engage nothing; beyond them becomeGesture: pan-middle, the pointer taken then; the view follows; the release commits pan-middle, a drop, meaning nothing", () => {
+	const { platform, page } = freshPage();
+	const down = platform.pointer("down", { clientX: 100, clientY: 100, button: 1, buttons: 4 });
+	assert.deepEqual(down, { claimed: true, taken: false }, "below the threshold nothing is taken");
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["pan-middle"]);
+	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "resolvePress", phase: "start", gesture: "press-1", taken: false, match: "pan-middle", cancelled: null }]);
+	const within = platform.pointer("move", { clientX: 104, clientY: 100, button: -1, buttons: 4 });
+	assert.equal(within.taken, false);
+	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerMove", phase: "update", gesture: "press-1", crossed: false }]);
+	assert.equal(page.picture.view.pan, null, "no pan before it engages");
+	const beyond = platform.pointer("move", { clientX: 105, clientY: 100, button: -1, buttons: 4 });
+	assert.equal(beyond.taken, true, "the pointer taken as the pan engages");
+	assert.deepEqual(stepsOf(page.latestVerdict), [
+		{ operation: "pointerMove", phase: "update", gesture: "press-1", crossed: true },
+		{ operation: "becomeGesture", phase: "become", gesture: "pan-middle" },
+	]);
+	assert.deepEqual(page.picture.view.pan, { gesture: "pan-middle", from: { x: 105, y: 100 }, at: { x: 105, y: 100 }, distance: 0 });
+	platform.pointer("move", { clientX: 108, clientY: 104, button: -1, buttons: 4 });
+	assert.equal(page.picture.view.pan.distance, 5);
+	assert.match(platform.textOf("view-line"), /pan-middle live, 5 screen pixels \| pan-middle: the view follows 3, 4 screen pixels, 5 in all$/);
+	platform.pointer("up", { clientX: 108, clientY: 104, button: 1, buttons: 0 });
+	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerUp", phase: "commit", gesture: "pan-middle", trigger: "drop", meaning: [] }]);
+	assert.equal(page.picture.view.pan, null);
+	assert.equal(page.picture.view.words, "pan-middle released after 5 screen pixels: nothing committed, the view left where it is");
+});
+
+test("worked verdict: a middle press that never travels the threshold is a click of button 1, as today; a middle press while a gesture is live is a press of button 1", () => {
+	const { platform, page } = freshPage();
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 1, buttons: 4 });
+	platform.pointer("up", { clientX: 102, clientY: 100, button: 1, buttons: 0 });
+	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerUp", phase: "commit", gesture: "press-1", trigger: "click", meaning: ["button-1-click"] }]);
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 1, buttons: 5 });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["button-1-press"], "press-0 live: no pan");
+});
+
+test("worked verdict: a right pan -- a press of button 2 on open ground, no gesture live, is pan-right; on a key it is a press of button 2; travelled, it becomes pan-right", () => {
+	let under = [];
+	const platform = fakePlatform({ elementsAt: () => under });
+	const page = composeTesterPage(platform);
+	const keysLayer = platform.root.children[0];
+	under = [platform.root, keysLayer, keysLayer.children[0]];
+	platform.pointer("down", { clientX: 15, clientY: 15, button: 2, buttons: 2, target: platform.root });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["button-2-press"], "on a key: not open ground");
+	platform.pointer("up", { clientX: 15, clientY: 15, button: 2, buttons: 0, target: platform.root });
+	under = [];
+	platform.pointer("down", { clientX: 600, clientY: 600, button: 2, buttons: 2, target: platform.root });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["pan-right"]);
+	platform.pointer("move", { clientX: 600, clientY: 610, button: -1, buttons: 2, target: platform.root });
+	assert.deepEqual(stepsOf(page.latestVerdict).map((s) => [s.operation, s.gesture]), [["pointerMove", "press-2"], ["becomeGesture", "pan-right"]]);
+});
+
+test("worked verdict: a Space pan -- a press of button 0 with Space held, no gesture live, is pan-space; travelled, it becomes pan-space; focus lost mid-pan cancels it and sets the pinch's held pixels to 0", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ ctrlKey: true, deltaY: 40 });
+	platform.key("key-down", { key: " ", code: "Space" });
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["pan-space"]);
+	platform.pointer("move", { clientX: 100, clientY: 90, button: -1, buttons: 1 });
+	assert.deepEqual(stepsOf(page.latestVerdict).map((s) => [s.operation, s.gesture]), [["pointerMove", "press-0"], ["becomeGesture", "pan-space"]]);
+	assert.equal(page.picture.view.acc, 0, "a pan's view is not the wheel's: the held pixels set to 0");
+	platform.wheel({ ctrlKey: true, deltaY: 40 });
+	platform.blur();
+	assert.deepEqual(stepsOf(page.latestVerdict), [
+		{ operation: "keysLost", phase: null, gesture: null, released: ["Space"] },
+		{ operation: "pointerLost", phase: "cancel", gesture: "pan-space" },
+	]);
+	assert.deepEqual([page.picture.view.pan, page.picture.view.acc], [null, 0]);
+	assert.match(page.picture.view.words, /^pan-space cancelled after 0 screen pixels: its release not reported$/);
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["button-0-press"], "Space no longer held");
+});
+
+test("worked verdict: the threshold is measured on screen (PZ17) -- at 2 screen pixels per unit, 5 pixels cross it though 2.5 units would not; at 0.5, 3 pixels do not though 6 units would; the drag line starts at the press's drawing point", () => {
+	const near = fakePlatform({ screenScale: 2 });
+	const nearPage = composeTesterPage(near);
+	near.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
+	assert.deepEqual([nearPage.picture.press.at, nearPage.picture.pressFrom], [{ x: 100, y: 100 }, { x: 50, y: 50 }], "the press's point on screen; its drawing point for the line");
+	near.pointer("move", { clientX: 105, clientY: 100, button: -1, buttons: 1 });
+	assert.deepEqual(stepsOf(nearPage.latestVerdict).map((s) => [s.operation, s.gesture]), [["pointerMove", "press-0"], ["becomeGesture", "drag-0"]]);
+	const line = near.elements().find((e) => e.attributes.get("class") === "drag-line");
+	assert.deepEqual([line.attributes.get("x1"), line.attributes.get("y1"), line.attributes.get("x2")], ["50", "50", "52.5"], "the drag line from the press's drawing point to the pointer's");
+
+	const far = fakePlatform({ screenScale: 0.5 });
+	const farPage = composeTesterPage(far);
+	far.pointer("down", { clientX: 100, clientY: 100, button: 0, buttons: 1 });
+	far.pointer("move", { clientX: 103, clientY: 100, button: -1, buttons: 1 });
+	assert.deepEqual(stepsOf(farPage.latestVerdict), [{ operation: "pointerMove", phase: "update", gesture: "press-0", crossed: false }]);
 });
 
 test("worked verdict: a press of another button while a gesture is still live, its release unseen -- resolvePress: the live gesture cancelled, then press-b started", () => {

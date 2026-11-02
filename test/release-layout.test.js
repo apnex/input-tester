@@ -38,7 +38,7 @@ test("every module the page loads imports by relative path within the release's 
 		assert.ok(fs.existsSync(path.join(siteRoot, f)), `${f} exists`);
 	}
 	const app = files.filter((f) => f.startsWith(`${releaseFolder}/app/`));
-	assert.deepEqual(app.map((f) => path.basename(f)).sort(), ["composition-root.js", "input-bindings.js", "input-router.js", "key-labels.js", "keyboard-plans.js", "page-entry.js", "picture-painter.js", "picture-state.js"]);
+	assert.deepEqual(app.map((f) => path.basename(f)).sort(), ["composition-root.js", "input-bindings.js", "input-router.js", "key-labels.js", "keyboard-plans.js", "page-entry.js", "picture-painter.js", "picture-state.js", "view-steps.js"]);
 	for (const f of app) assert.ok(loads.includes(f), `${f} is reached from the page's one module script`);
 });
 

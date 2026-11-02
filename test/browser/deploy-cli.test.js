@@ -93,7 +93,8 @@ test("a first deploy: the manifest checked against the tag's attached SHA256SUMS
 		expected.push(["compute", "backend-buckets", "describe", backend, "--format=json"]);
 	}
 	assert.deepEqual(gcloud, expected);
-	assert.match(run.output, /deploy: PASS -- v0\.1\.0: 274 step\(s\) done, lab at .* then production at /);
+	const steps = 2 * (releaseA.files.length + 3);
+	assert.match(run.output, new RegExp(`deploy: PASS -- v0\\.1\\.0: ${steps} step\\(s\\) done, lab at .* then production at `), "each target's steps: a copy of each folder object, the folder's check, the entry's copy and its check");
 	assert.equal(prod.metadata("index.html").generation, 1);
 });
 

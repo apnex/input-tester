@@ -26,6 +26,7 @@ main { padding: 0 8px; }
 .wheel { fill: #bbb; }
 .wheel.lit { fill: #d35400; }
 .wheel-line { font-size: 11px; fill: #333; }
+.view-line { font-size: 11px; fill: #333; }
 
 .drag-line { stroke: #d35400; stroke-width: 2; stroke-dasharray: 6 4; fill: none; }
 

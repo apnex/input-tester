@@ -1,7 +1,7 @@
 // architecture-section-6 - what the tests hold the code to, copied as literals from the specification and never
-// derived from the code under test: docs/ARCHITECTURE-TARGET.md revision 4, section 6 -- each row's words and its
-// Claims column, the per-platform list of the browser's own keys, and the Mouse button entity's bits -- with the
-// recorder's rulings in docs/DECISIONS.md 0002 beside them, each marked so.
+// derived from the code under test: docs/ARCHITECTURE-TARGET.md revision 6, section 6 -- each row's words and its
+// Claims column, the per-platform list of the browser's own keys, the Mouse button entity's bits, and the view's
+// pan gestures -- with the recorder's rulings in docs/DECISIONS.md 0002 beside them, each marked so.
 
 /** Section 6's rows, in its order, each its words as the legend shows them and its Claims column. */
 export const SPEC_ROW_CLAIMS = Object.freeze([
@@ -39,12 +39,12 @@ export const SPEC_ROW_CLAIMS = Object.freeze([
 	["a drag of button 2", false],
 	["a drag of button 3", false],
 	["a drag of button 4", false],
-	["the wheel up", true],
-	["the wheel down", true],
-	["the wheel sideways", true],
-	["the wheel still", true],
+	["a scroll pan: the wheel or a two-finger scroll, without Ctrl", true],
 	// the row's words, with IT-D8's sentence beside them, as section 6 has it
-	["Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", true],
+	["a pinch zoom: Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", true],
+	["a pan with the middle button, no gesture live", true],
+	["a pan with the right button on open ground, no gesture live", true],
+	["a pan with Space held and the left button, no gesture live", true],
 	["the context menu", true],
 	["a touch or a pen pointer", false],
 	["focus lost", true],
@@ -110,13 +110,18 @@ export function keyFact(type, code, key, { shift = false, ctrl = false, alt = fa
 	return { type, at: null, screen: null, hit: null, focus: null, button: null, buttons: null, pointerId: null, pointerType: null, key, code, repeat, shiftKey: shift, ctrlKey: ctrl, altKey: alt, metaKey: meta, deltaX: null, deltaY: null, deltaZ: null, deltaMode: null, time: 1 };
 }
 
+/** Section 6's pan gestures, each a pan row's press become once it travels the threshold, whose commit means nothing. */
+export const SPEC_PAN_GESTURES = Object.freeze(["pan-middle", "pan-right", "pan-space"]);
+
 /**
  * The facts section 6 gives no row, as section 7 shows them as delivered: a mouse's plain move, which names no
  * button; a mouse's boundary facts, `over`, `out` and `leave`; a mouse's `cancel`, which the session's
- * `pointerLost` ends; and, in the proof's space only, pointer facts no platform makes -- one of no pointer type
- * but a double click or a context menu, and a mouse's press or release naming no button.
+ * `pointerLost` ends; a pan's commit, whose release commits nothing; and, in the proof's space only, pointer facts
+ * no platform makes -- one of no pointer type but a double click or a context menu, and a mouse's press or release
+ * naming no button.
  */
 export function hitsNoRowBySpec(fact) {
+	if (fact.type === "commit") return SPEC_PAN_GESTURES.includes(fact.gesture);
 	if (!["leave", "down", "move", "up", "cancel", "over", "out"].includes(fact.type)) return false;
 	if (fact.pointerType === "mouse" && fact.type === "move" && fact.button === -1) return true;
 	if (fact.pointerType === "mouse" && ["over", "out", "leave", "cancel"].includes(fact.type)) return true;

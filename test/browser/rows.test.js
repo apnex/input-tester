@@ -1,8 +1,9 @@
 // rows - fidelity in a real browser (docs/ARCHITECTURE-TARGET.md section 8, GT5): the built site opened in
 // headless Chrome and driven with trusted input over the DevTools protocol over every row the browser can
 // produce -- keys held, repeated and released, a media key with no code, the browser's own keys, every button's
-// press, click and drag, presses travelling exactly the threshold and just beyond, chords in both release
-// orders, double clicks, wheels of every direction and of no distance, a synthesized touchpad pinch, the context
+// press, click and drag, presses travelling exactly the threshold and just beyond, the view's pans with the
+// middle button, the right on open ground and the left with Space held, chords in both release orders, double
+// clicks, wheels of every direction and of no distance, a scroll pan and a pinch zoom, a synthesized touchpad pinch, the context
 // menu, a pen's and a touch's pointers, and focus lost by opening a second tab, once during a captured drag
 // released in the other tab and returned to with no up or cancel -- and after each input the verdict, the
 // picture record and the page held to section 6. A claimed pinch leaves `visualViewport.scale` 1, and a planted
@@ -172,7 +173,7 @@ test("every button: a press starts its press gesture, lit while held, and its re
 		await t.settle();
 		const log = await logHits();
 		const press = log.find(([type]) => type === "down");
-		assert.deepEqual(press.slice(1, 3), [[`button-${b}-press`], true], `button ${b}'s press`);
+		assert.deepEqual(press.slice(1, 3), [[b === 1 ? "pan-middle" : `button-${b}-press`], true], `button ${b}'s press, the middle button's a pan row with no gesture live, opening press-1 as its press row does`);
 		assert.match(press[3].join(" "), new RegExp(`started press-${b}`));
 		assert.equal(await t.litAt(t.buttonCentre(b)), true, `button ${b} drawn lit`);
 		await t.mouse("mouseReleased", at, { button: BUTTON_NAMES[b], buttons: 0 });
@@ -205,9 +206,9 @@ test("the back and forward buttons navigate nowhere: with history behind and ahe
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
-test("every button's drag, its pointer taken through every move, each move targeting the svg: a move of exactly the threshold is no crossing, a move just beyond it becomes the drag without a from, plain drag moves hit no row, and the release is a drop meaning a drag of that button", TEST, async () => {
+test("every button's drag but the middle's, which pans, its pointer taken through every move, each move targeting the svg: a move of exactly the threshold is no crossing, a move just beyond it becomes the drag without a from, plain drag moves hit no row, and the release is a drop meaning a drag of that button", TEST, async () => {
 	const at = t.keyCentre("KeyH");
-	for (let b = 0; b <= 4; b++) {
+	for (const b of [0, 2, 3, 4]) {
 		await t.mouse("mouseMoved", at);
 		await t.mouse("mousePressed", at, { button: BUTTON_NAMES[b], buttons: BUTTON_BITS[b] });
 		await t.settle();
@@ -351,6 +352,107 @@ test("a press of another button while a gesture is live, its release unseen, can
 	assert.deepEqual((await releaseLines()).meaning, ["button-1-click"]);
 });
 
+/**
+ * The notes of the newest move the log shows: a pan's crossing move, whose verdict the boundary facts that follow
+ * the pointer taken at engagement, `over` and `out`, leave behind as the latest, hitting no row and logging nothing.
+ */
+async function crossingNotes() {
+	await t.settle();
+	return (await logHits()).find(([type]) => type === "move")?.[3] ?? null;
+}
+
+/** The view's pan as the picture keeps it, and whether the `<svg>` holds the pointer's capture. */
+const panAndTaken = async () => [await t.page("inputTester.picture.view.pan === null ? null : [inputTester.picture.view.pan.gesture, inputTester.picture.view.pan.distance]"), await t.taken()];
+
+test("the view's middle pan: a press of button 1, no gesture live, is pan-middle opening press-1, nothing taken; a move of exactly the threshold engages nothing; one just beyond becomes pan-middle, the pointer taken then; the view follows the travel on screen; the release commits nothing", TEST, async () => {
+	const at = t.keyCentre("KeyJ");
+	await t.mouse("mouseMoved", at);
+	await t.mouse("mousePressed", at, { button: "middle", buttons: 4 });
+	let v = await verdict();
+	assert.deepEqual([v.type, v.hits, v.claimed, v.steps], ["down", ["pan-middle"], true, [{ operation: "resolvePress", phase: "start", gesture: "press-1", taken: false }]]);
+	assert.deepEqual(await panAndTaken(), [null, false], "below the threshold nothing is taken");
+	await t.mouse("mouseMoved", { x: at.x + 4, y: at.y }, { buttons: 4 });
+	v = await verdict();
+	assert.deepEqual([v.steps, await panAndTaken()], [[{ operation: "pointerMove", phase: "update", gesture: "press-1", crossed: false }], [null, false]], "exactly the threshold: no pan");
+	await t.mouse("mouseMoved", { x: at.x + 5, y: at.y }, { buttons: 4 });
+	assert.deepEqual(await crossingNotes(), ["press-1 became pan-middle: beyond the threshold", `pan-middle engaged at screen ${at.x + 5}, ${at.y}: the pointer taken`]);
+	assert.deepEqual(await panAndTaken(), [["pan-middle", 0], true], "the pointer taken as the pan engages");
+	await t.trackMoves();
+	await t.mouse("mouseMoved", { x: at.x + 8, y: at.y + 4 }, { buttons: 4 });
+	await t.assertTaken("a live pan's move");
+	assert.deepEqual(await panAndTaken(), [["pan-middle", 5], true]);
+	assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .drag-line') === null"), true, "a pan draws no drag line");
+	await t.mouse("mouseReleased", { x: at.x + 8, y: at.y + 4 }, { button: "middle", buttons: 0 });
+	await t.settle();
+	const { meaning, release, notes } = await releaseLines();
+	assert.deepEqual([release, meaning], [["up", ["button-1-release"], true], []]);
+	assert.deepEqual(notes, ["committed pan-middle, a drop", "pan-middle released after 5 screen pixels: nothing committed, the view left where it is"]);
+	assert.deepEqual(await panAndTaken(), [null, false]);
+});
+
+test("a drag of button 1 still exists where no pan row takes the press: the middle pressed while press-0 is live, its release unseen, is a press of button 1, and travelled it becomes drag-1, a drop meaning a drag of button 1", TEST, async () => {
+	const at = t.keyCentre("KeyU");
+	await t.mouse("mouseMoved", at);
+	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	await t.mouse("mousePressed", at, { button: "middle", buttons: 4 });
+	let v = await verdict();
+	assert.deepEqual([v.hits, v.steps], [["button-1-press"], [{ operation: "resolvePress", phase: "start", gesture: "press-1", taken: false, cancelled: "press-0" }]]);
+	await t.mouse("mouseMoved", { x: at.x + 10, y: at.y }, { buttons: 4 });
+	v = await verdict();
+	assert.deepEqual(v.steps.map((s) => [s.operation, s.gesture]), [["pointerMove", "press-1"], ["becomeGesture", "drag-1"]]);
+	assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .drag-line') !== null"), true, "the drag's line drawn");
+	await t.mouse("mouseReleased", { x: at.x + 10, y: at.y }, { button: "middle", buttons: 0 });
+	await t.settle();
+	assert.deepEqual((await releaseLines()).meaning, ["button-1-drag"]);
+});
+
+test("the view's right pan: a press of button 2 on a key is a press of button 2; on open ground, no gesture live, it is pan-right, and travelled it becomes pan-right, the pointer taken then; its release is claimed, so no menu", TEST, async () => {
+	const ground = t.screenOf({ x: 925, y: 30 });
+	await t.mouse("mouseMoved", ground);
+	await t.settle();
+	assert.equal(await t.page("inputTester.picture.under"), null, "the point is open ground: no key or mouse button under it");
+	await t.mouse("mousePressed", ground, { button: "right", buttons: 2 });
+	await t.settle();
+	const downLine = async () => (await logHits()).find(([type]) => type === "down");
+	assert.deepEqual((await downLine()).slice(1, 3), [["pan-right"], true], "the press's line, the context menu Linux sends at a right press after it");
+	assert.deepEqual(await panAndTaken(), [null, false]);
+	await t.mouse("mouseMoved", { x: ground.x, y: ground.y + 6 }, { buttons: 2 });
+	assert.match((await crossingNotes()).join("; "), /^press-2 became pan-right: beyond the threshold; pan-right engaged at screen/);
+	assert.deepEqual(await panAndTaken(), [["pan-right", 0], true]);
+	await t.mouse("mouseReleased", { x: ground.x, y: ground.y + 6 }, { button: "right", buttons: 0 });
+	await t.settle();
+	assert.deepEqual((await releaseLines()).meaning, []);
+	const key = t.keyCentre("KeyY");
+	await t.mouse("mouseMoved", key);
+	await t.mouse("mousePressed", key, { button: "right", buttons: 2 });
+	await t.settle();
+	assert.deepEqual((await downLine()).slice(1, 3), [["button-2-press"], true], "on a key: not open ground");
+	assert.deepEqual(await panAndTaken(), [null, true], "a press row's pointer taken at the press, as today");
+	await t.mouse("mouseReleased", key, { button: "right", buttons: 0 });
+	await t.settle();
+	assert.deepEqual((await releaseLines()).meaning, ["button-2-click"]);
+});
+
+test("the view's Space pan: a press of button 0 with Space held, no gesture live, is pan-space, and travelled it becomes pan-space; Space released, the left press is a press of button 0 again", TEST, async () => {
+	const at = t.keyCentre("KeyT");
+	await t.mouse("mouseMoved", at);
+	await t.key("keyDown", " ", "Space", { text: " ", windowsVirtualKeyCode: 32 });
+	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	let v = await verdict();
+	assert.deepEqual([v.hits, v.claimed], [["pan-space"], true]);
+	await t.mouse("mouseMoved", { x: at.x, y: at.y - 7 }, { buttons: 1 });
+	assert.match((await crossingNotes()).join("; "), /^press-0 became pan-space: beyond the threshold; pan-space engaged at screen/);
+	assert.deepEqual(await panAndTaken(), [["pan-space", 0], true]);
+	await t.mouse("mouseReleased", { x: at.x, y: at.y - 7 }, { button: "left", buttons: 0 });
+	await t.key("keyUp", " ", "Space", { windowsVirtualKeyCode: 32 });
+	await t.settle();
+	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	await t.settle();
+	assert.deepEqual((await logHits()).find(([type]) => type === "down").slice(1, 3), [["button-0-press"], true]);
+	await t.mouse("mouseReleased", at, { button: "left", buttons: 0 });
+	await t.settle();
+});
+
 test("a double click: one double, matching its row, claimed", TEST, async () => {
 	const at = t.keyCentre("KeyL");
 	await t.mouse("mouseMoved", at);
@@ -364,24 +466,30 @@ test("a double click: one double, matching its row, claimed", TEST, async () => 
 	assert.match(await t.newestLogLine(), /^double no pointer type button 0/, "the platform's double click carries no pointer type");
 });
 
-test("wheels: up, down, sideways and still, each claimed, in the unit the browser gave; Ctrl and the wheel its own row", TEST, async () => {
+test("wheels: up, down, sideways and still, each a scroll pan, claimed, in the unit the browser gave, the centre moved by its pixels; Ctrl and the wheel a pinch zoom, one level out per 100 pixels about the pointer", TEST, async () => {
+	await t.load("?plan=ansi");
 	const at = t.keyCentre("KeyB");
 	await t.mouse("mouseMoved", at);
-	for (const [dx, dy, row] of [[0, -120, "wheel-up"], [0, 120, "wheel-down"], [60, 0, "wheel-sideways"], [-60, 0, "wheel-sideways"], [0, 0, "wheel-still"]]) {
+	for (const [dx, dy] of [[0, -120], [0, 120], [60, 0], [-60, 0], [0, 0]]) {
 		await t.wheel(at, dx, dy);
 		await t.settle();
 		const v = await verdict();
-		assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", [row], true], `deltas ${dx}, ${dy}`);
+		assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["scroll-pan"], true], `deltas ${dx}, ${dy}`);
 		assert.deepEqual(await t.page("[inputTester.picture.wheel.latest.deltaX, inputTester.picture.wheel.latest.deltaY, inputTester.picture.wheel.latest.deltaMode]"), [dx, dy, 0]);
+		assert.equal(await t.page("inputTester.picture.view.words"), `scroll pan: the centre moved ${dx}, ${dy} screen pixels, the drawing the other way`);
 	}
 	await t.wheel(at, 0, 120, MODIFIERS.ctrl);
 	await t.settle();
 	const v = await verdict();
-	assert.deepEqual([v.hits, v.claimed], [["ctrl-wheel-or-pinch"], true]);
+	assert.deepEqual([v.hits, v.claimed], [["pinch-zoom"], true]);
+	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 20, `pinch zoom: 1x to 2x, 1 level, the scale times 0.5, about screen ${at.x}, ${at.y}, 20 pixels held`]);
+	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, pinch held 20 px \| no pan \| pinch zoom: 1x to 2x/, "the view line drawn");
 	assert.equal(await t.chrome.evaluate("visualViewport.scale"), 1, "Ctrl and a mouse wheel make no page zoom in headless Chrome, claimed or not (section 10, row 9)");
+	await t.chrome.evaluate("window.notReloaded = true");
 });
 
-test("a touchpad pinch synthesized over the protocol arrives as wheel facts with Ctrl, matching its row, claimed, and visualViewport.scale stays 1", TEST, async () => {
+test("a touchpad pinch synthesized over the protocol arrives as wheel facts with Ctrl, matching the pinch zoom, claimed, stepping the view in, and visualViewport.scale stays 1", TEST, async (tc) => {
+	await t.load("?plan=ansi");
 	const at = t.keyCentre("KeyN");
 	await t.mouse("mouseMoved", at);
 	await sleep(1000);
@@ -390,10 +498,14 @@ test("a touchpad pinch synthesized over the protocol arrives as wheel facts with
 	const after = await t.settle();
 	assert.ok(after - before >= 5, `${after - before} facts`);
 	const v = await verdict();
-	assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["ctrl-wheel-or-pinch"], true]);
+	assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["pinch-zoom"], true]);
 	const line = (await logHits())[0];
-	assert.deepEqual(line.slice(0, 3), ["wheel", ["ctrl-wheel-or-pinch"], true]);
+	assert.deepEqual(line.slice(0, 3), ["wheel", ["pinch-zoom"], true]);
+	const [level, acc, total] = await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.log.filter((l) => l.fact.type === 'wheel').length]");
+	tc.diagnostic(`a synthesized pinch to twice the scale, in ${after - before} facts over ${total} log lines, left the view at ${level}x with ${acc} pixels held`);
+	assert.ok(level < 1 || acc < 0, "a pinch outward, apart, steps the view in, toward 0.5x: its deltas negative");
 	assert.equal(await t.chrome.evaluate("visualViewport.scale"), 1, "claimed: the page did not zoom");
+	await t.chrome.evaluate("window.notReloaded = true");
 });
 
 test("a pen's and a touch's pointers match their one row, unclaimed, and the session never sees them", TEST, async () => {
@@ -431,18 +543,20 @@ test("focus lost by opening a second tab: keysLost then pointerLost, every held 
 	assert.deepEqual((await verdict()).hits, ["key-release-press-unseen"], "its release, back in focus, is one whose press was not seen");
 });
 
-test("focus lost during a captured drag of each button, released in the other tab: the pointer taken until then, the drag cancelled, its release not reported; returned to, the page sees no up and no cancel", TEST, async () => {
+test("focus lost during a captured drag of each button, the middle button's a pan, released in the other tab: the pointer taken until then, the drag or the pan cancelled, its release not reported; returned to, the page sees no up and no cancel", TEST, async () => {
 	for (let b = 0; b <= 4; b++) {
+		const gesture = b === 1 ? "pan-middle" : `drag-${b}`;
 		await t.chrome.send("Page.bringToFront");
 		for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
 		assert.equal(await t.chrome.evaluate("document.hasFocus()"), true, `button ${b}: the page holds the focus`);
 		const at = t.keyCentre("KeyU");
 		await t.mouse("mouseMoved", at);
 		await t.mouse("mousePressed", at, { button: BUTTON_NAMES[b], buttons: BUTTON_BITS[b] });
+		if (b === 1) await t.mouse("mouseMoved", { x: at.x + 5, y: at.y }, { buttons: BUTTON_BITS[b] });
 		await t.trackMoves();
 		await t.mouse("mouseMoved", { x: at.x + 30, y: at.y }, { buttons: BUTTON_BITS[b] });
-		await t.assertTaken(`button ${b}'s drag, before focus is lost`);
-		assert.equal(await t.page("inputTester.picture.gesture.name"), `drag-${b}`);
+		await t.assertTaken(`button ${b}'s ${gesture}, before focus is lost`);
+		assert.equal(await t.page("inputTester.picture.gesture.name"), gesture);
 		await loseFocus(t.chrome, async ({ targetId }) => {
 			const { sessionId } = await t.chrome.send("Target.attachToTarget", { targetId, flatten: true });
 			await t.settle();
@@ -450,10 +564,11 @@ test("focus lost during a captured drag of each button, released in the other ta
 		});
 		await t.settle();
 		const v = await verdict();
-		assert.deepEqual([v.type, v.hits, v.steps.map((s) => [s.operation, s.phase, s.gesture])], ["blur", ["focus-lost"], [["keysLost", null, null], ["pointerLost", "cancel", `drag-${b}`]]], `button ${b}`);
+		assert.deepEqual([v.type, v.hits, v.steps.map((s) => [s.operation, s.phase, s.gesture])], ["blur", ["focus-lost"], [["keysLost", null, null], ["pointerLost", "cancel", gesture]]], `button ${b}`);
 		const log = await logHits();
 		assert.ok(!log.slice(0, 1).some(([type]) => type === "up" || type === "cancel"), `button ${b}: no up and no cancel reached the page`);
-		assert.match(log[0][3].join("; "), new RegExp(`cancelled drag-${b}: its release not reported`));
+		assert.match(log[0][3].join("; "), new RegExp(`cancelled ${gesture}: its release not reported`));
+		if (b === 1) assert.deepEqual(await t.page("[inputTester.picture.view.pan, inputTester.picture.view.words]"), [null, "pan-middle cancelled after 25 screen pixels: its release not reported"], "the view left where the pan had it");
 		assert.deepEqual(await t.page("[inputTester.picture.press, inputTester.picture.buttons]"), [null, BUTTON_BITS[b]], `button ${b}: the buttons drawn are the last mouse fact's, as delivered`);
 		for (let i = 0; i < 40 && !(await t.chrome.evaluate("document.hasFocus()")); i++) await sleep(50);
 		await t.mouse("mouseMoved", { x: at.x + 31, y: at.y });

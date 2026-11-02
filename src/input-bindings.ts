@@ -28,10 +28,18 @@ export interface CommitFact {
 /** Every fact the table is asked about: a delivered fact, or a commit's derived fact. */
 export type TesterFact = DeliveredFact | CommitFact;
 
-/** The context of a fact, from the session's held keys before it (section 6, Context): whether they hold its code, and a non-modifier code other than it. */
+/**
+ * The context of a fact, from the session's state before it (section 6, Context): of a key fact, whether the keys
+ * held hold its code, and a non-modifier code other than it; of a pointer fact, whether a gesture is live, whether
+ * Space is held, and whether it lies on open ground -- on no key or mouse button drawn. Each flag false for a fact
+ * of the other family.
+ */
 export interface TesterContext {
 	readonly wasHeld: boolean;
 	readonly otherHeld: boolean;
+	readonly gestureLive: boolean;
+	readonly spaceHeld: boolean;
+	readonly openGround: boolean;
 }
 
 /** How the gate proves a row: by trusted input in headless Chrome, by a fixture handed to a capture over fakes, or both. */
@@ -45,11 +53,12 @@ export interface TesterRow extends BindingRow<TesterFact, TesterContext> {
 	readonly when?: (context: TesterContext) => boolean;
 	readonly claims: boolean;
 	readonly gesture?: string;
+	readonly pans?: string;
 	readonly proof: readonly RowProof[];
 }
 
-/** The context of every fact that is not a key's: neither held flag. */
-export const NO_KEY_CONTEXT: TesterContext = Object.freeze({ wasHeld: false, otherHeld: false });
+/** The context of a fact of neither family -- a commit's derived fact, focus lost -- every flag false. */
+export const NO_KEY_CONTEXT: TesterContext = Object.freeze({ wasHeld: false, otherHeld: false, gestureLive: false, spaceHeld: false, openGround: false });
 
 /** The modifier codes: a modifier key's own press is a modifier press, and none of them makes another key's press a roll-over. */
 export const MODIFIER_CODES: readonly string[] = Object.freeze(["ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"]);
@@ -160,10 +169,27 @@ function isWheel(fact: TesterFact, ctrl: boolean): fact is WheelFact<ItemUnderPo
 	return fact.type === "wheel" && fact.ctrlKey === ctrl;
 }
 
-/** A row pressing button `button` with the mouse, opening the press gesture `gesture`. */
-function pressRow(id: string, button: number, gesture: string): TesterRow {
-	return { id, words: `a press of button ${button}`, on: (f) => isMouseFact(f, "down") && f.button === button, claims: true, gesture, proof: ["trusted"] };
+/** A row pressing button `button` with the mouse, opening the press gesture `gesture`, where `when` holds: where no pan row of that button does. */
+function pressRow(id: string, button: number, gesture: string, when?: (context: TesterContext) => boolean): TesterRow {
+	const row: TesterRow = { id, words: `a press of button ${button}`, on: (f) => isMouseFact(f, "down") && f.button === button, claims: true, gesture, proof: ["trusted"] };
+	return when === undefined ? row : { ...row, when };
 }
+
+/**
+ * A pan row (section 3.6): a mouse's press of `button`, where `when` holds, opening that button's press gesture as a
+ * press row does -- so a press that never travels the threshold is a click as today -- and becoming the pan gesture
+ * `pans` once it travels the threshold, the pointer taken then.
+ */
+function panRow(id: string, words: string, button: number, when: (context: TesterContext) => boolean): TesterRow {
+	return { id, words, on: (f) => isMouseFact(f, "down") && f.button === button, when, claims: true, gesture: `press-${button}`, pans: id, proof: ["trusted"] };
+}
+
+/** Where `pan-middle` takes a middle press: anywhere, no gesture live. */
+const panMiddleWhen = (c: TesterContext): boolean => !c.gestureLive;
+/** Where `pan-right` takes a right press: on open ground, no gesture live. */
+const panRightWhen = (c: TesterContext): boolean => !c.gestureLive && c.openGround;
+/** Where `pan-space` takes a left press: Space held, no gesture live. */
+const panSpaceWhen = (c: TesterContext): boolean => !c.gestureLive && c.spaceHeld;
 
 /** A row releasing button `button` of the mouse; claimed, so the back and forward buttons navigate nowhere. */
 function releaseRow(id: string, button: number): TesterRow {
@@ -175,7 +201,7 @@ function commitRow(id: string, words: string, gesture: string): TesterRow {
 	return { id, words, on: (f) => f.type === "commit" && f.gesture === gesture, claims: false, proof: ["trusted"] };
 }
 
-/** The tester's rows, in the legend's order: 42 rows, exclusive over every fact and context (section 6). */
+/** The tester's rows, in the legend's order: 42 rows, the view's five among them, exclusive over every fact and context (section 6). */
 export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	{ id: "key-modifier-press", words: "a modifier press", on: (f) => isFreshPress(f) && isModifierCode(f.code), claims: true, proof: ["trusted"] },
 	{ id: "key-modifier-chord", words: "a modifier chord", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && chordModifierHeld(f), claims: true, proof: ["trusted"] },
@@ -186,9 +212,9 @@ export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	{ id: "key-release-press-unseen", words: "a release whose press was not seen", on: (f) => isKeyedFact(f) && f.type === "key-up", when: (c) => !c.wasHeld, claims: true, proof: ["trusted"] },
 	{ id: "key-no-identity", words: "a key with no identity", on: (f) => isKeyFact(f) && (f.code === "" || f.code === null), claims: true, proof: ["trusted", "fixture"] },
 	{ id: "key-left-to-browser", words: "left to the browser", on: (f) => isBrowsersOwnKey(f), claims: false, proof: ["trusted"] },
-	pressRow("button-0-press", 0, "press-0"),
-	pressRow("button-1-press", 1, "press-1"),
-	pressRow("button-2-press", 2, "press-2"),
+	pressRow("button-0-press", 0, "press-0", (c) => !panSpaceWhen(c)),
+	pressRow("button-1-press", 1, "press-1", (c) => !panMiddleWhen(c)),
+	pressRow("button-2-press", 2, "press-2", (c) => !panRightWhen(c)),
 	pressRow("button-3-press", 3, "press-3"),
 	pressRow("button-4-press", 4, "press-4"),
 	releaseRow("button-0-release", 0),
@@ -211,11 +237,11 @@ export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	commitRow("button-2-drag", "a drag of button 2", "drag-2"),
 	commitRow("button-3-drag", "a drag of button 3", "drag-3"),
 	commitRow("button-4-drag", "a drag of button 4", "drag-4"),
-	{ id: "wheel-up", words: "the wheel up", on: (f) => isWheel(f, false) && f.deltaY < 0, claims: true, proof: ["trusted"] },
-	{ id: "wheel-down", words: "the wheel down", on: (f) => isWheel(f, false) && f.deltaY > 0, claims: true, proof: ["trusted"] },
-	{ id: "wheel-sideways", words: "the wheel sideways", on: (f) => isWheel(f, false) && f.deltaY === 0 && f.deltaX !== 0, claims: true, proof: ["trusted"] },
-	{ id: "wheel-still", words: "the wheel still", on: (f) => isWheel(f, false) && f.deltaY === 0 && f.deltaX === 0, claims: true, proof: ["trusted"] },
-	{ id: "ctrl-wheel-or-pinch", words: "Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", on: (f) => isWheel(f, true), claims: true, proof: ["trusted"] },
+	{ id: "scroll-pan", words: "a scroll pan: the wheel or a two-finger scroll, without Ctrl", on: (f) => isWheel(f, false), claims: true, proof: ["trusted"] },
+	{ id: "pinch-zoom", words: "a pinch zoom: Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", on: (f) => isWheel(f, true), claims: true, proof: ["trusted"] },
+	panRow("pan-middle", "a pan with the middle button, no gesture live", 1, panMiddleWhen),
+	panRow("pan-right", "a pan with the right button on open ground, no gesture live", 2, panRightWhen),
+	panRow("pan-space", "a pan with Space held and the left button, no gesture live", 0, panSpaceWhen),
 	{ id: "context-menu", words: "the context menu", on: (f) => f.type === "context-menu", claims: true, proof: ["trusted"] },
 	{ id: "touch-or-pen-pointer", words: "a touch or a pen pointer", on: (f) => ["down", "up", "move", "over", "out", "leave", "cancel"].includes(f.type) && "pointerType" in f && (f.pointerType === "touch" || f.pointerType === "pen"), claims: false, proof: ["trusted"] },
 	{ id: "focus-lost", words: "focus lost", on: (f) => f.type === "blur", claims: true, proof: ["trusted"] },
@@ -229,11 +255,14 @@ export const TESTER_TABLE_DECLARATION: BindingTableDeclaration<TesterFact, Teste
 });
 
 /**
- * The session's declaration (section 6): a threshold of 4 drawing units -- a quarter key being 10 of them, so a
- * press is a drag once it travels more than a tenth of a key -- and a press and a drag gesture for each button.
+ * The session's declaration (section 6): a threshold of 4 screen pixels, measured on each fact's `screen` point
+ * (`measure: 'screen'`, `input-binding` 0.3.0's IB16), so a press is a drag once it travels more than 4 pixels on
+ * screen at any scale; a press and a drag gesture for each button; and the view's three pan gestures, each under its
+ * own name with its one button, engaged as a drag is (section 3.6).
  */
 export const TESTER_SESSION_DECLARATION: GestureSessionDeclaration = Object.freeze({
 	threshold: 4,
+	measure: "screen",
 	gestures: Object.freeze(
 		[
 			{ name: "press-0", engaged: false, button: 0 },
@@ -246,22 +275,32 @@ export const TESTER_SESSION_DECLARATION: GestureSessionDeclaration = Object.free
 			{ name: "drag-2", engaged: true, button: 2 },
 			{ name: "drag-3", engaged: true, button: 3 },
 			{ name: "drag-4", engaged: true, button: 4 },
+			{ name: "pan-middle", engaged: true, button: 1 },
+			{ name: "pan-right", engaged: true, button: 2 },
+			{ name: "pan-space", engaged: true, button: 0 },
 		].map((g) => Object.freeze(g)),
 	),
 });
 
-/** The drag gesture a press gesture becomes once its press travels beyond the threshold. */
+/** The drag gesture a press gesture becomes once its press travels beyond the threshold, where no pan row opened it. */
 export const DRAG_OF_PRESS: Readonly<Record<string, string>> = Object.freeze({ "press-0": "drag-0", "press-1": "drag-1", "press-2": "drag-2", "press-3": "drag-3", "press-4": "drag-4" });
 
-/** The four contexts the overlap proof runs every fact against. */
-export const OVERLAP_PROOF_CONTEXTS: readonly TesterContext[] = Object.freeze(
-	[
-		{ wasHeld: false, otherHeld: false },
-		{ wasHeld: true, otherHeld: false },
-		{ wasHeld: false, otherHeld: true },
-		{ wasHeld: true, otherHeld: true },
-	].map((c) => Object.freeze(c)),
-);
+/** The pan gestures, by name: what a press a pan row opened becomes once it travels the threshold. */
+export const PAN_GESTURES: readonly string[] = Object.freeze(["pan-middle", "pan-right", "pan-space"]);
+
+/** Every context of the given flags' every combination, the rest false. */
+function contextsOver(flags: readonly (keyof TesterContext)[]): TesterContext[] {
+	return Array.from({ length: 2 ** flags.length }, (_, m) => Object.freeze({ ...NO_KEY_CONTEXT, ...Object.fromEntries(flags.map((f, i) => [f, (m & (1 << i)) !== 0])) }));
+}
+
+/**
+ * The contexts the overlap proof runs each fact against, every one the router can make for it: a key fact's four,
+ * its two held flags in each combination; every other fact's eight, its three pointer flags in each combination.
+ */
+export const OVERLAP_PROOF_CONTEXTS = Object.freeze({ key: Object.freeze(contextsOver(["wasHeld", "otherHeld"])), pointer: Object.freeze(contextsOver(["gestureLive", "spaceHeld", "openGround"])) });
+
+/** The contexts the overlap proof runs a fact against: a key fact's, or every other fact's. */
+export const overlapProofContextsOf = (fact: TesterFact): readonly TesterContext[] => (isKeyFact(fact) ? OVERLAP_PROOF_CONTEXTS.key : OVERLAP_PROOF_CONTEXTS.pointer);
 
 /** A fact of capture's form (IC5): every one of its twenty-one properties, `null` where the family carries none. */
 function factOfCaptureForm(fields: Record<string, unknown>): DeliveredFact {

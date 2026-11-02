@@ -20,12 +20,12 @@ export const MUTANTS = [
 	["M3", "F5 with Alt held is the browser's own", "src/input-bindings.ts", '{ code: "F5", shift: null, ctrl: null, alt: false,', '{ code: "F5", shift: null, ctrl: null, alt: null,', ["test/table-overlaps.test.js"]],
 	["M4", "a chorded press reads its button's bit clear", "src/input-bindings.ts", "((f.buttons as number) & bitOfButton(f.button)) !== 0", "((f.buttons as number) & bitOfButton(f.button)) === 0", ["test/table-overlaps.test.js"]],
 	["M5", "a button's release is not claimed", "src/input-bindings.ts", "on: (f) => isMouseFact(f, \"up\") && f.button === button, claims: true", "on: (f) => isMouseFact(f, \"up\") && f.button === button, claims: false", ["test/browser/rows.test.js"]],
-	["M6", "the threshold is 5 drawing units", "src/input-bindings.ts", "threshold: 4,", "threshold: 5,", ["test/browser/rows.test.js"]],
-	["M7", "the drag is become from the move's point", "src/input-router.ts", "session.becomeGesture({ gesture: drag })", "session.becomeGesture({ gesture: drag, from: fact.at })", ["test/worked-verdicts.test.js"]],
-	["M8", "a mouse press takes no pointer", "src/input-router.ts", "\t\t\treply.takePointer();\n", "", ["test/worked-verdicts.test.js"]],
+	["M6", "the threshold is 5 screen pixels", "src/input-bindings.ts", "threshold: 4,", "threshold: 5,", ["test/browser/rows.test.js"]],
+	["M7", "the drag is become from the move's point", "src/input-router.ts", "session.becomeGesture({ gesture: pan ?? drag })", "session.becomeGesture({ gesture: pan ?? drag, from: fact.screen })", ["test/worked-verdicts.test.js"]],
+	["M8", "a mouse press takes no pointer", "src/input-router.ts", "if (match === null || !panOfRow.has(match.id)) reply.takePointer();", "", ["test/worked-verdicts.test.js"]],
 	["M9", "nothing is claimed", "src/input-router.ts", "if (claimed) reply.claim();", "if (claimed && false) reply.claim();", ["test/worked-verdicts.test.js"]],
 	["M10", "focus lost leaves the gesture live", "src/input-router.ts", 'const pointer = step({ operation: "pointerLost", outcome: session.pointerLost(), derived: null });\n\t\t\treturn verdictOf(fact, claimed, trace, [keys, pointer]);', "return verdictOf(fact, claimed, trace, [keys]);", ["test/worked-verdicts.test.js"]],
-	["M11", "a modifier held makes another key's press a roll-over", "src/input-router.ts", "heldKeys.some((held) => held !== code && !isModifierCode(held))", "heldKeys.some((held) => held !== code)", ["test/browser/rows.test.js"]],
+	["M11", "a modifier held makes another key's press a roll-over", "src/input-router.ts", "state.keys.some((held) => held !== code && !isModifierCode(held))", "state.keys.some((held) => held !== code)", ["test/browser/rows.test.js"]],
 	["M12", "repeats are not counted", "src/picture-state.ts", "repeats: before.repeats + 1,", "repeats: before.repeats,", ["test/picture-state.test.js"]],
 	["M13", "the repeat interval is taken from the first fact", "src/picture-state.ts", "interval: timeBetween(before.latest.time, fact.time)", "interval: timeBetween(before.firstTime, fact.time)", ["test/picture-state.test.js"]],
 	["M14", "wheel facts of another unit are alike", "src/picture-state.ts", "a.deltaMode === b.deltaMode && ", "", ["test/picture-state.test.js"]],
@@ -104,6 +104,13 @@ export const MUTANTS = [
 	// GitHub's newer Chrome refuses a worker by an error event, not a throw
 	["W1", "the header rule without worker-src 'none'", "tools/response-headers.json", " worker-src 'none';", "", ["test/browser/containment.test.js"]],
 	["M40", "the overlap space without the fixtures' facts", "src/input-bindings.ts", "for (const buttons of [null, ...Array.from({ length: 32 }, (_, i) => i)])", "for (const buttons of Array.from({ length: 32 }, (_, i) => i))", ["test/table-overlaps.test.js"]],
+	["M41", "a right press pans off open ground", "src/input-bindings.ts", "const panRightWhen = (c: TesterContext): boolean => !c.gestureLive && c.openGround;", "const panRightWhen = (c: TesterContext): boolean => !c.gestureLive;", ["test/table-overlaps.test.js"]],
+	["M42", "a pan takes the pointer at its press", "src/input-router.ts", "if (match === null || !panOfRow.has(match.id)) reply.takePointer();", "reply.takePointer();", ["test/worked-verdicts.test.js"]],
+	["M43", "a pan engages as a drag", "src/input-router.ts", "session.becomeGesture({ gesture: pan ?? drag })", "session.becomeGesture({ gesture: drag })", ["test/worked-verdicts.test.js"]],
+	["M44", "the session measures drawing units", "src/input-bindings.ts", 'measure: "screen",', 'measure: "at",', ["test/worked-verdicts.test.js"]],
+	["M45", "the pinch keeps its held pixels across a change of sign", "src/view-steps.ts", "let held = delta !== 0 && acc !== 0 && Math.sign(delta) !== Math.sign(acc) ? 0 : acc;", "let held = acc;", ["test/worked-verdicts.test.js"]],
+	["M46", "a wheel's line is one pixel", "src/view-steps.ts", "if (deltaMode === 1) return delta * LINE_PIXELS;", "if (deltaMode === 1) return delta;", ["test/worked-verdicts.test.js"]],
+	["M47", "focus lost keeps the pinch's held pixels", "src/picture-state.ts", 'if (step.operation === "keysLost" && view.acc !== 0) return', 'if (false) return', ["test/worked-verdicts.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");

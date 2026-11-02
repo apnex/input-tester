@@ -120,7 +120,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	function deliverFact(fact: DeliveredFact, reply: CaptureReply): void {
 		const verdict = routeByFamily(router, fact, reply);
 		const previous = picture;
-		const applied = applyVerdict(previous, verdict);
+		const applied = applyVerdict(previous, verdict, fact.type === "wheel" ? (platform.surface.clientHeight ?? Number.NaN) : Number.NaN);
 		picture = applied.picture;
 		latestVerdict = verdict;
 		paintPictureChanges(scene, view, previous, picture, applied.changed);

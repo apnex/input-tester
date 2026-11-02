@@ -103,7 +103,7 @@ export async function deriveArchitecture() {
 	const held = (v) => (v === null ? "either" : v ? "held" : "not held");
 	for (const k of bindings.BROWSERS_OWN_KEYS) line(`| \`${k.code}\` | ${held(k.shift)} | ${held(k.ctrl)} | ${held(k.alt)} | ${held(k.meta)} | ${k.platform} | ${k.does} |`);
 	const session = bindings.TESTER_SESSION_DECLARATION;
-	line("", `The session's threshold is ${session.threshold} drawing units; its gestures are ${session.gestures.map((g) => `\`${g.name}\` (button ${g.button}${g.engaged ? ", engaged" : ""})`).join(", ")}.`, "", "---", "");
+	line("", `The session's threshold is ${session.threshold} ${session.measure === "screen" ? "screen pixels, measured on each fact's \`screen\`" : "drawing units"}; its gestures are ${session.gestures.map((g) => `\`${g.name}\` (button ${g.button}${g.engaged ? ", engaged" : ""})`).join(", ")}.`, "", "---", "");
 
 	line("## 5. The picture and the page", "", `The scene's layers, back to front: ${painter.SCENE_LAYERS.map((l) => `\`${l.name}\`${l.attrs["pointer-events"] === "none" ? " (looked through)" : ""}`).join(", ")}.\\`);
 	line(`The painter's shapes are of the tags ${painter.PAINTER_TAGS.map((t) => `\`${t}\``).join(", ")}, with the attributes ${painter.PAINTER_ATTRIBUTES.map((a) => `\`${a}\``).join(", ")}.\\`);

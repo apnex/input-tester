@@ -152,7 +152,8 @@ The scene also converts coordinates: `toDrawing(screen)` answers where a screen 
 ## 5. Capturing input
 
 One capture listens on the `<svg>`, with the window as its key source so keys arrive wherever the page's focus is, and listens also for the wheel, the context menu and focus loss.\
-Hand it the scene's `toDrawing` as its conversion, so every fact's `at` is in drawing units, the units of the session's threshold.\
+Hand it the scene's `toDrawing` as its conversion, so every fact's `at` is in drawing units.\
+The session measures each fact's `screen` instead, declared with `measure: 'screen'`, so its threshold of 4 is 4 screen pixels whatever the scale.\
 Hand it `hit` as `scene.itemOf(target) ?? scene.itemAt(fact.screen)`: once the pointer is taken every event targets the `<svg>`, for which `itemOf` answers `null`, and `itemAt` answers by the screen point instead.
 
 Claim what the browser must not act on.\
@@ -200,8 +201,10 @@ Trusted input -- a person's, or the DevTools protocol's -- is taken, and its lat
 ## 6. Deciding what each input means
 
 One table holds every meaning, its rows exclusive by construction, so no row wins by its place: two rows that hit together mean nothing.\
-Run `findOverlaps` over every fact your rows can meet, in your own gate; the tester's runs over 70,603 facts with four contexts, and holds every fact but those it gives no row to exactly one row (`test/table-overlaps.test.js`).\
-A row's `when` reads a context the application makes; the tester's says whether the session's held keys, before the fact, hold the fact's own code and any other key that is no modifier, so its roll-over row needs no state of its own.
+Run `findOverlaps` over every fact your rows can meet, in your own gate; the tester's runs over 70,609 facts, a key fact with four contexts and every other with eight, and holds every fact but those it gives no row to exactly one row (`test/table-overlaps.test.js`).\
+A row's `when` reads a context the application makes from the session's state before the fact.\
+The tester's says of a key fact whether the held keys hold its own code and any other key that is no modifier, so its roll-over row needs no state of its own.\
+Of a pointer fact it says whether a gesture is live, whether Space is held, and whether the fact lies on open ground, so each pan row and the press row of its button split every press between them.
 
 The overlap check, and what an overlap does to a match:
 ```js
@@ -209,7 +212,12 @@ import { composeBindingTable } from "../vendor/input-binding/index.js";
 import { OVERLAP_PROOF_CONTEXTS, TESTER_TABLE_DECLARATION, overlapProofFacts } from "./input-bindings.js";
 
 const { table } = composeBindingTable(TESTER_TABLE_DECLARATION);
-const overlaps = table.findOverlaps(overlapProofFacts(["KeyA", "ShiftLeft", "F5", "BrowserRefresh", "", null]), OVERLAP_PROOF_CONTEXTS, [{}]);
+const facts = overlapProofFacts(["KeyA", "ShiftLeft", "Space", "F5", "BrowserRefresh", "", null]);
+const isKey = (fact) => fact.type === "key-down" || fact.type === "key-up";
+const overlaps = [
+  ...table.findOverlaps(facts.filter(isKey), OVERLAP_PROOF_CONTEXTS.key, [{}]),
+  ...table.findOverlaps(facts.filter((fact) => !isKey(fact)), OVERLAP_PROOF_CONTEXTS.pointer, [{}]),
+];
 if (overlaps.length !== 0) throw new Error(`${overlaps.length} overlaps`);
 
 const careless = composeBindingTable({ tenants: [{ owner: "app", rows: [
@@ -224,7 +232,8 @@ if (careless.findOverlaps([keyA], [undefined], [{}])[0].ids.join() !== "any key,
 The press is one call.\
 `resolvePress` makes the press, asks your `match` -- unless the live gesture takes the press, when it asks nothing -- cancels a live gesture the match ends, and starts the gesture the match opens, all in order; doing it by hand has two traps, `pressMatched` throwing on a taken press and a cancel losing the start unless it is called a second time.\
 The tester's router passes the match it has already found, so it keeps no policy between the press and the match.\
-When a press travels beyond the threshold, the router asks `becomeGesture` for the drag without a `from`, so the press keeps its origin and its release stays a drop.
+When a press travels beyond the threshold, the router asks `becomeGesture` without a `from`, so the press keeps its origin and its release stays a drop.\
+It asks for the drag of the press's button, or, for a press a pan row opened, that row's pan gesture, and only then takes the pointer, so a pan's press that never travels is a click as any other.
 
 The tester's table and session through a press, a second press of the same button, a press of another, a drag and its release:
 ```js
@@ -233,7 +242,7 @@ import { NO_KEY_CONTEXT, TESTER_SESSION_DECLARATION, TESTER_TABLE_DECLARATION } 
 
 const { table } = composeBindingTable(TESTER_TABLE_DECLARATION);
 const { session } = openGestureSession(TESTER_SESSION_DECLARATION);
-const press = (button) => ({ type: "down", at: { x: 0, y: 0 }, button, buttons: 1, pointerId: 1, pointerType: "mouse" });
+const press = (button) => ({ type: "down", at: { x: 0, y: 0 }, screen: { x: 0, y: 0 }, button, buttons: 1, pointerId: 1, pointerType: "mouse" });
 
 const first = session.resolvePress(press(0), { match: () => table.matchInput(press(0), NO_KEY_CONTEXT).match });
 if (first.phase !== "start" || first.gesture.name !== "press-0") throw new Error("the press started no press-0");
@@ -245,8 +254,8 @@ const ended = [];
 const other = session.resolvePress(press(2), { match: () => table.matchInput(press(2), NO_KEY_CONTEXT).match, cancelled: (cancel) => ended.push(cancel.gesture.name) });
 if (ended.join() !== "press-0" || other.gesture.name !== "press-2") throw new Error("another button's press did not end press-0 and start press-2");
 
-const moved = session.pointerMove({ at: { x: 5, y: 0 }, pointerId: 1 });
-if (!moved.crossed) throw new Error("five units is beyond the threshold of four");
+const moved = session.pointerMove({ screen: { x: 5, y: 0 }, pointerId: 1 });
+if (!moved.crossed) throw new Error("five screen pixels is beyond the threshold of four");
 session.becomeGesture({ gesture: "drag-2" });
 const released = session.pointerUp({ button: 2, pointerId: 1 });
 if (released.phase !== "commit" || released.trigger !== "drop") throw new Error("the release was no drop");
