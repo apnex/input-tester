@@ -520,3 +520,57 @@ The header wraps to two lines at 1093 pixels wide, 81 pixels tall where it was 7
 - The test holds, at each window and size, the header's foot at or above the main area's top and every button, the header's two and the pane's three, the element `elementFromPoint` finds at its own centre, so a press there reaches it: a header of a fixed height, the targeted check's x1, kept every button inside the window while its wrapped line ran under the picture at 1093 by 526, "large" and "small" covered; `M88`, the header held at 46 pixels, survived the test as first written and fails it now, the picture's `input-surface` lying at the centre of "large".
 - Each of the test's loads differs from the last before its fragment, so it is a new page: as first written, its `#view` loads followed loads of the same address and were fragments changed on the open page, which L2 says change nothing, so the large pane was never loaded at those windows; it now also holds each pane's width to its size and its foot inside the window, and on `0014`'s stylesheet fails at 1093 by 526 in both sizes, the pane ending at 537.
 
+---
+
+## 0016 - Every grid point drawn at every level, each level's emphasis, and v0.3.0
+
+**Ruled by:** the director, 2026-11-03, on the Chromebook in the lab, of `v0.2.0` (draw's PAN-ZOOM.md PZ24, restated in its revision 11 by its drafter).\
+**Affects:** `src/view-steps.ts`, `src/view-pane.ts`, `src/composition-root.ts`, `src/picture-painter.ts`; `test/browser/view-pane.test.js`, `test/painter-allowlist.test.js`; `tools/run-mutants.mjs`; `docs/GUIDE.md`, `docs/BACKLOG.md`; `package.json` and its lockfile, now `0.3.0`; and `docs/ARCHITECTURE-TARGET.md`, revision 14.
+
+**Ruling.**\
+The director found "Panning works pretty well", but on zoom "the 0,0 cross shrinks but the grid points stay where they are - they do not "close up" closer together": `0012`'s grid was thinned to a least spacing of 24 screen pixels, which halved the dots at each level as each level halved the squares, so on screen the two cancelled.\
+The director ruled: "dots represent a grid point and a valid slot to place a node/anchor, so correct behavious is having them move closer together as zooming out occurs. at close up - each point should look as they do today - fully coloured/rendered.\
+As we zoom out we can fade (perhaps 50% opacity?) those between every 5 points ... perhaps at full "zoom out" this could increase to 7 or 9 points?", and accepted the starting values: "Yes update, we can then test and tune further".\
+Every grid point in view is drawn at every level, listed by `inView` at stride 1, so the dots close up as the view zooms out, 60 times the scale apart on screen.\
+Each level's emphasis is held in one place beside `ZOOM_LEVELS` in `src/view-steps.ts`, `GRID_EMPHASIS = { 0.5: 1, 1: 1, 2: 5, 3: 7 }`: at an interval of 1 every point is full, as up close; otherwise the points whose cell indices are both multiples of the interval -- the origin always among them -- are full, in the dots' look of before, and every other point is drawn at `FADED_DOT_OPACITY`, 0.5, held there too.\
+A faded point is left out for two reasons alone, the emphasised points then drawn by themselves: the points would stand under `FADED_DOT_MIN_SPACING`, 4 screen pixels, apart; or listing the view at stride 1 would pass `inView`'s bound of 10,000.\
+The version is `0.3.0`: the repository's rules are a tag `v<semver>`, never a published release replaced, a fix a new version; the change is not a fix of `0.2.0` against its own record, which drew exactly what `0012` ruled, but a change to what the page shows by a new ruling, so the minor version, as `0.2.0` was for the pane; the release workflow and `tools/deploy` take the tag as they are, unchanged.
+
+**What the pane draws**, measured in headless Chrome on the Chromebook plan at its first paint and stepped by the view keys; "in view" counts the grid's points in the pane, "drawn" its full and faded points with the margin below:
+
+| Window | Pane | Level | Spacing, pixels | Interval | In view | Drawn, full and faded | Floor |
+|---|---|---|---|---|---|---|---|
+| 1366 by 657 | small | 0.5x | 17.06 | 1 | 595 | 943 and 0 | -- |
+| 1366 by 657 | small | 1x | 8.53 | 1 | 2277 | 2925 and 0 | -- |
+| 1366 by 657 | small | 2x | 4.27 | 5 | 8905 | 377 and 9352 | -- |
+| 1366 by 657 | small | 3x | 2.84 | 7 | 20079 | 377 and 0 | spacing and count |
+| 1366 by 657 | large | 0.5x | 40.94 | 1 | 255 | 483 and 0 | -- |
+| 1366 by 657 | large | 1x | 20.47 | 1 | 957 | 1365 and 0 | -- |
+| 1366 by 657 | large | 2x | 10.23 | 5 | 3705 | 195 and 4278 | -- |
+| 1366 by 657 | large | 3x | 6.82 | 7 | 8439 | 195 and 9384 | -- |
+| 1093 by 526 | small | 0.5x | 13.62 | 1 | 561 | 897 and 0 | -- |
+| 1093 by 526 | small | 1x | 6.81 | 1 | 2145 | 2769 and 0 | -- |
+| 1093 by 526 | small | 2x | 3.41 | 5 | 8385 | 405 and 0 | spacing |
+| 1093 by 526 | small | 3x | 2.27 | 7 | 18721 | 351 and 0 | spacing and count |
+| 1093 by 526 | large | 0.5x | 32.75 | 1 | 221 | 437 and 0 | -- |
+| 1093 by 526 | large | 1x | 16.38 | 1 | 891 | 1287 and 0 | -- |
+| 1093 by 526 | large | 2x | 8.19 | 5 | 3445 | 165 and 4024 | -- |
+| 1093 by 526 | large | 3x | 5.46 | 7 | 7857 | 195 and 8766 | -- |
+| 1536 by 750 | small | 0.5x | 19.19 | 1 | 595 | 943 and 0 | -- |
+| 1536 by 750 | small | 1x | 9.59 | 1 | 2343 | 3003 and 0 | -- |
+| 1536 by 750 | small | 2x | 4.80 | 5 | 9165 | 377 and 9204 | -- |
+| 1536 by 750 | small | 3x | 3.20 | 7 | 20661 | 403 and 0 | spacing and count |
+| 1536 by 750 | large | 0.5x | 46.06 | 1 | 255 | 483 and 0 | -- |
+| 1536 by 750 | large | 1x | 23.03 | 1 | 957 | 1365 and 0 | -- |
+| 1536 by 750 | large | 2x | 11.52 | 5 | 3835 | 195 and 4420 | -- |
+| 1536 by 750 | large | 3x | 7.68 | 7 | 8633 | 195 and 9590 | -- |
+
+The floor never applies in the large pane at the three windows; it applies with the pane small at 3x at all three, the points both too close and too many, and at 2x on the 1093 by 526 window, too close alone.
+
+**Settled by the build.**
+- The pane draws its grid over the view and up to 3 cells beyond it on each side, a smaller margin, or none, keeping the listing within 10,000, and draws it again only when the level or the scale changes or the view leaves the cells drawn; the floor is decided on the view alone: listing every point at every move cost 10.4 ms at the median and 18.5 ms at the 95th percentile of a pan's moves at 3x in the large pane at 1366 by 657, and with the margin 3.4 ms and 15.0 ms, the redrawing moves still past 10 ms, the cost being `inView`'s listing -- held as `B20`.
+- The faded path carries its opacity as an `opacity` attribute, a number, from its one place; the painter's allowlist gains `opacity`, and the GT8 test now holds the view pane's shapes to the allowlist as well as the picture's.
+- The precision test's screenshot row lies halfway between two rows of dots, which at 3x stand 10.4 pixels apart and crossed the row 11 pixels below the pane's centre; its figures are `0013`'s, unchanged.
+- `test/browser/view-pane.test.js` holds at each level the drawn points 60 apart, 60 times the scale on screen and closing up level by level; the full points' cell indices multiples of the level's interval, the faded ones not, the origin full; the opacity drawn and computed the table's; the table equal to the director's values as literals; the floor at a count's case and a spacing's case; the grid drawn again far from where it was; and the readouts as before.
+- Seven mutants, each killed: `M89`, the grid thinned again at 24 pixels; `M90`, the emphasis a cell off the origin; `M91`, the faded opacity 1; `M92`, the view listed past 10,000; `M93`, faded points drawn under 4 pixels apart; `M94`, the table not the director's; `M95`, the grid never drawn again at one level and scale; `M75` names the pane's code as it now stands.
+

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import zlib from "node:zlib";
 
-import { siteRoot } from "../support/built-site.js";
+import { importBuilt, siteRoot } from "../support/built-site.js";
 import { MODIFIERS, VIEWPORT, openTesterInChrome } from "./tester-in-chrome.js";
 
 const TEST = { timeout: 90000 };
@@ -34,7 +34,7 @@ const PICTURE = "JSON.stringify([[...document.querySelectorAll('#input-surface .
 
 const close = (a, b, what) => assert.ok(Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b)), `${what}: ${a} against ${b}`);
 
-test("the pane opens beside the picture at the first opening -- the centre 0, 0 at 1x, the scale the 1920 by 1080 frame's fit -- its grid drawn in view at a least spacing of 24 screen pixels", TEST, async () => {
+test("the pane opens beside the picture at the first opening -- the centre 0, 0 at 1x, the scale the 1920 by 1080 frame's fit -- every point of its grid of 60 drawn in view, 60 times the scale apart on screen (0016)", TEST, async () => {
 	const p = await pane();
 	assert.ok(p.width > 300 && p.height > 300, `a pane of ${p.width} by ${p.height}`);
 	close(p.view.scale, Math.min(p.width / 1920, p.height / 1080), "the default scale");
@@ -43,7 +43,7 @@ test("the pane opens beside the picture at the first opening -- the centre 0, 0 
 	const xs = await t.page("[...new Set([...document.querySelector('#view-pane .pane-dots').getAttribute('d').matchAll(/M(-?[0-9.e+-]+) /g)].map((m) => Number(m[1])))].sort((a, b) => a - b)");
 	assert.ok(xs.length > 3, `${xs.length} columns of dots`);
 	const spacing = xs[1] - xs[0];
-	assert.ok(spacing % 60 === 0 && spacing * p.view.scale >= 24 && (spacing / 2) * p.view.scale < 24 === spacing > 60, `dots ${spacing} units apart, ${spacing * p.view.scale} screen pixels: the grid of 60 thinned to the least stride at 24 pixels or more`);
+	assert.equal(spacing, 60, `dots ${spacing} units apart, ${spacing * p.view.scale} screen pixels: every point of the grid of 60, none thinned`);
 	assert.ok(xs[0] <= p.view.x + 0.5 * spacing + spacing && xs.at(-1) >= p.view.x + p.width / p.view.scale - 2 * spacing, "the dots span what is visible");
 });
 
@@ -181,13 +181,14 @@ function pixels(buf) {
 const LINE_RED = 0x1e;
 
 /**
- * Measures a precision line through the pane as `coordinate-precision.mjs` measures its bar: where its left edge
+ * Measures a precision line through the pane as `coordinate-precision.mjs` measures its bar, on a screenshot row
+ * halfway between two rows of the grid's dots, which stand 60 units apart at every level, so no dot lies on it: where its left edge
  * should be on screen by the scene view written, in binary64; where it is drawn, by its coverage in a screenshot
  * row; where the platform hits it, stepping an eighth of a pixel with `elementFromPoint`; and where the browser
  * reports it -- each as an offset in pixels -- beside the pane's own readout of the same.
  */
 async function measureLine(distance) {
-	const g = await t.page(`(() => { const r = document.getElementById('view-pane').getBoundingClientRect(); const v = inputTester.paneView; const expected = r.left + (${distance} - v.x) * v.scale; const row = Math.round(r.top + r.height / 2) + 11; const bar = document.querySelector('#view-pane .precision-${distance}'); let hit = null; for (let k = -96; k <= 96 && hit === null; k++) if (document.elementFromPoint(expected + k / 8, row) === bar) hit = k / 8; return { expected, row, hit, reported: bar.getBoundingClientRect().left - expected, readout: inputTester.precision.find((m) => m.distance === ${distance}) ?? null, scale: v.scale, level: inputTester.picture.view.level }; })()`);
+	const g = await t.page(`(() => { const r = document.getElementById('view-pane').getBoundingClientRect(); const v = inputTester.paneView; const expected = r.left + (${distance} - v.x) * v.scale; const row = Math.round(r.top + r.height / 2 + 30 * v.scale); const bar = document.querySelector('#view-pane .precision-${distance}'); let hit = null; for (let k = -96; k <= 96 && hit === null; k++) if (document.elementFromPoint(expected + k / 8, row) === bar) hit = k / 8; return { expected, row, hit, reported: bar.getBoundingClientRect().left - expected, readout: inputTester.precision.find((m) => m.distance === ${distance}) ?? null, scale: v.scale, level: inputTester.picture.view.level }; })()`);
 	const shot = await t.chrome.send("Page.captureScreenshot", { format: "png", clip: { x: 0, y: g.row, width: VIEWPORT.width, height: 1, scale: 1 } });
 	const img = pixels(Buffer.from((shot.result ?? shot).data, "base64"));
 	const cover = (x) => (x < 0 || x >= img.w ? 0 : Math.min(1, Math.max(0, (255 - img.data[x * img.bpp]) / (255 - LINE_RED))));
@@ -363,3 +364,107 @@ test("at the Chromebook's likely windows -- 1366 by 657, 1093 by 526 at 125%, 15
 		await t.chrome.evaluate("window.notReloaded = true");
 	}
 });
+
+/** The director's starting values (docs/DECISIONS.md 0016), copied as literals and never read from the code under test. */
+const SPEC_EMPHASIS = { 0.5: 1, 1: 1, 2: 5, 3: 7 };
+const SPEC_FADED_OPACITY = 0.5;
+const SPEC_FADED_MIN_SPACING = 4;
+
+/** The pane's drawn grid: its full and its faded points, in drawing units, the faded path's opacity, the pane's dots record, scene view and size. */
+const drawnGrid = () => t.page(`(() => {
+	const points = (sel) => [...(document.querySelector(sel)?.getAttribute('d') ?? '').matchAll(/M(-?[0-9.e+-]+) (-?[0-9.e+-]+)h0/g)].map((m) => [Number(m[1]), Number(m[2])]);
+	const r = document.getElementById('view-pane').getBoundingClientRect();
+	const faded = document.querySelector('#view-pane .pane-dots-faded');
+	return { full: points('#view-pane .pane-dots:not(.pane-dots-faded)'), faded: points('#view-pane .pane-dots-faded'), opacity: faded.getAttribute('opacity'), computed: getComputedStyle(faded).opacity, dots: inputTester.paneDots, view: inputTester.paneView, width: r.width, height: r.height, readouts: [...document.querySelectorAll('#view-readouts text tspan')].map((s) => s.textContent) };
+})()`);
+
+/** Presses a view key, waiting for its delivery. */
+async function viewKey(key, code, vk) {
+	await t.key("keyDown", key, code, { text: key, windowsVirtualKeyCode: vk });
+	await t.key("keyUp", key, code, { windowsVirtualKeyCode: vk });
+	await t.settle();
+}
+
+/** Holds a drawn grid to its level: every point 60 apart, the emphasised full and the rest faded by cell index, the origin full when in view, every point of the view drawn, none past the bound. */
+function assertGrid(g, emphasis, where) {
+	const n = emphasis[g.dots.level];
+	const all = [...g.full, ...g.faded];
+	const xs = [...new Set(all.map(([x]) => x))].sort((a, b) => a - b);
+	const ys = [...new Set(all.map(([, y]) => y))].sort((a, b) => a - b);
+	const step = (v) => v.slice(1).map((x, i) => x - v[i]);
+	assert.ok(step(xs).every((d) => d === 60) && step(ys).every((d) => d === 60), `${where}: every column and row of the grid of 60 drawn, none thinned`);
+	close(g.dots.spacing, 60 * g.view.scale, `${where}: the spacing on screen, 60 times the scale`);
+	const left = g.view.x;
+	const top = g.view.y;
+	const right = left + g.width / g.view.scale;
+	const bottom = top + g.height / g.view.scale;
+	assert.ok(xs[0] <= Math.ceil(left / 60) * 60 && xs.at(-1) >= Math.floor(right / 60) * 60 && ys[0] <= Math.ceil(top / 60) * 60 && ys.at(-1) >= Math.floor(bottom / 60) * 60, `${where}: the points cover the view, ${left}..${right} by ${top}..${bottom}`);
+	for (const [x, y] of g.full) assert.ok((x / 60) % n === 0 && (y / 60) % n === 0, `${where}: the full point ${x}, ${y} has cell indices both multiples of ${n}`);
+	for (const [x, y] of g.faded) assert.ok(!((x / 60) % n === 0 && (y / 60) % n === 0), `${where}: the faded point ${x}, ${y} is emphasised at ${n}`);
+	if (left <= 0 && right >= 0 && top <= 0 && bottom >= 0) assert.ok(g.full.some(([x, y]) => x === 0 && y === 0), `${where}: the origin full`);
+	assert.ok(all.length <= 10000, `${where}: ${all.length} points drawn, past inView's bound`);
+	if (n === 1) assert.equal(g.faded.length, 0, `${where}: every point full at an interval of 1`);
+}
+
+test("0016: every grid point drawn at every level, the dots closing up level by level, 60 times the scale apart; at 2x every fifth and at 3x every seventh point full, anchored at the origin, the rest at 0.5 opacity, by the table held beside the levels; the readouts unchanged", TEST, async (tc) => {
+	const { GRID_EMPHASIS, FADED_DOT_OPACITY, FADED_DOT_MIN_SPACING, ZOOM_LEVELS } = await importBuilt("view-steps.js");
+	assert.deepEqual({ ...GRID_EMPHASIS }, SPEC_EMPHASIS, "the emphasis table, the director's starting values");
+	assert.deepEqual([FADED_DOT_OPACITY, FADED_DOT_MIN_SPACING], [SPEC_FADED_OPACITY, SPEC_FADED_MIN_SPACING]);
+	assert.deepEqual(ZOOM_LEVELS.filter((l) => GRID_EMPHASIS[l] === undefined), [], "every level named in the table");
+	await t.load("?plan=ansi&dots=levels#view");
+	await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+	const first = await drawnGrid();
+	assert.deepEqual(first.readouts, [`level 1x, scale ${Math.round(first.view.scale * 10000) / 10000} pixels a unit`, "centre 0, 0", "no view row yet"], "the readouts as before");
+	await viewKey("=", "Equal", 187);
+	const seen = [];
+	for (const level of ZOOM_LEVELS) {
+		if (level !== ZOOM_LEVELS[0]) await viewKey("-", "Minus", 189);
+		const g = await drawnGrid();
+		assert.equal(g.dots.level, level);
+		assertGrid(g, GRID_EMPHASIS, `the large pane at ${level}x`);
+		assert.equal(g.dots.floor, null, `the large pane at ${level}x: no floor`);
+		assert.deepEqual([g.opacity, g.computed], [String(FADED_DOT_OPACITY), String(FADED_DOT_OPACITY)], "the faded points' opacity, from its one place");
+		seen.push({ level, spacing: Math.round(g.dots.spacing * 100) / 100, interval: g.dots.interval, full: g.full.length, faded: g.faded.length, inView: g.dots.inView, margin: g.dots.margin });
+	}
+	for (let i = 1; i < seen.length; i++) assert.ok(seen[i].spacing < seen[i - 1].spacing, `the dots close up from ${seen[i - 1].level}x to ${seen[i].level}x: ${seen[i - 1].spacing} then ${seen[i].spacing} pixels`);
+	tc.diagnostic(JSON.stringify(seen));
+	await t.load("?plan=ansi");
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+test("0016's floor: the faded points left out, the emphasised alone drawn, only where the points would stand under 4 screen pixels apart (the small pane at 2x on a 1093 by 526 window) or listing the view would pass inView's 10,000 (the small pane at 3x here); and a pan far from what was drawn draws the grid again where the view is", TEST, async (tc) => {
+	const { GRID_EMPHASIS } = await importBuilt("view-steps.js");
+	const cases = [];
+	try {
+		await t.load("?plan=ansi&dots=count");
+		await viewKey("-", "Minus", 189);
+		await viewKey("-", "Minus", 189);
+		let g = await drawnGrid();
+		cases.push({ where: "2080 by 1000, small, 3x", spacing: g.dots.spacing, inView: g.dots.inView, floor: g.dots.floor, full: g.full.length, faded: g.faded.length });
+		assert.ok(g.dots.spacing >= SPEC_FADED_MIN_SPACING && g.dots.inView > 10000, `the case is the count's alone: ${JSON.stringify(g.dots)}`);
+		assert.equal(g.dots.floor, "count");
+		assert.equal(g.faded.length, 0, "the faded points left out");
+		assert.ok(g.full.length > 0 && g.full.length <= 10000 && g.full.every(([x, y]) => (x / 60) % 7 === 0 && (y / 60) % 7 === 0), "every seventh point alone");
+		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1093, height: 526, deviceScaleFactor: 1, mobile: false });
+		await t.load("?plan=chromebook&dots=spacing");
+		await viewKey("-", "Minus", 189);
+		g = await drawnGrid();
+		cases.push({ where: "1093 by 526, small, 2x", spacing: g.dots.spacing, inView: g.dots.inView, floor: g.dots.floor, full: g.full.length, faded: g.faded.length });
+		assert.ok(g.dots.spacing < SPEC_FADED_MIN_SPACING && g.dots.inView <= 10000, `the case is the spacing's alone: ${JSON.stringify(g.dots)}`);
+		assert.equal(g.dots.floor, "spacing");
+		assert.equal(g.faded.length, 0, "the faded points left out");
+		assert.ok(g.full.length > 0 && g.full.every(([x, y]) => (x / 60) % GRID_EMPHASIS[2] === 0 && (y / 60) % GRID_EMPHASIS[2] === 0), "every fifth point alone");
+		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+		await t.load("?plan=ansi&dots=far#view");
+		await viewKey("=", "Equal", 187);
+		await click("go-million");
+		g = await drawnGrid();
+		assertGrid(g, GRID_EMPHASIS, "at the line at 1,000,000, 0.5x, the level unchanged");
+	} finally {
+		tc.diagnostic(JSON.stringify(cases));
+		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+		await t.load("?plan=ansi");
+		await t.chrome.evaluate("window.notReloaded = true");
+	}
+});
+

@@ -18,7 +18,7 @@ One stream runs through single-duty parts: a platform event becomes one fact, th
 | A platform event turned into one frozen fact, and the application's answer carried back -- claim, take the pointer | `input-capture` | one capture on the page's `<svg>`, the window as key source (`src/composition-root.ts`) |
 | What a fact means: the one row it matches, whether it is claimed, and the phase it makes due for the gesture in progress | `input-binding` | one table of 43 rows and one session (`src/input-bindings.ts`), driven by the router (`src/input-router.ts`) |
 | Shapes held as data under keys and shown exactly; which item a target or a screen point is over; screen and drawing coordinates | `vector-scene` | four layers on the `<svg>` (`src/picture-painter.ts`), and a second scene declared with a view on the view pane's own `<svg>`, written by `setView` (`src/view-pane.ts`) |
-| Where positions lie on a grid, and the rect a block of them covers | `snap-grid` | one grid a quarter key apart, every key's rect from `span` (`src/keyboard-plans.ts`), and a grid of 60 in the view pane, its positions in view thinned by `inView` (`src/view-pane.ts`) |
+| Where positions lie on a grid, and the rect a block of them covers | `snap-grid` | one grid a quarter key apart, every key's rect from `span` (`src/keyboard-plans.ts`), and a grid of 60 in the view pane, every position in view listed by `inView` (`src/view-pane.ts`) |
 | Which route a fact takes, what is shown, what it looks like | the application | the composition root's switch, the picture state, the painter and the stylesheet |
 
 No part imports another.\
@@ -330,7 +330,7 @@ The gate's other proofs are each one file in `test/browser/`: every row the brow
 ## 9. The view pane, on the Chromebook
 
 The view pane is the second scene, on its own `<svg>` beside the picture, declared with a view, so the picture never moves (`src/view-pane.ts`).\
-It shows an unbounded grid of 60, a red cross at 0, 0, and two green precision lines, at 1,000,000 and at 2^21, 2,097,152, from the origin.\
+It shows an unbounded grid of 60, every point drawn at every level, a red cross at 0, 0, and two green precision lines, at 1,000,000 and at 2^21, 2,097,152, from the origin.\
 Its readouts, at its top left in 13-pixel text, give the level and the scale in pixels a unit, the centre, what the latest view row did, and, while a precision line stands in the pane, where it should be on screen and how far from there the platform hits it and the browser reports it.\
 The same numbers stand in the picture's view lines, under the mouse.
 
@@ -341,7 +341,7 @@ A resize of the window is no input, and the page writes nothing but in answer to
 
 Each step, on the pane, then what to report back:
 1. Two-finger scroll on the touchpad, every direction: the grid moves the way the fingers do, as a page scrolls; the centre in the readouts changes by the scroll's pixels over the scale.
-2. Pinch apart and together on the touchpad: the level steps 0.5x, 1x, 2x and 3x, never between, and the point under the fingers stays under them; report whether one step takes a comfortable pinch -- the step is 100 pixels of the pinch, which headless Chrome sends as a pinch to about 2.7 times.
+2. Pinch apart and together on the touchpad: the level steps 0.5x, 1x, 2x and 3x, never between, and the point under the fingers stays under them; report whether one step takes a comfortable pinch -- the step is 100 pixels of the pinch, which headless Chrome sends as a pinch to about 2.7 times. Watch the dots: every one is a grid point, a place a drawing's things may be put, so they close up as the view zooms out, 60 units apart at every level; up close, at 0.5x and 1x, every dot is full; at 2x every fifth dot along each line is full and the rest at half opacity, and at 3x every seventh, the cross at 0, 0 always on a full one; with the pane small at 3x, and at 2x on a 1093-pixel window, the half-opacity dots would stand under 4 pixels apart, so only the full ones are drawn. Report whether the intervals, 5 and 7, and the half opacity read well: each is one edit, `GRID_EMPHASIS` and `FADED_DOT_OPACITY` beside `ZOOM_LEVELS` in `src/view-steps.ts`.
 3. Ctrl and the mouse wheel, if a mouse is at hand: the same levels, one notch or a few a step, about the pointer.
 4. Space held with a left drag; a middle drag; a right drag, which pans on the precision lines too, since they mark ground: each pans once the pointer has travelled 4 pixels, the grid following the pointer, and a release changes nothing more; report a middle press that starts the browser's own scrolling arrows instead.
 5. The keys, with the page focused: `=` or `+` a level in and `-` a level out, about the pane's centre; Shift and 0 the default level, 1x; Shift and 1 fit, which here is the first opening, 0, 0 at 1x; `h` home.

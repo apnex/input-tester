@@ -47,7 +47,9 @@ test("GT8: every shape the painter puts, across every family of input, is of the
 	driveEveryFamily(platform);
 	const layers = platform.root.children;
 	assert.deepEqual(layers.map((l) => l.attributes.get("class")), SCENE_LAYERS.map((l) => l.attrs.class), "the scene's four layers, back to front");
-	const shapes = layers.flatMap((layer) => {
+	const paneLayers = platform.paneRoot.children;
+	assert.ok(paneLayers.length >= 3, "the view pane's layers");
+	const shapes = [...layers, ...paneLayers].flatMap((layer) => {
 		const out = [];
 		const walk = (e) => e.children.forEach((c) => (out.push(c), walk(c)));
 		walk(layer);
@@ -63,6 +65,8 @@ test("GT8: every shape the painter puts, across every family of input, is of the
 	}
 	for (const tag of ["script", "foreignObject", "use", "image", "a", "style"]) assert.ok(!PAINTER_TAGS.includes(tag), tag);
 	for (const name of ["href", "xlink:href", "style", "onclick", "src", "fill"]) assert.ok(!PAINTER_ATTRIBUTES.includes(name), name);
+	const opacities = shapes.filter((e) => e.attributes.has("opacity")).map((e) => Number(e.attributes.get("opacity")));
+	assert.ok(opacities.length > 0 && opacities.every((o) => Number.isFinite(o) && o >= 0 && o <= 1), `every opacity a number from 0 to 1: ${opacities}`);
 });
 
 test("GT8: the stylesheet, as built into the release, holds no url( and no @import", () => {

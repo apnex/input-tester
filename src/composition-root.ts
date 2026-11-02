@@ -30,7 +30,7 @@ import type { PaintView } from "./picture-painter.js";
 import { EMPTY_PICTURE, applyPaneButton, applyPaneGeometry, applyVerdict } from "./picture-state.js";
 import type { Picture, PictureEntry } from "./picture-state.js";
 import { openViewPane } from "./view-pane.js";
-import type { PrecisionBounds, ViewPane } from "./view-pane.js";
+import type { PaneDots, PrecisionBounds, ViewPane } from "./view-pane.js";
 import type { PaneGeometry } from "./view-steps.js";
 
 /** What the browser says of itself, as the covered-browsers notice reads it: the brands of `navigator.userAgentData`, where it has one. */
@@ -70,6 +70,7 @@ export interface TesterPage {
 	readonly picture: Picture;
 	readonly paneView: { readonly x: number; readonly y: number; readonly scale: number } | null;
 	readonly precision: readonly { readonly distance: number; readonly expected: number; readonly hit: number | null; readonly reported: number | null }[];
+	readonly paneDots: PaneDots | null;
 	readonly latestVerdict: Verdict | null;
 	readonly plan: PlanName;
 	readonly problems: readonly string[];
@@ -131,7 +132,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	const notices = { planLine: planLineWords(plan, asked), coveredBrowser: isChromiumBrowser(platform.browser), problems };
 	if (!openedGrid.ok || !openedTable.ok || !openedSession.ok) {
 		paintRefusedOpening(scene, problems);
-		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, paneView: null, precision: [], plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
+		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, paneView: null, precision: [], paneDots: null, plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
 	}
 	const table = openedTable.table;
 	const router = openInputRouter(table, openedSession.session);
@@ -235,6 +236,9 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		},
 		get precision() {
 			return pane === null ? [] : pane.measures();
+		},
+		get paneDots() {
+			return pane === null ? null : pane.dots();
 		},
 		plan: plan.name,
 		problems: Object.freeze(problems),

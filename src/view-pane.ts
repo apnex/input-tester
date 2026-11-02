@@ -3,8 +3,9 @@
  * 3.3, PZ24, PZ30): a second scene, on an `<svg>` of its own beside the picture, declared with a view
  * (`vector-scene` 0.3.0, VS14 to VS16), so the picture of the keyboard and mouse never moves.
  *
- * It holds an unbounded square grid of 60, drawn from the scene's `visible()` by `snap-grid`'s `inView`, thinned to
- * a least spacing of 24 screen pixels, and a cross at the origin. Asked to show a view -- a centre and a level, the
+ * It holds an unbounded square grid of 60, every point in view drawn from the scene's `visible()` by `snap-grid`'s
+ * `inView` at stride 1, so the dots close up as the view zooms out, each level's emphasised points full and the rest
+ * faded (`GRID_EMPHASIS` in view-steps.ts, docs/DECISIONS.md 0016), and a cross at the origin. Asked to show a view -- a centre and a level, the
  * picture state's -- it turns it into the scene's form, the drawing point at its top-left corner at the level's
  * scale, writes it with `setView` when it differs from the view written, and draws the grid again for what is now
  * visible: inside the delivery that moved the view, never later, as GT2 asks, so at most once a delivery. The grid is
@@ -25,15 +26,36 @@ import { openScene } from "../vendor/vector-scene/index.js";
 import { wrapWords } from "./picture-painter.js";
 import type { ElementSlice, Scene, SceneRoot, SceneView } from "../vendor/vector-scene/index.js";
 import type { ViewPicture } from "./picture-state.js";
-import { PRECISION_LINES, PRECISION_LINE_WIDTH, levelWords, paneLaidOut, paneScale } from "./view-steps.js";
+import { FADED_DOT_MIN_SPACING, FADED_DOT_OPACITY, PRECISION_LINES, PRECISION_LINE_WIDTH, emphasisOf, isEmphasised, levelWords, paneLaidOut, paneScale } from "./view-steps.js";
 import type { PaneGeometry } from "./view-steps.js";
 
 /** The pane's grid: square, 60 units apart, its origin at 0, 0 -- draw's default grid. */
 export const PANE_GRID = Object.freeze({ shape: "square", pitch: 60, origin: Object.freeze({ x: 0, y: 0 }) });
 
-/** The least spacing of the grid's dots on screen, in pixels (PZ24), and the most dots drawn at once. */
-export const PANE_MIN_SPACING = 24;
+/** The most grid points listed at once: `inView`'s bound, past which it doubles its stride and the faded points are not drawn. */
 export const PANE_MAX_DOTS = 10000;
+
+/**
+ * How many cells beyond the view the grid is drawn on each side, at most: so a pan redraws it only when the view
+ * leaves what was drawn, the listing kept within `PANE_MAX_DOTS` by a smaller margin, or none, when the view needs it.
+ */
+export const PANE_MARGIN_CELLS = 3;
+
+/** How many points of the grid a closed rect holds, the grid's origin at 0, 0: what `inView` lists at stride 1. */
+const pointsIn = (r: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }, pitch: number): number => Math.max(0, Math.floor((r.x + r.w) / pitch) - Math.ceil(r.x / pitch) + 1) * Math.max(0, Math.floor((r.y + r.h) / pitch) - Math.ceil(r.y / pitch) + 1);
+
+/** What the pane drew of its grid at its latest view: the level and its interval, the spacing on screen, the full and faded points' counts, and why the faded were left out, if they were. */
+export interface PaneDots {
+	readonly level: number;
+	readonly interval: number;
+	readonly spacing: number;
+	readonly inView: number;
+	readonly margin: number;
+	readonly full: number;
+	readonly faded: number;
+	readonly floor: "spacing" | "count" | "spacing and count" | null;
+	readonly draws: number;
+}
 
 /** The pane's layers, back to front, each looked through, so every press on the pane lies on open ground. */
 export const PANE_LAYERS = Object.freeze([
@@ -83,6 +105,7 @@ export interface ViewPane<E extends ElementSlice<E> = never> {
 	readonly geometry: () => PaneGeometry | null;
 	readonly show: (view: ViewPicture, geometry?: PaneGeometry | null) => void;
 	readonly measures: () => readonly PrecisionMeasure[];
+	readonly dots: () => PaneDots | null;
 	readonly close: () => void;
 }
 
@@ -120,10 +143,56 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 		const g = { width: root.clientWidth ?? 0, height: root.clientHeight ?? 0, left: m?.e ?? 0, top: m?.f ?? 0 };
 		return paneLaidOut(g) ? g : null;
 	};
-	/** Draws the grid's dots for what the pane shows now: one path of a zero-length stroke at each position in view, drawn round at a fixed size on screen by its class. */
-	const drawGrid = (): void => {
-		const { positions } = grid.inView(scene.visible(), { minSpacing: PANE_MIN_SPACING, max: PANE_MAX_DOTS });
-		scene.put("grid", "dots", [{ tag: "path", attrs: { d: positions.map((p) => `M${p.point.x} ${p.point.y}h0`).join(""), class: "pane-dots" } }]);
+	/** The grids of the emphasised points alone, one per interval, opened as an interval is first asked: a grid of 60 times the interval, its origin the origin's. */
+	const emphasisGrids = new Map<number, SquareGrid>([[1, grid]]);
+	const emphasisGrid = (interval: number): SquareGrid => {
+		const known = emphasisGrids.get(interval);
+		if (known !== undefined) return known;
+		const opened = openGrid({ ...PANE_GRID, pitch: PANE_GRID.pitch * interval });
+		const g = (opened.ok ? opened.grid : grid) as SquareGrid;
+		emphasisGrids.set(interval, g);
+		return g;
+	};
+	let drawnDots: PaneDots | null = null;
+	let drawnRegion: { x: number; y: number; w: number; h: number } | null = null;
+	let draws = 0;
+	/** Whether the grid must be drawn again for a level: never drawn, another level or scale, or the view not within what was drawn. */
+	const gridStale = (level: number): boolean => {
+		if (drawnDots === null || drawnRegion === null || drawnDots.level !== level) return true;
+		const { region, scale } = scene.visible();
+		if (PANE_GRID.pitch * scale !== drawnDots.spacing) return true;
+		return region.x < drawnRegion.x || region.y < drawnRegion.y || region.x + region.w > drawnRegion.x + drawnRegion.w || region.y + region.h > drawnRegion.y + drawnRegion.h;
+	};
+	/** One path of a zero-length stroke at each point, drawn round at a fixed size on screen by its class. */
+	const dotsPath = (points: readonly { readonly x: number; readonly y: number }[]): string => points.map((p) => `M${p.x} ${p.y}h0`).join("");
+	/**
+	 * Draws the grid for what the pane shows now, at a level: every point in view, listed at stride 1, the emphasised
+	 * ones full and the rest at the faded opacity -- unless the points would stand closer than the faded points' least
+	 * spacing on screen, or listing them would pass `inView`'s bound, when the emphasised points alone are drawn.
+	 */
+	const drawGrid = (level: number): void => {
+		const visible = scene.visible();
+		const interval = emphasisOf(level);
+		const spacing = PANE_GRID.pitch * visible.scale;
+		const v = visible.region;
+		const grown = (m: number) => ({ kind: "rect" as const, x: v.x - m * PANE_GRID.pitch, y: v.y - m * PANE_GRID.pitch, w: v.w + 2 * m * PANE_GRID.pitch, h: v.h + 2 * m * PANE_GRID.pitch });
+		let margin = PANE_MARGIN_CELLS;
+		while (margin > 0 && pointsIn(grown(margin), PANE_GRID.pitch) > PANE_MAX_DOTS) margin--;
+		const region = grown(margin);
+		const listing = grid.inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
+		const tooMany = listing.stride !== 1;
+		const tooClose = spacing < FADED_DOT_MIN_SPACING;
+		let full: { x: number; y: number }[];
+		let faded: { x: number; y: number }[] = [];
+		if (!tooMany && !tooClose) {
+			full = [];
+			for (const p of listing.positions) (isEmphasised(p.position.col, p.position.row, interval) ? full : faded).push(p.point);
+		} else full = emphasisGrid(interval).inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS }).positions.map((p) => p.point);
+		scene.put("grid", "dots", [{ tag: "path", attrs: { d: dotsPath(full), class: "pane-dots" } }]);
+		scene.put("grid", "faded dots", [{ tag: "path", attrs: { d: dotsPath(faded), class: "pane-dots pane-dots-faded", opacity: FADED_DOT_OPACITY } }]);
+		drawnRegion = region;
+		draws++;
+		drawnDots = Object.freeze({ level, interval, spacing, inView: pointsIn(v, PANE_GRID.pitch), margin, full: full.length, faded: faded.length, floor: tooMany && tooClose ? "spacing and count" : tooMany ? "count" : tooClose ? "spacing" : null, draws });
 	};
 	/** Measures each precision line whose left edge stands in the pane, as the probe did: expected by the view's arithmetic, hit by `itemAt` an eighth of a pixel at a time, reported by the page's geometry where it offers it. */
 	const measure = (g: PaneGeometry): PrecisionMeasure[] => {
@@ -158,7 +227,7 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 			const moved = next.x !== now.x || next.y !== now.y || next.scale !== now.scale;
 			if (moved) {
 				scene.setView(next);
-				drawGrid();
+				if (gridStale(view.level)) drawGrid(view.level);
 				measured = measure(g);
 			}
 			if (moved || view.words !== shownWords) {
@@ -167,6 +236,7 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 			}
 		},
 		measures: () => measured,
+		dots: () => drawnDots,
 		close: () => {
 			readouts?.close();
 			scene.close();

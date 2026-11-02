@@ -11,6 +11,27 @@
 /** The zoom levels, nearest first: 0.5x twice as close as the default, 1x the default, 2x and 3x farther out (PZ12). */
 export const ZOOM_LEVELS: readonly number[] = Object.freeze([0.5, 1, 2, 3]);
 
+/**
+ * The grid's emphasis at each level (the director's ruling, docs/DECISIONS.md 0016; draw's PZ24 as restated): every
+ * grid point is drawn at every level, so the dots close up as the view zooms out, and at a level whose interval N is
+ * above 1 only the points whose cell indices are both multiples of N -- the origin always among them -- are drawn
+ * full, every other point at `FADED_DOT_OPACITY`. N 1 draws every point full, as up close. Held here beside the
+ * levels, to be tuned by one edit; a level the table does not name draws every point full.
+ */
+export const GRID_EMPHASIS: Readonly<Record<number, number>> = Object.freeze({ 0.5: 1, 1: 1, 2: 5, 3: 7 });
+
+/** The opacity of a grid point that is not emphasised: half, the director's "perhaps 50% opacity". */
+export const FADED_DOT_OPACITY = 0.5;
+
+/** The least spacing on screen, in pixels, at which the faded points are drawn: closer, the emphasised points alone. */
+export const FADED_DOT_MIN_SPACING = 4;
+
+/** A level's emphasis interval: the table's, or 1. */
+export const emphasisOf = (level: number): number => GRID_EMPHASIS[level] ?? 1;
+
+/** Whether a grid point, by its cell indices, is emphasised at an interval: both indices multiples of it, so 0, 0 always is. */
+export const isEmphasised = (col: number, row: number, interval: number): boolean => col % interval === 0 && row % interval === 0;
+
 /** The level the view opens at: the default, 1x. */
 export const DEFAULT_ZOOM_LEVEL = 1;
 

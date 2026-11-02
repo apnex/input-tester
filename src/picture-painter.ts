@@ -20,8 +20,11 @@ import { levelWords } from "./view-steps.js";
 /** The tags a painted shape may carry: never `script`, `foreignObject`, `use`, `image`, `a` or `style` (section 6, Shape). */
 export const PAINTER_TAGS: readonly string[] = Object.freeze(["g", "rect", "line", "path", "text", "tspan"]);
 
-/** The attributes a painted shape may carry: none that takes an address, none named `style` or `on`-anything. */
-export const PAINTER_ATTRIBUTES: readonly string[] = Object.freeze(["x", "y", "width", "height", "rx", "ry", "x1", "y1", "x2", "y2", "d", "transform", "class"]);
+/**
+ * The attributes a painted shape may carry, the picture's and the view pane's: none that takes an address, none named
+ * `style` or `on`-anything; `opacity`, a number, carries the faded grid points' opacity from its one place (0016).
+ */
+export const PAINTER_ATTRIBUTES: readonly string[] = Object.freeze(["x", "y", "width", "height", "rx", "ry", "x1", "y1", "x2", "y2", "d", "transform", "class", "opacity"]);
 
 /** The scene's four layers, back to front: the keyboard, the mouse, a drag's line, and the panel; the last two looked through by the platform's hit test. */
 export const SCENE_LAYERS = Object.freeze([
