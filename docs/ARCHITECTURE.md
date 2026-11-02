@@ -16,7 +16,7 @@ Every section is derived; each changes when the code, the gate's results or the 
 |---|---|
 | Version | `0.2.0`, its release folder `v0.2.0` |
 | Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 13 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, in `docs/DECISIONS.md` |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -157,7 +157,7 @@ What no page can know, shown always:
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
 | tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 88 of 88 passed |
-| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 83 of 83 passed |
+| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 84 of 84 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
 | backlog check | no workaround open while its retiring release is installed; every deferral with a revival trigger (GT4) | pass | -- |
@@ -224,3 +224,4 @@ Workarounds open: 0.
 | `0012` | The view pane, and the view keys (move 6a) |
 | `0013` | Move 6b: the pane sized to judge in, the precision lines, the scale, and v0.2.0 |
 | `0014` | Move 6's verification: the large pane right at its first paint, and the precision lines as ground |
+| `0015` | Move 6's re-review: the page never scrolls, whatever the header's height |
