@@ -115,6 +115,10 @@ export const MUTANTS = [
 	["M49", "a scroll pan sets the pinch's held pixels to 0 (move 5's verifier, v5)", "src/picture-state.ts", "return Object.freeze({ ...view, words });", "return Object.freeze({ ...view, acc: 0, words });", ["test/worked-verdicts.test.js"]],
 	["M50", "the view's words on one line at the legend's height, as move 5 first drew them", "src/picture-painter.ts", 'scene.put("panel", "view line", [columnText(VIEW_LINES_Y, "view-line", viewLines(picture))]);', 'scene.put("panel", "view line", [text(MOUSE_TEXT_X, 271, "view-line", viewLines(picture).join(" | "))]);', ["test/browser/panel-layout.test.js"]],
 	["M51", "the wheel's words on one line, as v0.1.0 drew them", "src/picture-painter.ts", '[columnText(WHEEL_LINES_Y, "wheel-line", wrapWords(words, MOUSE_COLUMN_CHARACTERS))]', '[text(MOUSE_TEXT_X, 284, "wheel-line", words)]', ["test/browser/panel-layout.test.js"]],
+	["M52", "room for three wheel lines above the view's (move 5's re-review, w2)", "src/picture-painter.ts", "const VIEW_LINES_Y = WHEEL_LINES_Y + 4 * MOUSE_COLUMN_LEADING + 6;", "const VIEW_LINES_Y = WHEEL_LINES_Y + 3 * MOUSE_COLUMN_LEADING + 6;", ["test/browser/panel-layout.test.js"]],
+	["M53", "a column's lines all at one height (move 5's re-review, w4)", "src/picture-painter.ts", "attrs: { x: MOUSE_TEXT_X, y: y + i * MOUSE_COLUMN_LEADING }", "attrs: { x: MOUSE_TEXT_X, y }", ["test/browser/panel-layout.test.js"]],
+	["M54", "the log's entries each on one line, unwrapped, as 0008 drew them", "src/picture-painter.ts", "const lines = entry === undefined ? [] : wrapWords(logLineWords(entry, view), LOG_CHARACTERS);", "const lines = entry === undefined ? [] : [logLineWords(entry, view)];", ["test/browser/panel-layout.test.js"]],
+	["M55", "every legend row on one line, the pinch's as 0008 drew it", "src/picture-painter.ts", "if (words.length <= width) return [words];", "return [words];", ["test/browser/panel-layout.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");

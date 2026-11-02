@@ -77,7 +77,8 @@ test("the page composes: no problem, the full-size ANSI plan, a Chromium browser
 	assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .uncovered') === null"), true);
 	const shown = await t.chrome.evaluate("document.getElementById('input-surface').textContent");
 	for (const line of [...NOT_REPORTED_LINES, CLAIMS_LINE]) assert.ok(shown.includes(line), `the page shows: ${line}`);
-	assert.ok(shown.includes("Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart"), "the Ctrl row's sentence beside it in the legend (IT-D8)");
+	const pinchRow = await t.page("[...document.querySelectorAll('#input-surface g.legend-row text.legend-words')].map((e) => [...e.querySelectorAll('tspan')].map((s) => s.textContent)).find((lines) => lines.join(' ').includes('touchpad pinch'))");
+	assert.deepEqual(pinchRow, ["a pinch zoom: Ctrl and wheel, or a touchpad pinch:", "the browser does not tell them apart"], "the Ctrl row's sentence beside it in the legend, IT-D8's sentence whole on a line of its own (0009)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 

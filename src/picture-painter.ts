@@ -92,6 +92,41 @@ const MOUSE_COLUMN_LEADING = 14;
 const WHEEL_LINES_Y = 284;
 const VIEW_LINES_Y = WHEEL_LINES_Y + 4 * MOUSE_COLUMN_LEADING + 6;
 
+/**
+ * How many characters a log line holds: the log runs from the panel's left edge to 10 units short of the legend,
+ * 1150 units, in a monospace face whose advance at 11 pixels is 6.62, so 168 characters end by x 1113.
+ */
+export const LOG_CHARACTERS = 168;
+
+/** How far apart the log's lines are, and how many it has room for: its entries, newest first, each whole on as many lines as it needs, as many as fit. */
+const LOG_LEADING = 16;
+const LOG_ROOM = LOG_LINES;
+
+/**
+ * How many characters a legend row's words hold on one line: they run from x 1214 to the picture's edge at 1640,
+ * 426 units, and at the panel's 11 pixels, bold as the input is marked, a character's advance is about 6.25, so
+ * 64 end by about 1614.
+ */
+export const LEGEND_CHARACTERS = 64;
+
+/** How far apart the legend's rows are, and a row's own lines. */
+const LEGEND_ROW_LEADING = 19;
+const LEGEND_LINE_LEADING = 14;
+
+/**
+ * A legend row's words as lines: whole when they fit; else broken after the last colon that leaves both parts
+ * within the width, so a sentence after it -- IT-D8's beside the pinch -- stands whole on its own line; else at spaces.
+ */
+export function legendLines(words: string, width: number): string[] {
+	if (words.length <= width) return [words];
+	for (let at = words.lastIndexOf(": "); at > 0; at = words.lastIndexOf(": ", at - 1)) {
+		const head = words.slice(0, at + 1);
+		const tail = words.slice(at + 2);
+		if (head.length <= width && tail.length <= width) return [head, tail];
+	}
+	return wrapWords(words, width);
+}
+
 /** Words broken at spaces into lines of at most `width` characters; a word longer than that stands on a line of its own. */
 export function wrapWords(words: string, width: number): string[] {
 	const lines: string[] = [];
@@ -265,13 +300,24 @@ function paintTrail(scene: PaintTarget, picture: Picture): void {
 /** The standing of one row for the latest fact: refused, unbound, unmet, or a hit. */
 const standingOf = (record: TraceRecord | undefined): string => (record === undefined ? "" : record.refusedBy !== null ? "refused" : record.on !== true ? "unbound" : record.when !== true ? "unmet" : "hit");
 
-/** One row of the legend: its standing for the latest fact, the input and the meaning marked, and its words. */
-function legendShapes(entry: BindingEntry<TesterRow>, index: number, picture: Picture): Shape[] {
+/** One row of the legend at `y`: its standing for the latest fact, the input and the meaning marked, and its words, on as many lines as `legendLines` gives. */
+function legendShapes(entry: BindingEntry<TesterRow>, y: number, picture: Picture): Shape[] {
 	const input = picture.legend?.input.find((r) => r.id === entry.id);
 	const meaning = picture.legend?.meaning?.find((r) => r.id === entry.id);
 	const mark = input?.hit ? "input" : meaning?.hit ? "meaning" : standingOf(input);
-	const y = 46 + index * 19;
-	return [{ tag: "g", attrs: { class: `legend-row legend-${mark || "none"}` }, children: [text(LEGEND_X, y, "legend-standing", mark), text(LEGEND_X + 54, y, "legend-words", entry.row.words)] }];
+	const lines = legendLines(entry.row.words, LEGEND_CHARACTERS);
+	const words: Shape = { tag: "text", attrs: { x: LEGEND_X + 54, y, class: "legend-words" }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: LEGEND_X + 54, y: y + i * LEGEND_LINE_LEADING }, text: line })) };
+	return [{ tag: "g", attrs: { class: `legend-row legend-${mark || "none"}` }, children: [text(LEGEND_X, y, "legend-standing", mark), words] }];
+}
+
+/** Where each legend row's first line stands: one row's leading below the last, and each extra line of the row above below that. */
+function legendRowsY(rows: readonly BindingEntry<TesterRow>[]): number[] {
+	let y = 46;
+	return rows.map((entry) => {
+		const at = y;
+		y += LEGEND_ROW_LEADING + (legendLines(entry.row.words, LEGEND_CHARACTERS).length - 1) * LEGEND_LINE_LEADING;
+		return at;
+	});
 }
 
 /** Paints the status line and the held keys' lines. */
@@ -282,17 +328,27 @@ function paintStatus(scene: PaintTarget, view: PaintView, picture: Picture): voi
 	scene.put("panel", "held keys", [{ tag: "text", attrs: { x: PANEL_X, y: 388, class: "held-keys" }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: PANEL_X, y: 388 + i * 16 }, text: line })) }]);
 }
 
-/** Paints the log, newest first, a fixed number of lines. */
+/**
+ * Paints the log, newest first, in its room of fixed lines: each entry whole, wrapped at `LOG_CHARACTERS` and never
+ * cut, as many entries as fit; an entry with no room left, and every older one, is put empty.
+ */
 function paintLog(scene: PaintTarget, view: PaintView, picture: Picture): void {
+	let used = 0;
 	for (let i = 0; i < LOG_LINES; i++) {
 		const entry = picture.log[i];
-		scene.put("panel", `log line ${i}`, [text(PANEL_X, 488 + i * 16, i === 0 ? "log-line newest" : "log-line", entry === undefined ? "" : logLineWords(entry, view))]);
+		const lines = entry === undefined ? [] : wrapWords(logLineWords(entry, view), LOG_CHARACTERS);
+		const fits = used + lines.length <= LOG_ROOM;
+		const y = 488 + used * LOG_LEADING;
+		const shown = fits ? lines : [];
+		scene.put("panel", `log line ${i}`, [{ tag: "text", attrs: { x: PANEL_X, y, class: i === 0 ? "log-line newest" : "log-line" }, children: shown.map((line, n) => ({ tag: "tspan", attrs: { x: PANEL_X, y: y + n * LOG_LEADING }, text: line })) }]);
+		used = fits ? used + lines.length : LOG_ROOM;
 	}
 }
 
-/** Paints the legend: every row of the table with its standing for the latest fact. */
+/** Paints the legend: every row of the table with its standing for the latest fact, a row of long words on lines of its own. */
 function paintLegend(scene: PaintTarget, view: PaintView, picture: Picture): void {
-	view.rows.forEach((entry, i) => scene.put("panel", `legend ${entry.id}`, legendShapes(entry, i, picture)));
+	const ys = legendRowsY(view.rows);
+	view.rows.forEach((entry, i) => scene.put("panel", `legend ${entry.id}`, legendShapes(entry, ys[i] as number, picture)));
 }
 
 /** Paints every key, as the labels name them now: at the first paint, and again when the Keyboard Map answers. */

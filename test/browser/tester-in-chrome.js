@@ -147,8 +147,8 @@ function makeHelpers(browser, chrome, server, requests) {
 					steps: v.steps.map((s) => ({ operation: s.operation, phase: s.outcome.phase ?? null, gesture: s.outcome.gesture ? s.outcome.gesture.name : null, crossed: s.outcome.crossed, taken: s.outcome.taken, trigger: s.outcome.trigger, cancelled: s.outcome.cancelled ? s.outcome.cancelled.gesture.name : undefined, tracked: s.outcome.tracked, held: s.outcome.held, meaning: s.derived ? hits(s.derived.trace) : undefined })),
 				};
 			})()`),
-		/** The page's newest log line, as drawn. */
-		newestLogLine: () => chrome.evaluate("document.querySelector('#input-surface .log-line.newest')?.textContent ?? null"),
+		/** The page's newest log line, as drawn: its lines, when wrapped, joined by the spaces they were broken at. */
+		newestLogLine: () => chrome.evaluate("(() => { const e = document.querySelector('#input-surface .log-line.newest'); if (e === null) return null; const lines = [...e.querySelectorAll('tspan')].map((t) => t.textContent); return lines.length === 0 ? e.textContent : lines.join(' '); })()"),
 		/** Whether the key drawn at a screen point is lit. */
 		litAt: ({ x, y }) => chrome.evaluate(`(() => { const g = document.elementFromPoint(${x}, ${y})?.closest('g.key, g.mouse-button'); return g ? g.classList.contains('lit') : null; })()`),
 		/** Tears down the session, Chrome and the server, none of which throws. */

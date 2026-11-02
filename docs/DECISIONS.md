@@ -331,3 +331,24 @@ A pan's release is said to make no edit, beside the session's commit of its gest
 - Four mutants: `M48`, a drawn mouse button counted as open ground (the verifier's v3); `M49`, a scroll pan setting the held pixels to 0 (v5); `M50`, the view's words on one line at the legend's height, as `0007` drew them; `M51`, the wheel's words on one line, as `v0.1.0` drew them; each killed by the new tests.
 - A long log line still runs under the legend, as since `v0.1.0`: held as `B19`.
 
+---
+
+## 0009 - Move 5's re-review: the picture's text as one layout
+
+**Ruled by:** move 5's re-review, 2026-11-02, confirming `0008` and failing the build on two blocking findings, B2 and B3, the same fault as B1 in two more places (draw's `H26-23`, PAN-ZOOM.md move 5).\
+**Affects:** `src/picture-painter.ts`, `test/browser/panel-layout.test.js`, `test/browser/tester-in-chrome.js`, `tools/run-mutants.mjs`, `docs/BACKLOG.md`, and `docs/ARCHITECTURE-TARGET.md`, revision 8.
+
+**Ruling.**\
+Every line of the picture's text is held to one layout: inside the picture, clear of every other line and of the drawn keyboard and mouse, measured line by line, each tspan on its own.\
+The log's lines ran over the legend for ordinary input, this move's row words and the view's words appended -- a scroll of -120 to x 1543, a synthesized pinch to 1722, Ctrl and the wheel to 1748, a pan released to about 1360 (the re-review's measurements) -- where at `v0.1.0` a scroll's ended at 710.\
+Each log entry is now wrapped at 168 characters, ending by x 1113 in the log's monospace face, and never cut: the log shows its newest entries whole, as many as fit its fourteen lines, newest first, and the picture record still keeps fourteen.\
+The pinch row's words, "a pinch zoom: Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", ran past the picture's edge at rest, to x 1702, 1764 bold, cutting IT-D8's sentence.\
+A legend row's words longer than 64 characters are now drawn on two lines, broken after the last colon that leaves both within 64, so IT-D8's sentence, "the browser does not tell them apart", stands whole on its own line; the rows below move down by the extra line, the last row's baseline at y 839.\
+`B19`, held by `0008` as a fault since `v0.1.0`, is retired with its framing corrected: the long lines were this move's.
+
+**Settled by the build.**
+- `test/browser/panel-layout.test.js` measures every line, at rest and with every legend row marked bold as the input, after a key press, a four-line wheel -- a Chromebook's fractional delta, -66.66666412353516 on both axes, repeated twelve times with every modifier -- a long right pan live and released, a middle pan released, a scroll of -120, a synthesized pinch, Ctrl and the wheel 120, and a pinch stepping in with the rest dropped; the legend's words end by x 1586 bold.
+- Four mutants, each killed by it: `M52`, room for three wheel lines above the view's (the re-review's w2); `M53`, a column's lines at one height (w4); `M54`, the log's entries on one line each, as `0008` drew them; `M55`, every legend row on one line, the pinch's as `0008` drew it; `M50` and `M51` are killed by it still.
+- The proof's newest log line joins a wrapped entry's lines by the spaces they were broken at.
+- The status and held-key lines are measured with the rest: at these inputs they end left of the mouse column; they would reach it only with a dozen keys held at once, past any keyboard's measured roll-over here, and are left as they stand.
+
