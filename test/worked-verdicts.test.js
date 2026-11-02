@@ -95,7 +95,7 @@ test("worked verdict: Ctrl and the wheel -- a pinch zoom, Ctrl and wheel or a to
 	assert.equal(claimed, true);
 	assert.equal(page.picture.wheel.latest.deltaY, -12.5, "drawn with its delta, exact");
 	assert.deepEqual([page.picture.view.level, page.picture.view.acc], [1, -12.5]);
-	assert.match(platform.textOf("view-line"), /^view: 1x, pinch held -12\.5 px \| no pan \| pinch zoom: at 1x, -12\.5 of 100 pixels held toward the next level$/);
+	assert.equal(platform.textOf("view-line"), "view: 1x, pinch held -12.5 px\nno pan\npinch zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
 });
 
 /** The view's level and the pinch's held pixels, as the picture keeps them. */
@@ -125,6 +125,16 @@ test("worked verdict: a pinch zoom steps one level per 100 pixels -- in to 0.5x 
 	other.platform.wheel({ ctrlKey: true, deltaY: 125 });
 	other.platform.wheel({ ctrlKey: true, deltaY: 125 });
 	assert.deepEqual(levelAndHeld(other.page), [2, 50], "two facts of 125 step as one of 250");
+});
+
+test("worked verdict: a scroll pan leaves the pinch's held pixels as they were, the wheel having set that view -- Ctrl and the wheel 30, a scroll of 40, then Ctrl and the wheel 80, is 2x with 10 pixels held", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ ctrlKey: true, deltaY: 30 });
+	assert.deepEqual(levelAndHeld(page), [1, 30]);
+	platform.wheel({ deltaY: 40 });
+	assert.deepEqual(levelAndHeld(page), [1, 30], "the scroll pan keeps the 30 held");
+	platform.wheel({ ctrlKey: true, deltaY: 80 });
+	assert.deepEqual(levelAndHeld(page), [2, 10]);
 });
 
 test("worked verdict: a wheel's delta normalised by its unit -- pixels as given, a line 40 pixels, a page the surface's height; a page of a surface whose height is not known moves no view", () => {
@@ -166,11 +176,11 @@ test("worked verdict: a middle pan -- a press of button 1, no gesture live, is p
 	assert.deepEqual(page.picture.view.pan, { gesture: "pan-middle", from: { x: 105, y: 100 }, at: { x: 105, y: 100 }, distance: 0 });
 	platform.pointer("move", { clientX: 108, clientY: 104, button: -1, buttons: 4 });
 	assert.equal(page.picture.view.pan.distance, 5);
-	assert.match(platform.textOf("view-line"), /pan-middle live, 5 screen pixels \| pan-middle: the view follows 3, 4 screen pixels, 5 in all$/);
+	assert.match(platform.textOf("view-line"), /\npan-middle live, 5 screen pixels\npan-middle: the view follows 3, 4\nscreen pixels, 5 in all$/);
 	platform.pointer("up", { clientX: 108, clientY: 104, button: 1, buttons: 0 });
 	assert.deepEqual(stepsOf(page.latestVerdict), [{ operation: "pointerUp", phase: "commit", gesture: "pan-middle", trigger: "drop", meaning: [] }]);
 	assert.equal(page.picture.view.pan, null);
-	assert.equal(page.picture.view.words, "pan-middle released after 5 screen pixels: nothing committed, the view left where it is");
+	assert.equal(page.picture.view.words, "pan-middle released after 5 screen pixels: no edit, the view left where it is");
 });
 
 test("worked verdict: a middle press that never travels the threshold is a click of button 1, as today; a middle press while a gesture is live is a press of button 1", () => {

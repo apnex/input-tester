@@ -31,8 +31,9 @@ export type TesterFact = DeliveredFact | CommitFact;
 /**
  * The context of a fact, from the session's state before it (section 6, Context): of a key fact, whether the keys
  * held hold its code, and a non-modifier code other than it; of a pointer fact, whether a gesture is live, whether
- * Space is held, and whether it lies on open ground -- on no key or mouse button drawn. Each flag false for a fact
- * of the other family.
+ * Space is held, and whether it lies on open ground -- its `hit` null, nothing of the picture under it, neither a
+ * key nor the mouse's buttons, body or wheel; the panel's text, which the platform looks through, is open ground.
+ * Each flag false for a fact of the other family.
  */
 export interface TesterContext {
 	readonly wasHeld: boolean;

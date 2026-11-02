@@ -79,6 +79,37 @@ const PANEL_X = 0;
 const LEGEND_X = 1160;
 const MOUSE_TEXT_X = 910;
 
+/**
+ * How many characters a line of the mouse column holds: the column runs 250 drawing units from the mouse's text
+ * to the legend, and at 11 pixels a digit's advance is at most 7, so 34 characters keep 12 units clear.
+ */
+export const MOUSE_COLUMN_CHARACTERS = 34;
+
+/** How far apart the mouse column's lines are. */
+const MOUSE_COLUMN_LEADING = 14;
+
+/** Where the wheel's lines start, under the mouse, and where the view's start, below room for four of the wheel's. */
+const WHEEL_LINES_Y = 284;
+const VIEW_LINES_Y = WHEEL_LINES_Y + 4 * MOUSE_COLUMN_LEADING + 6;
+
+/** Words broken at spaces into lines of at most `width` characters; a word longer than that stands on a line of its own. */
+export function wrapWords(words: string, width: number): string[] {
+	const lines: string[] = [];
+	let line = "";
+	for (const word of words.split(" ")) {
+		if (line === "") line = word;
+		else if (line.length + 1 + word.length <= width) line = `${line} ${word}`;
+		else {
+			lines.push(line);
+			line = word;
+		}
+	}
+	return [...lines, line];
+}
+
+/** Lines of the mouse column as one text shape, a tspan each, the first at `y`. */
+const columnText = (y: number, className: string, lines: readonly string[]): Shape => ({ tag: "text", attrs: { x: MOUSE_TEXT_X, y, class: className }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: MOUSE_TEXT_X, y: y + i * MOUSE_COLUMN_LEADING }, text: line })) });
+
 /** A text shape at a point, its look by class. */
 const text = (x: number, y: number, className: string, content: string): Shape => ({ tag: "text", attrs: { x, y, class: className }, text: content });
 
@@ -206,19 +237,19 @@ function paintWheel(scene: PaintTarget, view: PaintView, picture: Picture): void
 	const d = up ? `M ${cx - 8} ${top + 14} L ${cx} ${top} L ${cx + 8} ${top + 14} Z` : `M ${cx - 8} ${bottom - 14} L ${cx} ${bottom} L ${cx + 8} ${bottom - 14} Z`;
 	scene.put("mouse", "mouse wheel", [{ tag: "path", attrs: { d, class: lit ? "wheel lit" : "wheel" } }]);
 	const words = wheel === null ? "wheel: nothing yet" : `wheel deltaX ${wheel.latest.deltaX} deltaY ${wheel.latest.deltaY} deltaZ ${wheel.latest.deltaZ} in ${unitWords(wheel.latest.deltaMode)}, ${modifierWords(wheel.latest)}${wheel.count > 1 ? `, ${wheel.count} alike in a row` : ""}`;
-	scene.put("panel", "wheel line", [text(MOUSE_TEXT_X, 284, "wheel-line", words)]);
+	scene.put("panel", "wheel line", [columnText(WHEEL_LINES_Y, "wheel-line", wrapWords(words, MOUSE_COLUMN_CHARACTERS))]);
 }
 
-/** The view line's words: the zoom level, the pinch's held pixels, a live pan's travel, and what the latest view row did. */
-export function viewWords(picture: Picture): string {
+/** The view's lines: the zoom level and the pinch's held pixels; a live pan's travel; and what the latest view row did, wrapped to the mouse column. */
+export function viewLines(picture: Picture): string[] {
 	const { level, acc, pan, words } = picture.view;
 	const panWords = pan === null ? "no pan" : `${pan.gesture} live, ${Math.round(pan.distance * 10) / 10} screen pixels`;
-	return `view: ${levelWords(level)}, pinch held ${Math.round(acc * 10) / 10} px | ${panWords} | ${words ?? "no view row yet"}`;
+	return [`view: ${levelWords(level)}, pinch held ${Math.round(acc * 10) / 10} px`, panWords, ...wrapWords(words ?? "no view row yet", MOUSE_COLUMN_CHARACTERS)];
 }
 
-/** The view line, under the mouse: the view the view's rows would set, as numbers (the view pane is a move of its own). */
+/** The view's lines, in the mouse column below the wheel's, clear of the legend: the view the view's rows would set, as numbers (the view pane is a move of its own). */
 function paintViewLine(scene: PaintTarget, picture: Picture): void {
-	scene.put("panel", "view line", [text(MOUSE_TEXT_X, 271, "view-line", viewWords(picture))]);
+	scene.put("panel", "view line", [columnText(VIEW_LINES_Y, "view-line", viewLines(picture))]);
 }
 
 /** A drag's line, from its press to the pointer in drawing units, while a drag gesture is live. */

@@ -205,11 +205,11 @@ function sameItem(a: ItemUnderPointer, b: ItemUnderPointer): boolean {
 	return a.layer === b.layer && a.key === b.key && a.path.length === b.path.length && a.path.every((n, i) => n === b.path[i]);
 }
 
-/** A screen point as the page writes it. */
-const pointWords = (p: CapturePoint): string => `${p.x}, ${p.y}`;
-
 /** A number of pixels as the page writes it, to a tenth. */
 const pixelWords = (n: number): string => String(Math.round(n * 10) / 10);
+
+/** A screen point as the page writes it, each coordinate to a tenth. */
+const pointWords = (p: CapturePoint): string => `${pixelWords(p.x)}, ${pixelWords(p.y)}`;
 
 /** A wheel's view row and its fact: the view after it and the words for what it did. */
 function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly string[], pagePixels: number): ViewPicture {
@@ -247,7 +247,7 @@ function viewAfterStep(view: ViewPicture, step: VerdictStep, fact: DeliveredFact
 		return Object.freeze({ ...view, acc: 0, pan: Object.freeze({ ...pan, at: screen, distance }), words: `${pan.gesture}: the view follows ${pixelWords(screen.x - pan.from.x)}, ${pixelWords(screen.y - pan.from.y)} screen pixels, ${pixelWords(distance)} in all` });
 	}
 	if (step.operation === "pointerUp" && pan !== null && !step.outcome.otherPointer && step.outcome.gesture?.name === pan.gesture) {
-		return Object.freeze({ ...view, pan: null, words: `${pan.gesture} released after ${pixelWords(pan.distance)} screen pixels: nothing committed, the view left where it is` });
+		return Object.freeze({ ...view, pan: null, words: `${pan.gesture} released after ${pixelWords(pan.distance)} screen pixels: no edit, the view left where it is` });
 	}
 	if (step.operation === "pointerLost" && pan !== null && step.outcome.gesture?.name === pan.gesture) {
 		return Object.freeze({ ...view, pan: null, words: `${pan.gesture} cancelled after ${pixelWords(pan.distance)} screen pixels: its release not reported` });

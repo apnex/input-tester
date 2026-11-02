@@ -111,6 +111,10 @@ export const MUTANTS = [
 	["M45", "the pinch keeps its held pixels across a change of sign", "src/view-steps.ts", "let held = delta !== 0 && acc !== 0 && Math.sign(delta) !== Math.sign(acc) ? 0 : acc;", "let held = acc;", ["test/worked-verdicts.test.js"]],
 	["M46", "a wheel's line is one pixel", "src/view-steps.ts", "if (deltaMode === 1) return delta * LINE_PIXELS;", "if (deltaMode === 1) return delta;", ["test/worked-verdicts.test.js"]],
 	["M47", "focus lost keeps the pinch's held pixels", "src/picture-state.ts", 'if (step.operation === "keysLost" && view.acc !== 0) return', 'if (false) return', ["test/worked-verdicts.test.js"]],
+	["M48", "a drawn mouse button counted as open ground (move 5's verifier, v3)", "src/input-router.ts", "openGround: fact.hit === null });", 'openGround: fact.hit === null || fact.hit.key.startsWith("mouse button") });', ["test/browser/rows.test.js"]],
+	["M49", "a scroll pan sets the pinch's held pixels to 0 (move 5's verifier, v5)", "src/picture-state.ts", "return Object.freeze({ ...view, words });", "return Object.freeze({ ...view, acc: 0, words });", ["test/worked-verdicts.test.js"]],
+	["M50", "the view's words on one line at the legend's height, as move 5 first drew them", "src/picture-painter.ts", 'scene.put("panel", "view line", [columnText(VIEW_LINES_Y, "view-line", viewLines(picture))]);', 'scene.put("panel", "view line", [text(MOUSE_TEXT_X, 271, "view-line", viewLines(picture).join(" | "))]);', ["test/browser/panel-layout.test.js"]],
+	["M51", "the wheel's words on one line, as v0.1.0 drew them", "src/picture-painter.ts", '[columnText(WHEEL_LINES_Y, "wheel-line", wrapWords(words, MOUSE_COLUMN_CHARACTERS))]', '[text(MOUSE_TEXT_X, 284, "wheel-line", words)]', ["test/browser/panel-layout.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");

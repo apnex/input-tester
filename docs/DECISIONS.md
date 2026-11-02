@@ -311,3 +311,23 @@ Each view row's verdict is shown in words beside the wheel, and in the log: a sc
 The view pane and the view keys, `=` or `+`, `-`, `Shift+0`, `Shift+1` and `h`, the last row of 3.6, are move 6's: fit and home act on the pane's view, and a key row would take keys every key row now claims as a press; held as `B18`, its trigger move 6 beginning.\
 PZ27's datum is draw's: the tester holds none, so Space held is a context alone, its own press still a first press.
 
+---
+
+## 0008 - Move 5's verification: the mouse column's lines clear of the legend, and open ground as the code tests it
+
+**Ruled by:** move 5's verifier, 2026-11-02, failing `0007`'s build on one blocking finding, B1, with two findings and two notes beside it (draw's `H26-23`, PAN-ZOOM.md move 5).\
+**Affects:** `src/picture-painter.ts`, `src/picture-state.ts`, `src/input-bindings.ts` and `src/input-router.ts` in their words, the new `test/browser/panel-layout.test.js`, `test/browser/rows.test.js`, `test/worked-verdicts.test.js`, `tools/run-mutants.mjs`, `docs/BACKLOG.md`, and `docs/ARCHITECTURE-TARGET.md`, revision 7.
+
+**Ruling.**\
+The view's words no longer run into the legend: `0007` drew them on one line at the legend's height, from x 910, where at rest they ended at x 1202 and printed over the legend's standing column, which starts at x 1160, once any input gave its rows a standing, and reached x 1612 during a long right pan (measured).\
+They are drawn as lines in the mouse column, the 250 units from the mouse's text to the legend, below the wheel's: the level and the pinch's held pixels, then the pan, then what the latest view row did, wrapped at 34 characters.\
+The wheel's words, drawn on one line since `v0.1.0`, ran into the legend too after any wheel turn, to x 1280 at large deltas (measured), and are wrapped in the same column above the view's.\
+`test/browser/panel-layout.test.js` drives both to their longest wordings -- a key press, a long right pan live and released, a scroll and a pinch of large fractional deltas with every modifier, a pinch held short of a step -- and holds every line's box clear of every legend row, the drawn keyboard and mouse and every other text, left of the legend and inside the picture; the widest line ends at x 1104.\
+Open ground is what the code tests, a pointer fact whose `hit` is `null`: nothing of the picture under it, neither a key nor the mouse's buttons, body or wheel, and the panel's text, which the platform looks through, is open ground; this supersedes `0007`'s "no key or mouse button under it".\
+A pan's release is said to make no edit, beside the session's commit of its gesture, in place of `0007`'s "nothing committed"; screen points in the view's words are written to a tenth, as its pixels are.
+
+**Settled by the build.**
+- A right press on a drawn mouse button or on the mouse's body is a press of button 2, and one on the panel's text is `pan-right`, in trusted input (`test/browser/rows.test.js`); a scroll pan leaving the pinch's held pixels alone is a worked verdict -- Ctrl and the wheel 30, a scroll of 40, then Ctrl and the wheel 80, give 2x with 10 held.
+- Four mutants: `M48`, a drawn mouse button counted as open ground (the verifier's v3); `M49`, a scroll pan setting the held pixels to 0 (v5); `M50`, the view's words on one line at the legend's height, as `0007` drew them; `M51`, the wheel's words on one line, as `v0.1.0` drew them; each killed by the new tests.
+- A long log line still runs under the legend, as since `v0.1.0`: held as `B19`.
+

@@ -386,7 +386,7 @@ test("the view's middle pan: a press of button 1, no gesture live, is pan-middle
 	await t.settle();
 	const { meaning, release, notes } = await releaseLines();
 	assert.deepEqual([release, meaning], [["up", ["button-1-release"], true], []]);
-	assert.deepEqual(notes, ["committed pan-middle, a drop", "pan-middle released after 5 screen pixels: nothing committed, the view left where it is"]);
+	assert.deepEqual(notes, ["committed pan-middle, a drop", "pan-middle released after 5 screen pixels: no edit, the view left where it is"]);
 	assert.deepEqual(await panAndTaken(), [null, false]);
 });
 
@@ -410,7 +410,7 @@ test("the view's right pan: a press of button 2 on a key is a press of button 2;
 	const ground = t.screenOf({ x: 925, y: 30 });
 	await t.mouse("mouseMoved", ground);
 	await t.settle();
-	assert.equal(await t.page("inputTester.picture.under"), null, "the point is open ground: no key or mouse button under it");
+	assert.equal(await t.page("inputTester.picture.under"), null, "the point is open ground: nothing of the picture under it");
 	await t.mouse("mousePressed", ground, { button: "right", buttons: 2 });
 	await t.settle();
 	const downLine = async () => (await logHits()).find(([type]) => type === "down");
@@ -431,6 +431,27 @@ test("the view's right pan: a press of button 2 on a key is a press of button 2;
 	await t.mouse("mouseReleased", key, { button: "right", buttons: 0 });
 	await t.settle();
 	assert.deepEqual((await releaseLines()).meaning, ["button-2-click"]);
+});
+
+test("open ground is nothing of the picture under the press: a right press on a drawn mouse button or on the mouse's body is a press of button 2; one on the panel's text, which the platform looks through, is pan-right", TEST, async () => {
+	const labels = await t.page("(() => { const e = [...document.querySelectorAll('#input-surface text.notice')].find((n) => n.textContent.startsWith('Labels:')); const b = e.getBBox(); return [b.x, b.y, b.width, b.height]; })()");
+	const onText = { x: labels[0] + 40, y: labels[1] + labels[3] / 2 };
+	for (const [where, drawing, under, row] of [
+		["a drawn mouse button", null, "mouse button 0", "button-2-press"],
+		["the mouse's body", { x: 1040, y: 180 }, "mouse body", "button-2-press"],
+		["the panel's text", onText, null, "pan-right"],
+	]) {
+		const point = drawing === null ? t.buttonCentre(0) : t.screenOf(drawing);
+		await t.mouse("mouseMoved", point);
+		await t.settle();
+		assert.equal(await t.page("inputTester.picture.under === null ? null : inputTester.picture.under.key"), under, `${where}: what lies under the press`);
+		await t.mouse("mousePressed", point, { button: "right", buttons: 2 });
+		await t.settle();
+		assert.deepEqual((await logHits()).find(([type]) => type === "down").slice(1, 3), [[row], true], `a right press on ${where}`);
+		await t.mouse("mouseReleased", point, { button: "right", buttons: 0 });
+		await t.settle();
+		assert.deepEqual((await releaseLines()).meaning, ["button-2-click"], `${where}: untravelled, a click of button 2`);
+	}
 });
 
 test("the view's Space pan: a press of button 0 with Space held, no gesture live, is pan-space, and travelled it becomes pan-space; Space released, the left press is a press of button 0 again", TEST, async () => {
@@ -483,7 +504,7 @@ test("wheels: up, down, sideways and still, each a scroll pan, claimed, in the u
 	const v = await verdict();
 	assert.deepEqual([v.hits, v.claimed], [["pinch-zoom"], true]);
 	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 20, `pinch zoom: 1x to 2x, 1 level, the scale times 0.5, about screen ${at.x}, ${at.y}, 20 pixels held`]);
-	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, pinch held 20 px \| no pan \| pinch zoom: 1x to 2x/, "the view line drawn");
+	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, pinch held 20 pxno panpinch zoom: 1x to 2x/, "the view's lines drawn");
 	assert.equal(await t.chrome.evaluate("visualViewport.scale"), 1, "Ctrl and a mouse wheel make no page zoom in headless Chrome, claimed or not (section 10, row 9)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });

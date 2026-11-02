@@ -72,7 +72,8 @@ export interface InputRouter {
 /**
  * The context of a fact, from the session's state before it: of a key fact, whether the keys held hold its code,
  * and a non-modifier code other than it; of a pointer fact, whether a gesture is live, whether Space is held, and
- * whether it lies on open ground, its `hit` naming no key or mouse button drawn; every other flag false.
+ * whether it lies on open ground, its `hit` null: nothing of the picture under it, neither a key nor the mouse's
+ * buttons, body or wheel, the panel's text being looked through; every other flag false.
  */
 export function contextOfFact(fact: DeliveredFact, state: SessionState): TesterContext {
 	if (fact.type === "key-down" || fact.type === "key-up") {
