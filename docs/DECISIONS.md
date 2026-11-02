@@ -415,3 +415,35 @@ The list is `b2bceb8`'s `paintWholePage`, line by line, each item held by `test/
 - Three mutants: `M63`, room for exactly four wheel lines above the view's (the check's b4); `M64`, the view's pan line unwrapped; `M65`, a refused capture's problems not drawn.
 - The problems are drawn in the monospace face, so their budget in characters is a budget in units.
 
+---
+
+## 0012 - The view pane, and the view keys (move 6a)
+
+**Ruled by:** the programme, 2026-11-02 (draw's `H26-23`, ratifying `dev/design/components/PAN-ZOOM.md` revision 10: its PZ30 at (a), and its move 6, split into 6a, this, and 6b, the precision lines and the release).\
+**Affects:** the new `src/view-pane.ts`; `src/view-steps.ts`, `src/picture-state.ts`, `src/input-bindings.ts`, `src/picture-painter.ts`, `src/composition-root.ts`, `src/page-entry.ts`; `page/index.html`, `page/input-tester.css`; `test/`; `docs/GUIDE.md`, `docs/BACKLOG.md`, and `docs/ARCHITECTURE-TARGET.md`, revision 11.
+
+**Ruling.**\
+The page holds a view pane beside the picture of the keyboard and mouse, which never moves: a second scene on an `svg` of its own, `#view-pane`, declared with a view (`vector-scene` `0.3.0`), showing an unbounded square grid of 60 drawn from the scene's `visible()` by `snap-grid`'s `inView` at a least spacing of 24 screen pixels (PZ24), and a cross at the origin.\
+The view the view's rows set -- its centre, the drawing point at the pane's centre, and its level -- is kept in the picture record and shown by the pane, which writes it with `setView` at the level's scale and draws its grid again; the level's scale is the old 1920 by 1080 frame's fit in the pane over the level, draw's rule (3.7, PZ7), so a level shows the same proportion as draw's canvas of the pane's size.\
+Every gesture of `0007`'s rows moves it as 3.6 says: a scroll pan by its normalised pixels over the scale; a pinch, Ctrl and the wheel stepping PZ12's levels, `0.5x`, `1x`, `2x` and `3x`, held in one constant, `ZOOM_LEVELS` in `src/view-steps.ts`, about the fact's screen point, the drawing point under it kept; and the three pans by the pointer's travel on screen over the scale.\
+The table gains the last row of 3.6, `view-key`, closing `B18`: a fresh press, no chord modifier, of `=` or `+`, a level in, and `-`, a level out, about the pane's centre; `Shift+0`, the default level; `Shift+1`, fit; and `h`, home, the centre to 0, 0, the level kept (PZ6, PZ28); a reticle, `button#view-home` over the pane's lower right corner, brings it home the same way.\
+The pane's centre and level are shown as numbers in the view's lines in the picture's mouse column, bounded as `0010` bounds every block.
+
+**Settled by the build.**
+- The pane listens to the pointer as the picture does, through a capture of its own with no key source, its facts handed to the same router and session, so a gesture on the pane is shown in the picture's verdicts too; its layers are looked through, so every press on it lies on open ground; its points are its own, so the picture's pointer, drag line and item under the pointer keep theirs.
+- A gesture on the picture moves the pane too, the view being one; a pinch whose screen point lies off the pane steps about the pane's centre, as a key does, the point under the pointer being the pane's to keep only when the pointer is on it, its words saying so.
+- The pinch's centre is computed by `vector-scene`'s own `zoomAbout` arithmetic restated for a centre (`centreKeeping` in `src/view-steps.ts`), and the pane writes the view with `setView`; the browser test holds the drawing point under the pointer kept at every level by the scene view written.
+- Fit, with nothing drawn in the pane to fit, is the first opening, 0, 0 at the default level, as 3.7 rules for an empty diagram; a verb that changes nothing does nothing, saying so; a view key or the reticle that sets a view sets the pinch's held pixels to 0.
+- The view key matches `=`, `+`, `-` and `h` by the character a key prints and the physical 0 and 1 with Shift by their codes, since Shift's character for them depends on the layout; the first-press and roll-over rows take its complement, and the overlap proof gives every code those four characters too, 101,073 facts.
+- The grid is one path of a zero-length stroke at each position in view, drawn round and three pixels across at every scale by its class's non-scaling stroke, the allowlist holding no circle.
+- Seven mutants, each killed: `M70`, a view key also a first press; `M71`, a scroll pan's pixels not over the scale; `M72`, a pan moving the centre with the pointer; `M73`, a pinch on the pane about its centre, not the point under the pointer; `M74`, home keeping the centre; `M75`, the pane drawing no grid as its view moves; `M76`, every level at the default's scale.
+- Four mutants this build's own edits left naming text it changed -- `M19`, `MU11`, `N2` and `N3` -- name the code as it now stands.
+- The page lays the pane beside the picture, a fifth of the window wide and the window's height less the header; the gate's viewport widens to 2,080 pixels so the picture stays a drawing unit to a pixel.
+
+**Errata, design-level, each at its nearest faithful reading.**
+- PZ24 draws a grid again "at most once a frame"; the tester's GT1 forbids `requestAnimationFrame` and its GT2 any write outside a delivery, so the pane draws again inside the delivery that moved the view, at most once a delivery -- the platform delivering pointer moves and wheels about once a frame -- and never on a resize, which the picture repaints nothing on either; draw keeps its frame.
+- PZ24 draws from an `onView` listener; `vector-scene` refuses `put` inside one (VS17), so the pane draws after `setView` returns, from `visible()` read then.
+
+**Left to 6b.**\
+The line at 1,000,000 and the one at 2^21 from the origin, shown at the pane's nearest level with their hit readouts, and `coordinate-precision.mjs`'s figures reproduced by the pane in headless Chrome (PZ31); the release readied for the director's acceptance on the Chromebook.
+

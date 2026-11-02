@@ -17,7 +17,7 @@ import { loseFocus } from "@apnex/headless-chromium";
 import { importBuilt, siteRoot } from "../support/built-site.js";
 import { CLAIM_IN_ROUTER, plantedSite } from "../support/planted-site.js";
 import { SPEC_ROW_CLAIMS } from "../support/architecture-section-6.js";
-import { BUTTON_BITS, BUTTON_NAMES, MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
+import { BUTTON_BITS, BUTTON_NAMES, MODIFIERS, VIEWPORT, openTesterInChrome } from "./tester-in-chrome.js";
 
 const { TESTER_ROWS } = await importBuilt("input-bindings.js");
 const WORDS_OF = new Map(TESTER_ROWS.map((r) => [r.id, r.words]));
@@ -291,7 +291,7 @@ test("section 7, resize: nothing is repainted when the page is resized, and the 
 	await t.mouse("mouseReleased", at, { button: "left", buttons: 0 });
 	await t.settle();
 	await t.chrome.evaluate("window.watcher.disconnect()");
-	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1656, height: 1000, deviceScaleFactor: 1, mobile: false });
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 	await sleep(200);
 	await t.ready();
 	assert.deepEqual(t.matrix().slice(0, 4), [1, 0, 0, 1]);
@@ -475,6 +475,18 @@ test("the view's Space pan: a press of button 0 with Space held, no gesture live
 	await t.settle();
 });
 
+test("the view keys reach the page as their row, claimed: = and - a level in and out, Shift+0 the default level, Shift+1 fit and h home", TEST, async () => {
+	for (const [key, code, vk, modifiers, level] of [["=", "Equal", 187, 0, 0.5], ["-", "Minus", 189, 0, 1], ["-", "Minus", 189, 0, 2], [")", "Digit0", 48, MODIFIERS.shift, 1], ["!", "Digit1", 49, MODIFIERS.shift, 1], ["h", "KeyH", 72, 0, 1]]) {
+		await t.key("keyDown", key, code, { text: key, windowsVirtualKeyCode: vk, modifiers });
+		const v = await verdict();
+		assert.deepEqual([v.type, v.hits, v.claimed], ["key-down", ["view-key"], true], `${key} on ${code}`);
+		assert.equal(await t.page("inputTester.picture.view.level"), level, `${key}: the level`);
+		await t.key("keyUp", key, code, { windowsVirtualKeyCode: vk, modifiers });
+	}
+	assert.deepEqual(await t.page("inputTester.picture.view.centre"), { x: 0, y: 0 });
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
 test("a double click: one double, matching its row, claimed", TEST, async () => {
 	const at = t.keyCentre("KeyL");
 	await t.mouse("mouseMoved", at);
@@ -504,8 +516,8 @@ test("wheels: up, down, sideways and still, each a scroll pan, claimed, in the u
 	await t.settle();
 	const v = await verdict();
 	assert.deepEqual([v.hits, v.claimed], [["pinch-zoom"], true]);
-	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 20, `pinch zoom: 1x to 2x, 1 level, the scale times 0.5, about screen ${at.x}, ${at.y}, 20 pixels held`]);
-	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, pinch held 20 pxno panpinch zoom: 1x to 2x/, "the view's lines drawn");
+	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 20, `pinch zoom: 1x to 2x, 1 level, the scale times 0.5, about the pane's centre, the pointer off the pane at screen ${at.x}, ${at.y}, 20 pixels held`]);
+	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, centre 0, 0pinch held 20 pxno panpinch zoom: 1x to 2x/, "the view's lines drawn");
 	assert.equal(await t.chrome.evaluate("visualViewport.scale"), 1, "Ctrl and a mouse wheel make no page zoom in headless Chrome, claimed or not (section 10, row 9)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });

@@ -70,3 +70,41 @@ export const levelWords = (level: number): string => `${level}x`;
 
 /** A screen distance's length, its travel on screen in pixels. */
 export const screenDistance = (dx: number, dy: number): number => Math.hypot(dx, dy);
+
+/**
+ * The view pane's size and place on screen, as the composition root reads them at each delivery: its root's
+ * `clientWidth` and `clientHeight`, in CSS pixels -- its root carries no `viewBox`, so a root unit is a pixel --
+ * and the screen point of its top-left corner.
+ */
+export interface PaneGeometry {
+	readonly width: number;
+	readonly height: number;
+	readonly left: number;
+	readonly top: number;
+}
+
+/** The frame whose fit is the default level's scale: draw's old 1920 by 1080 canvas (PZ7), so a level shows the same proportion as draw's canvas of the pane's size would. */
+export const DEFAULT_FRAME = Object.freeze({ w: 1920, h: 1080 });
+
+/** Whether a pane is laid out: a width and a height, each a finite number above 0. */
+export const paneLaidOut = (pane: PaneGeometry | null): pane is PaneGeometry => pane !== null && Number.isFinite(pane.width) && Number.isFinite(pane.height) && pane.width > 0 && pane.height > 0;
+
+/** The pane's scale at a level, its screen pixels per drawing unit: the default frame's fit in the pane, over the level. */
+export function paneScale(pane: PaneGeometry, level: number): number {
+	return Math.min(pane.width / DEFAULT_FRAME.w, pane.height / DEFAULT_FRAME.h) / level;
+}
+
+/** Whether a screen point lies on the pane, its edges included. */
+export const onPane = (pane: PaneGeometry, p: { readonly x: number; readonly y: number }): boolean => p.x >= pane.left && p.x <= pane.left + pane.width && p.y >= pane.top && p.y <= pane.top + pane.height;
+
+/**
+ * The pane's centre after a change of scale that keeps the drawing point under the screen point `pivot` where it is
+ * -- `vector-scene`'s `zoomAbout` (VS16) restated for a centre: `r` the pivot's offset from the pane's centre on
+ * screen, `p = centre + r / from` the drawing point under it, and the centre `p - r / to`.
+ */
+export function centreKeeping(centre: { readonly x: number; readonly y: number }, pane: PaneGeometry, pivot: { readonly x: number; readonly y: number }, from: number, to: number): { x: number; y: number } {
+	const rx = pivot.x - (pane.left + pane.width / 2);
+	const ry = pivot.y - (pane.top + pane.height / 2);
+	return { x: centre.x + rx / from - rx / to, y: centre.y + ry / from - ry / to };
+}
+

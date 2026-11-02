@@ -5,8 +5,9 @@
 // `globalThis.inputTester`, where the page leaves it for the proof. Chrome, its protocol session, the button tables and
 // each mouse event's params are headless-chromium's: launchChrome, connectToPage and mouseEventParams.
 //
-// The page is laid out so a screen pixel is one drawing unit: the viewport is 1656 CSS pixels wide, so the
-// `<svg>`, between the page's 8-pixel margins, is 1640 pixels wide, its viewBox's width; the session measures
+// The page is laid out so a screen pixel is one drawing unit: the viewport is 2080 CSS pixels wide, so the view
+// pane beside the picture is a fifth of it, 416, and the picture's `<svg>`, between the page's 8-pixel margins and
+// the 8-pixel gap before the pane, is 1640 pixels wide, its viewBox's width; the session measures
 // on screen, so a press travelling 4 pixels travels exactly its threshold of 4 screen pixels at any scale.
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -19,7 +20,7 @@ import { serveSite } from "./site-server.js";
 const { QUARTER_KEY_GRID, KEYBOARD_PLANS, placePlanOnGrid } = await importBuilt("keyboard-plans.js");
 const { openGrid } = await importVendored("snap-grid");
 
-export const VIEWPORT = Object.freeze({ width: 1656, height: 1000 });
+export const VIEWPORT = Object.freeze({ width: 2080, height: 1000 });
 const grid = openGrid(QUARTER_KEY_GRID).grid;
 
 /** The protocol's modifiers bitmask: Alt 1, Ctrl 2, Meta 4, Shift 8. */

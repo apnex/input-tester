@@ -1,5 +1,5 @@
 // architecture-section-6 - what the tests hold the code to, copied as literals from the specification and never
-// derived from the code under test: docs/ARCHITECTURE-TARGET.md revision 6, section 6 -- each row's words and its
+// derived from the code under test: docs/ARCHITECTURE-TARGET.md revision 11, section 6 -- each row's words and its
 // Claims column, the per-platform list of the browser's own keys, the Mouse button entity's bits, and the view's
 // pan gestures -- with the recorder's rulings in docs/DECISIONS.md 0002 beside them, each marked so.
 
@@ -9,6 +9,7 @@ export const SPEC_ROW_CLAIMS = Object.freeze([
 	["a modifier chord", true],
 	["a first press", true],
 	["a roll-over press", true],
+	["a view key: = or + in, - out, Shift+0 default, Shift+1 fit, h home", true],
 	["a repeat", true],
 	["a release", true],
 	["a release whose press was not seen", true],

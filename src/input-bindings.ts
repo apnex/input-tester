@@ -155,6 +155,24 @@ export function isModifierCode(code: string | null): boolean {
 /** Whether a chord modifier -- Ctrl, Alt or Meta -- is held; Shift makes no chord. */
 const chordModifierHeld = (fact: KeyFact<null>): boolean => fact.ctrlKey || fact.altKey || fact.metaKey;
 
+/** The view's keys (draw's PAN-ZOOM.md 3.6 and 3.7, PZ28), each a verb of the view: a level nearer, a level farther, the default level, fit, home. */
+export type ViewKeyVerb = "zoom-in" | "zoom-out" | "default-level" | "fit" | "home";
+
+/**
+ * The view verb a key fact names, or null: a fresh press, no chord modifier held, of `=` or `+` (a level in), `-`
+ * (a level out), `h` (home), each by the character it prints, or of the physical 0 or 1 with Shift held (the
+ * default level, fit), by its code, since the character Shift gives them depends on the keyboard map.
+ */
+export function viewKeyVerb(fact: TesterFact): ViewKeyVerb | null {
+	if (!isFreshPress(fact) || chordModifierHeld(fact) || isModifierCode(fact.code)) return null;
+	if (fact.key === "=" || fact.key === "+") return "zoom-in";
+	if (fact.key === "-") return "zoom-out";
+	if (fact.key === "h") return "home";
+	if (fact.shiftKey && fact.code === "Digit0") return "default-level";
+	if (fact.shiftKey && fact.code === "Digit1") return "fit";
+	return null;
+}
+
 /** Whether a fact is a mouse pointer fact of one of the types given. */
 function isMouseFact(fact: TesterFact, ...types: string[]): fact is PointerFact<ItemUnderPointer> {
 	return types.includes(fact.type) && "pointerType" in fact && fact.pointerType === "mouse";
@@ -202,12 +220,13 @@ function commitRow(id: string, words: string, gesture: string): TesterRow {
 	return { id, words, on: (f) => f.type === "commit" && f.gesture === gesture, claims: false, proof: ["trusted"] };
 }
 
-/** The tester's rows, in the legend's order: 42 rows, the view's five among them, exclusive over every fact and context (section 6). */
+/** The tester's rows, in the legend's order: 43 rows, the view's six among them, exclusive over every fact and context (section 6). */
 export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	{ id: "key-modifier-press", words: "a modifier press", on: (f) => isFreshPress(f) && isModifierCode(f.code), claims: true, proof: ["trusted"] },
 	{ id: "key-modifier-chord", words: "a modifier chord", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && chordModifierHeld(f), claims: true, proof: ["trusted"] },
-	{ id: "key-first-press", words: "a first press", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && !chordModifierHeld(f), when: (c) => !c.otherHeld, claims: true, proof: ["trusted"] },
-	{ id: "key-roll-over-press", words: "a roll-over press", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && !chordModifierHeld(f), when: (c) => c.otherHeld, claims: true, proof: ["trusted"] },
+	{ id: "key-first-press", words: "a first press", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && !chordModifierHeld(f) && viewKeyVerb(f) === null, when: (c) => !c.otherHeld, claims: true, proof: ["trusted"] },
+	{ id: "key-roll-over-press", words: "a roll-over press", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && !chordModifierHeld(f) && viewKeyVerb(f) === null, when: (c) => c.otherHeld, claims: true, proof: ["trusted"] },
+	{ id: "view-key", words: "a view key: = or + in, - out, Shift+0 default, Shift+1 fit, h home", on: (f) => viewKeyVerb(f) !== null, claims: true, proof: ["trusted"] },
 	{ id: "key-repeat", words: "a repeat", on: (f) => isKeyedFact(f) && f.type === "key-down" && f.repeat === true, claims: true, proof: ["trusted"] },
 	{ id: "key-release", words: "a release", on: (f) => isKeyedFact(f) && f.type === "key-up", when: (c) => c.wasHeld, claims: true, proof: ["trusted"] },
 	{ id: "key-release-press-unseen", words: "a release whose press was not seen", on: (f) => isKeyedFact(f) && f.type === "key-up", when: (c) => !c.wasHeld, claims: true, proof: ["trusted"] },
@@ -312,10 +331,10 @@ function factOfCaptureForm(fields: Record<string, unknown>): DeliveredFact {
 /**
  * The keys the overlap proof gives each code: a letter no entry names; every letter of the browser's own letter keys
  * -- r, i, j, c, f and u -- in lower or upper case by turns, so a key matched by the letter it prints, on any code and
- * case-folded, meets every row; and none. The test holds this list to the specification's letters, so it cannot
- * shrink unseen.
+ * case-folded, meets every row; the characters of the view's keys, `=`, `+`, `-` and `h`; and none. The test holds
+ * this list to the specification's letters, so it cannot shrink unseen.
  */
-export const OVERLAP_PROOF_KEYS: readonly (string | null)[] = Object.freeze(["x", "r", "I", "j", "C", "f", "U", null]);
+export const OVERLAP_PROOF_KEYS: readonly (string | null)[] = Object.freeze(["x", "r", "I", "j", "C", "f", "U", "=", "+", "-", "h", null]);
 
 /**
  * The overlap proof's facts (IB8, GT5): every key fact's type, repeat flag, `key` and sixteen modifier states over

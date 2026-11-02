@@ -57,14 +57,23 @@ function scaleMatrix(s) {
 	return { a: s, b: 0, c: 0, d: s, e: 0, f: 0, inverse: () => scaleMatrix(1 / s) };
 }
 
+/** A screen transform that moves a root's top-left corner to `left`, `top` on screen, a root unit a pixel. */
+function translateMatrix(left, top) {
+	return { a: 1, b: 0, c: 0, d: 1, e: left, f: top, inverse: () => translateMatrix(-left, -top) };
+}
+
 /**
  * A platform for composeTesterPage: `surface` the root and pointer surface, `screenScale` screen pixels to its unit
  * and `clientHeight` pixels high, a wheel's page; `keySource` the window, `address` and `browser`; and the means to
  * dispatch events -- `pointer`, `key`, `wheel`, `menu`, `blur` -- each answering what the delivery asked of the
- * platform: whether the event was claimed and whether the pointer was taken.
+ * platform: whether the event was claimed and whether the pointer was taken. `pane` places the view pane's root,
+ * `{ width, height, left, top }` in pixels, by default over the picture's own top-left so a point there is on both,
+ * or `null` for a page without one; `panePointer`, `paneWheel` and `pressReticle` dispatch to it and its reticle.
  */
-export function fakePlatform({ address = "https://input.example/", brands = ["Chromium", "Google Chrome"], keyboardMap = null, elementsAt = () => [], clientHeight = 900, screenScale = 1 } = {}) {
+export function fakePlatform({ address = "https://input.example/", brands = ["Chromium", "Google Chrome"], keyboardMap = null, elementsAt = () => [], clientHeight = 900, screenScale = 1, pane = { width: 600, height: 600, left: 0, top: 0 } } = {}) {
 	const surfaceListeners = new Map();
+	const paneListeners = new Map();
+	const reticleListeners = new Map();
 	const keyListeners = new Map();
 	const writes = [];
 	let inside = 0;
@@ -88,6 +97,21 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 			platform.captured = pointerId;
 		},
 	});
+	const paneRoot =
+		pane === null
+			? undefined
+			: Object.assign(fakeElement("svg", platform), {
+					ownerDocument: document,
+					getScreenCTM: () => translateMatrix(pane.left, pane.top),
+					clientWidth: pane.width,
+					clientHeight: pane.height,
+					addEventListener: (name, listener) => paneListeners.set(name, listener),
+					removeEventListener: (name) => paneListeners.delete(name),
+					setPointerCapture: (pointerId) => {
+						platform.captured = pointerId;
+					},
+				});
+	const reticle = { addEventListener: (name, listener) => reticleListeners.set(name, listener) };
 	const keySource = {
 		addEventListener: (name, listener) => keyListeners.set(name, listener),
 		removeEventListener: (name) => keyListeners.delete(name),
@@ -117,8 +141,16 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 		keySource,
 		address,
 		browser,
+		...(paneRoot === undefined ? {} : { pane: paneRoot, reticle }),
 		writes,
 		root,
+		paneRoot,
+		/** A pointer event on the view pane, as `pointer` dispatches one on the picture. */
+		panePointer: (type, fields = {}) => dispatch(paneListeners, POINTER_EVENTS[type], { clientX: 0, clientY: 0, button: 0, buttons: 0, pointerId: 1, pointerType: "mouse", ...fields }),
+		/** A wheel event on the view pane. */
+		paneWheel: (fields = {}) => dispatch(paneListeners, "wheel", { clientX: 0, clientY: 0, button: 0, buttons: 0, deltaX: 0, deltaY: 0, deltaZ: 0, deltaMode: 0, ...fields }),
+		/** The reticle's press. */
+		pressReticle: () => dispatch(reticleListeners, "click", {}),
 		/** A pointer event of the family named, at a screen point, its fields as given; a mouse's pointer 1 by default. */
 		pointer: (type, fields = {}) => dispatch(surfaceListeners, POINTER_EVENTS[type], { clientX: 0, clientY: 0, button: 0, buttons: 0, pointerId: 1, pointerType: "mouse", ...fields }),
 		/** A key event: `key-down` or `key-up`. */

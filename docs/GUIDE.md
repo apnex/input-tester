@@ -16,9 +16,9 @@ One stream runs through single-duty parts: a platform event becomes one fact, th
 | Concern | Owned by | In the tester |
 |---|---|---|
 | A platform event turned into one frozen fact, and the application's answer carried back -- claim, take the pointer | `input-capture` | one capture on the page's `<svg>`, the window as key source (`src/composition-root.ts`) |
-| What a fact means: the one row it matches, whether it is claimed, and the phase it makes due for the gesture in progress | `input-binding` | one table of 42 rows and one session (`src/input-bindings.ts`), driven by the router (`src/input-router.ts`) |
-| Shapes held as data under keys and shown exactly; which item a target or a screen point is over; screen and drawing coordinates | `vector-scene` | four layers on the `<svg>` (`src/picture-painter.ts`) |
-| Where positions lie on a grid, and the rect a block of them covers | `snap-grid` | one grid a quarter key apart, every key's rect from `span` (`src/keyboard-plans.ts`) |
+| What a fact means: the one row it matches, whether it is claimed, and the phase it makes due for the gesture in progress | `input-binding` | one table of 43 rows and one session (`src/input-bindings.ts`), driven by the router (`src/input-router.ts`) |
+| Shapes held as data under keys and shown exactly; which item a target or a screen point is over; screen and drawing coordinates | `vector-scene` | four layers on the `<svg>` (`src/picture-painter.ts`), and a second scene declared with a view on the view pane's own `<svg>`, written by `setView` (`src/view-pane.ts`) |
+| Where positions lie on a grid, and the rect a block of them covers | `snap-grid` | one grid a quarter key apart, every key's rect from `span` (`src/keyboard-plans.ts`), and a grid of 60 in the view pane, its positions in view thinned by `inView` (`src/view-pane.ts`) |
 | Which route a fact takes, what is shown, what it looks like | the application | the composition root's switch, the picture state, the painter and the stylesheet |
 
 No part imports another.\
@@ -201,7 +201,7 @@ Trusted input -- a person's, or the DevTools protocol's -- is taken, and its lat
 ## 6. Deciding what each input means
 
 One table holds every meaning, its rows exclusive by construction, so no row wins by its place: two rows that hit together mean nothing.\
-Run `findOverlaps` over every fact your rows can meet, in your own gate; the tester's runs over 70,609 facts, a key fact with four contexts and every other with eight, and holds every fact but those it gives no row to exactly one row (`test/table-overlaps.test.js`).\
+Run `findOverlaps` over every fact your rows can meet, in your own gate; the tester's runs over 101,073 facts, a key fact with four contexts and every other with eight, and holds every fact but those it gives no row to exactly one row (`test/table-overlaps.test.js`).\
 A row's `when` reads a context the application makes from the session's state before the fact.\
 The tester's says of a key fact whether the held keys hold its own code and any other key that is no modifier, so its roll-over row needs no state of its own.\
 Of a pointer fact it says whether a gesture is live, whether Space is held, and whether the fact lies on open ground, so each pan row and the press row of its button split every press between them.

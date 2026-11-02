@@ -95,7 +95,7 @@ test("worked verdict: Ctrl and the wheel -- a pinch zoom, Ctrl and wheel or a to
 	assert.equal(claimed, true);
 	assert.equal(page.picture.wheel.latest.deltaY, -12.5, "drawn with its delta, exact");
 	assert.deepEqual([page.picture.view.level, page.picture.view.acc], [1, -12.5]);
-	assert.equal(platform.textOf("view-line"), "view: 1x, pinch held -12.5 px\nno pan\npinch zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
+	assert.equal(platform.textOf("view-line"), "view: 1x, centre 0, 0\npinch held -12.5 px\nno pan\npinch zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
 });
 
 /** The view's level and the pinch's held pixels, as the picture keeps them. */
@@ -173,7 +173,7 @@ test("worked verdict: a middle pan -- a press of button 1, no gesture live, is p
 		{ operation: "pointerMove", phase: "update", gesture: "press-1", crossed: true },
 		{ operation: "becomeGesture", phase: "become", gesture: "pan-middle" },
 	]);
-	assert.deepEqual(page.picture.view.pan, { gesture: "pan-middle", from: { x: 105, y: 100 }, at: { x: 105, y: 100 }, distance: 0 });
+	assert.deepEqual(page.picture.view.pan, { gesture: "pan-middle", from: { x: 105, y: 100 }, at: { x: 105, y: 100 }, distance: 0, centreFrom: { x: 0, y: 0 } });
 	platform.pointer("move", { clientX: 108, clientY: 104, button: -1, buttons: 4 });
 	assert.equal(page.picture.view.pan.distance, 5);
 	assert.match(platform.textOf("view-line"), /\npan-middle live, 5 screen pixels\npan-middle: the view follows 3, 4\nscreen pixels, 5 in all$/);
@@ -282,3 +282,107 @@ test("worked verdict: focus lost mid-drag -- focus lost; keysLost; pointerLost: 
 	assert.match(page.picture.log[0].notes.join("; "), /released ShiftLeft: their releases not reported; cancelled drag-0: its release not reported/);
 	assert.equal(page.picture.buttons, 1, "a blur never changes the buttons drawn: they follow mouse facts alone");
 });
+
+/** The view's centre and level, as the picture keeps them. */
+const centreAndLevel = (page) => [page.picture.view.centre.x, page.picture.view.centre.y, page.picture.view.level];
+
+/** The fake pane's scale at a level: the 1920 by 1080 frame's fit in its 600 by 600, 0.3125, over the level. */
+const paneScaleAt = (level) => 600 / 1920 / level;
+
+test("move 6a, the view pane: a scroll pan moves the centre by its pixels over the level's scale; a pan by its travel on screen over the scale, the other way; the pane's scene view follows, its centre at the pane's centre", () => {
+	const { platform, page } = freshPage();
+	assert.deepEqual(centreAndLevel(page), [0, 0, 1]);
+	assert.deepEqual(page.paneView, { x: -300 / paneScaleAt(1), y: -300 / paneScaleAt(1), scale: paneScaleAt(1) }, "the first opening: 0, 0 at the pane's centre, at 1x");
+	platform.wheel({ deltaX: 50, deltaY: -25 });
+	assert.deepEqual(centreAndLevel(page), [50 / paneScaleAt(1), -25 / paneScaleAt(1), 1]);
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 1, buttons: 4 });
+	platform.pointer("move", { clientX: 110, clientY: 100, button: -1, buttons: 4 });
+	platform.pointer("move", { clientX: 140, clientY: 130, button: -1, buttons: 4 });
+	assert.deepEqual(centreAndLevel(page), [50 / paneScaleAt(1) - 30 / paneScaleAt(1), -25 / paneScaleAt(1) - 30 / paneScaleAt(1), 1], "dragged right and down, the drawing follows: the centre moves left and up");
+	const v = page.paneView;
+	assert.deepEqual([v.x + 300 / v.scale, v.y + 300 / v.scale], [page.picture.view.centre.x, page.picture.view.centre.y], "the pane's scene view holds the centre at its centre");
+	platform.pointer("up", { clientX: 140, clientY: 130, button: 1, buttons: 0 });
+});
+
+test("move 6a, the view pane: a pinch keeps the drawing point under the pointer when it is on the pane, and steps about the pane's centre when it is off it; every level reached and none between", () => {
+	const { platform, page } = freshPage();
+	const under = (q) => [page.picture.view.centre.x + (q.x - 300) / paneScaleAt(page.picture.view.level), page.picture.view.centre.y + (q.y - 300) / paneScaleAt(page.picture.view.level)];
+	const q = { x: 450, y: 120 };
+	const before = under(q);
+	platform.wheel({ ctrlKey: true, deltaY: -100, clientX: q.x, clientY: q.y });
+	assert.equal(page.picture.view.level, 0.5);
+	const after = under(q);
+	assert.ok(Math.abs(after[0] - before[0]) < 1e-9 && Math.abs(after[1] - before[1]) < 1e-9, `the point under the pointer kept: ${before} then ${after}`);
+	const seen = [page.picture.view.level];
+	for (const dy of [100, 100, 100]) {
+		platform.wheel({ ctrlKey: true, deltaY: dy, clientX: q.x, clientY: q.y });
+		seen.push(page.picture.view.level);
+		const kept = under(q);
+		assert.ok(Math.abs(kept[0] - before[0]) < 1e-6 && Math.abs(kept[1] - before[1]) < 1e-6, `kept at ${page.picture.view.level}x`);
+	}
+	assert.deepEqual(seen, [0.5, 1, 2, 3], "each level reached in turn, none between");
+	const off = fakePlatform({ pane: { width: 600, height: 600, left: 1000, top: 0 } });
+	const offPage = composeTesterPage(off);
+	off.wheel({ ctrlKey: true, deltaY: -100, clientX: 30, clientY: 40 });
+	assert.deepEqual(centreAndLevel(offPage), [0, 0, 0.5], "off the pane: about the pane's centre, so the centre holds");
+	assert.match(offPage.picture.view.words, /about the pane's centre, the pointer off the pane at screen 30, 40/);
+});
+
+test("move 6a, the view keys: = and + a level in, - a level out, about the pane's centre; Shift+0 the default level; h home, the level kept; Shift+1 fit, the first opening with no diagram; each a view key, claimed; a verb that changes nothing does nothing", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ deltaX: 90, deltaY: 30 });
+	const moved = page.picture.view.centre;
+	const { claimed } = platform.key("key-down", { key: "=", code: "Equal" });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["view-key"]);
+	assert.equal(claimed, true);
+	assert.deepEqual([page.picture.view.centre, page.picture.view.level], [moved, 0.5], "a level in about the pane's centre: the centre holds");
+	platform.key("key-up", { key: "=", code: "Equal" });
+	platform.key("key-down", { key: "+", code: "Equal", shiftKey: true });
+	assert.match(page.picture.view.words, /zoom in: at 0\.5x, the nearest level, so nothing/);
+	platform.key("key-up", { key: "+", code: "Equal", shiftKey: true });
+	for (const level of [1, 2, 3, 3]) {
+		platform.key("key-down", { key: "-", code: "Minus" });
+		platform.key("key-up", { key: "-", code: "Minus" });
+		assert.equal(page.picture.view.level, level);
+	}
+	platform.key("key-down", { key: ")", code: "Digit0", shiftKey: true });
+	platform.key("key-up", { key: ")", code: "Digit0", shiftKey: true });
+	assert.deepEqual([page.picture.view.centre, page.picture.view.level], [moved, 1], "the default level about the centre");
+	platform.key("key-down", { key: "-", code: "Minus" });
+	platform.key("key-up", { key: "-", code: "Minus" });
+	platform.key("key-down", { key: "h", code: "KeyH" });
+	assert.deepEqual([page.picture.view.centre, page.picture.view.level], [{ x: 0, y: 0 }, 2], "home: the centre to 0, 0, the level kept");
+	platform.key("key-up", { key: "h", code: "KeyH" });
+	platform.key("key-down", { key: "!", code: "Digit1", shiftKey: true });
+	assert.deepEqual([page.picture.view.centre, page.picture.view.level], [{ x: 0, y: 0 }, 1], "fit, with nothing drawn to fit: the first opening");
+	assert.match(page.picture.view.words, /fit: nothing drawn here to fit, so the first opening/);
+	platform.key("key-up", { key: "!", code: "Digit1", shiftKey: true });
+	platform.key("key-down", { key: "H", code: "KeyH", shiftKey: true });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["key-first-press"], "Shift and h is no view key");
+});
+
+test("move 6a, the reticle: its press brings the centre home to 0, 0, the level kept (PZ6); the pane's scene view follows", () => {
+	const { platform, page } = freshPage();
+	platform.wheel({ deltaX: 120, deltaY: -60 });
+	platform.wheel({ ctrlKey: true, deltaY: 100, clientX: 450, clientY: 450 });
+	assert.notDeepEqual(page.picture.view.centre, { x: 0, y: 0 });
+	platform.pressReticle();
+	assert.deepEqual(centreAndLevel(page), [0, 0, 2]);
+	assert.match(page.picture.view.words, /^the reticle, home: the centre to 0, 0, the level kept at 2x$/);
+	assert.deepEqual(page.paneView, { x: -300 / paneScaleAt(2), y: -300 / paneScaleAt(2), scale: paneScaleAt(2) });
+});
+
+test("move 6a, the pane's own surface: a pan on the pane moves the view and is shown in the picture's verdicts, but its points are the pane's, so the picture's pointer, press line and item under the pointer keep theirs", () => {
+	const { platform, page } = freshPage();
+	platform.pointer("move", { clientX: 15, clientY: 15, button: -1, buttons: 0 });
+	const pointerAt = page.picture.pointerAt;
+	platform.panePointer("down", { clientX: 200, clientY: 200, button: 2, buttons: 2 });
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["pan-right"], "the pane is open ground");
+	platform.panePointer("move", { clientX: 260, clientY: 200, button: -1, buttons: 2 });
+	assert.equal(page.picture.view.pan.gesture, "pan-right", "engaged at the move that crossed the threshold");
+	platform.panePointer("move", { clientX: 315, clientY: 200, button: -1, buttons: 2 });
+	assert.deepEqual(centreAndLevel(page), [-55 / paneScaleAt(1), 0, 1], "the view follows the travel since engaging");
+	assert.deepEqual([page.picture.pointerAt, page.picture.pressFrom], [pointerAt, null], "the picture's own points kept");
+	platform.panePointer("up", { clientX: 315, clientY: 200, button: 2, buttons: 0 });
+});
+

@@ -39,8 +39,8 @@ export function plantedSite(edits, from = siteRoot) {
 	return { dir, remove: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
 
-/** The text of the composition root's delivery as built, where a plant inserts code that runs inside every delivery. */
-export const DELIVERY_OPENS = "function deliverFact(fact, reply) {";
+/** The text of the composition root's delivery as built -- the one each capture is handed, the picture's and the view pane's -- where a plant inserts code that runs inside every delivery. */
+export const DELIVERY_OPENS = "return (fact, reply) => {";
 
 /** The router's claim as built, which the pinch's positive control takes away. */
 export const CLAIM_IN_ROUTER = "if (claimed)\n            reply.claim();";
