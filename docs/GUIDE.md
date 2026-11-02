@@ -335,6 +335,8 @@ Its readouts, at its top left in 13-pixel text, give the level and the scale in 
 The same numbers stand in the picture's view lines, under the mouse.
 
 Open the page with `#view` at the end of its address, or press "large, to judge each gesture" beside the plans, and the pane takes 48% of the window's width, drawn at once for that size; "small" gives the picture its room back, the pane drawn again at once.\
+The address is read once, as the page opens: adding `#view` to a page already open changes nothing until it is reloaded, or "large" is pressed.\
+The page is the window's height and never scrolls, the header taking its own height however its line wraps.\
 A resize of the window is no input, and the page writes nothing but in answer to one, so after a resize the pane keeps the view it had -- its grid may stop short of its new edges, its origin off its new centre -- until the pointer next moves over it or any key or gesture comes: move the pointer over the pane once after resizing.
 
 Each step, on the pane, then what to report back:

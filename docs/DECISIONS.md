@@ -501,3 +501,19 @@ The view's scale is set at the first paint, so the picture's view lines and the 
 - `test/worked-verdicts.test.js` pans by several moves, each measured from where the pan engaged.
 - Five mutants, each killed: `M82`, each pan move measured from the centre the last left (the verifier's m2); `M83`, the layout not set from the address; `M84`, the header's buttons leaving the pane for the next input; `M85`, a precision line no ground; `M86`, the first paint without the scale; `M48` and `M81` name the code as it now stands.
 
+---
+
+## 0015 - Move 6's re-review: the page never scrolls, whatever the header's height
+
+**Ruled by:** move 6's re-review, 2026-11-02, passing `0014`'s build with one low finding, L1, fixed before the director sees it, and a second, L2, noted (draw's `H26-23`, PAN-ZOOM.md move 6).\
+**Affects:** `page/input-tester.css`, `test/browser/view-pane.test.js`, `tools/run-mutants.mjs`, and `docs/GUIDE.md`.
+
+**Ruling.**\
+`0014`'s header buttons made the header 6 pixels taller, 62 where it was 56, and 81 where its line wraps at 1093 pixels wide, while the pane stayed `calc(100vh - 70px)` tall: at 1093 by 526, a Chromebook at 125%, the page scrolled 11 pixels and the pane's buttons ended at 529 in a window of 526, in both sizes of the pane, against GUIDE section 9's "neither scrolls nor zooms".\
+The page is now the window's height and no more: the body a column of the window's height, the header taking its own height however its line wraps, and the main area the rest, the pane filling it to 8 pixels above the window's foot and the picture held within it -- no constant stands for the header's height.\
+GUIDE section 9 says plainly that the address is read once, as the page opens, so `#view` added to a page already open changes nothing until a reload or the "large" button (L2).
+
+**Settled by the build.**
+- `test/browser/view-pane.test.js` loads the page at 1366 by 657, 1093 by 526 and 1536 by 750, each with the pane small and large, and holds the document no larger than the window and every button, the header's two and the pane's three, wholly inside it; on `0014`'s stylesheet it fails at 1093 by 526, a document 537 pixels tall in a window of 526.
+- One mutant, `M87`, the pane's height a constant below the header again, killed by it.
+
