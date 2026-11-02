@@ -5,7 +5,7 @@ instant: current
 # input-tester - system architecture, current
 
 **Instant: current.** input-tester as its code and its gate's last run show it, derived by `tools/generate-architecture.mjs` and never written by hand.\
-Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 7, which this document cites and never restates.\
+Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 8, which this document cites and never restates.\
 Every section is derived; each changes when the code, the gate's results or the records it is read from change, and `npm run gate` fails while this file differs from what the generator derives.
 
 ---
@@ -15,8 +15,8 @@ Every section is derived; each changes when the code, the gate's results or the 
 | Field | Value |
 |---|---|
 | Version | `0.1.0`, its release folder `v0.1.0` |
-| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 7 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, in `docs/DECISIONS.md` |
+| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 8 |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -46,7 +46,7 @@ Each part's duty is the first sentence of its module's leading comment; its expo
 | `src/key-labels.ts` | Labels: names each drawn key as the person's own keyboard does (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `LabelSource`, `KeyLabel`, `KeyLabels`, `KeyboardMapAnswer`, `KeyboardMapSource`, `labelsPrintedOnPlan`, `labelsFromKeyboardMap`, `askKeyboardMap` | `./keyboard-plans.js` |
 | `src/keyboard-plans.ts` | Keyboard plans: where each drawn key and mouse button lies, on the plan the person chose (docs/ARCHITECTURE-TARGET.md section 5, IT-D2) | `QUARTER_KEY_GRID`, `PlanName`, `CodeSource`, `KeyNote`, `PlanKey`, `PlanMouseButton`, `KeyboardPlan`, `PlacedKey`, `PlacedMouseButton`, `PlacedPlan`, `BUTTON_BITS`, `bitOfButton`, `FULL_SIZE_ANSI_PLAN`, `CHROMEBOOK_PLAN`, `KEYBOARD_PLANS`, `placePlanOnGrid` | `../vendor/snap-grid/index.js` |
 | `src/page-entry.ts` | The page's one module script (docs/ARCHITECTURE-TARGET.md section 7, Page load): composes the tester on the entry document's `<svg>`, with the window as key source, the page's address and the browser's `navigator`, and leaves the composed page readable whole at `globalThis.inputTester`, which the gate's proof reads | none | `./composition-root.js`, `./key-labels.js` |
-| `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `MOUSE_COLUMN_CHARACTERS`, `wrapWords`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `HELD_KEY_LINES`, `heldKeyLines`, `keyShapes`, `viewLines`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js`, `./view-steps.js` |
+| `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `MOUSE_COLUMN_CHARACTERS`, `LOG_CHARACTERS`, `LEGEND_CHARACTERS`, `legendLines`, `wrapWords`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `HELD_KEY_LINES`, `heldKeyLines`, `keyShapes`, `viewLines`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js`, `./view-steps.js` |
 | `src/picture-state.ts` | Picture state: keeps what the person is shown, as data (docs/ARCHITECTURE-TARGET.md sections 5 to 7, P1, P6) | `LOG_LINES`, `HeldKeyPicture`, `WheelPicture`, `GesturePicture`, `LogEntry`, `LegendPicture`, `PanPicture`, `ViewPicture`, `Picture`, `PictureEntry`, `BUTTONS_REPORTED_BY`, `EMPTY_PICTURE`, `timeBetween`, `wheelFactsAlike`, `applyVerdict` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `./input-bindings.js`, `./input-router.js`, `./view-steps.js` |
 | `src/view-steps.ts` | View steps: what each of the view's rows does to the view, as numbers (docs/ARCHITECTURE-TARGET.md section 6, the view's rows; draw's PAN-ZOOM.md section 3.6, PZ12, PZ17) | `ZOOM_LEVELS`, `DEFAULT_ZOOM_LEVEL`, `ZOOM_STEP_PIXELS`, `LINE_PIXELS`, `normalisedDelta`, `ZoomStep`, `stepZoom`, `levelWords`, `screenDistance` |  |
 | `page/index.html` | The entry document: its stylesheet and its one module script, both in the release's folder, and the plans to choose | none | `v0.1.0/input-tester.css`, `v0.1.0/app/page-entry.js` |
@@ -202,7 +202,6 @@ Workarounds open: 0.
 | B15 | In Chrome a pen's first press on the page is followed by a mouse `move` at the pen's position, which moves a live mouse drag's line there; the tester shows the mouse fact as delivered, and whether a real pen, or a finger on a touch screen, makes the browser send it is not measured |
 | B16 | Matching the browser's own keys by `code` or by the letter a key prints (`0002` erratum 6) leaves a few shortcuts no entry names to the browser on Dvorak and Colemak -- Ctrl+P on `KeyR` opens printing, Colemak's Ctrl+L on `KeyU` takes focus to the address bar, Dvorak's Ctrl+G on `KeyU` finds the next match -- since Chromium takes a Latin letter's shortcut by its letter first; argued from Chromium's source (`xkb_keyboard_layout_engine.cc`), not measured on those layouts; the refinement is to match by the letter when `key` is a Latin letter and by `code` otherwise |
 | B18 | The view's rows show their verdicts in numbers alone: the view pane -- a second scene on its own `svg` with a view, a grid of 60 drawn from `visible()`, its scale and centre, a reticle home -- is not built, and with it the view keys, `=` or `+`, `-`, `Shift+0`, `Shift+1` and `h`, the last row of draw's PAN-ZOOM.md 3.6, which act on that pane's view: fit and home have no view to act on, and each would take a key every key row now claims as a press (`0007`) |
-| B19 | A log line is drawn whole from the panel's left edge, so a long one runs under the legend: the newest line of a wheel of deltas -1234.5 and -6789.5 reached x 1663, past the legend's left edge at x 1160 (measured, move 5's fix); the log shows each fact exact, so a fix wraps or narrows its lines rather than cutting a value, as the mouse column's lines are wrapped (`0008`) |
 
 ---
 
@@ -218,3 +217,4 @@ Workarounds open: 0.
 | `0006` | The tests run on clean-runner and headless-chromium |
 | `0007` | The view's rows: pan and zoom, shown as verdicts |
 | `0008` | Move 5's verification: the mouse column's lines clear of the legend, and open ground as the code tests it |
+| `0009` | Move 5's re-review: the picture's text as one layout |
