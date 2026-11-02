@@ -72,8 +72,9 @@ export interface InputRouter {
 /**
  * The context of a fact, from the session's state before it: of a key fact, whether the keys held hold its code,
  * and a non-modifier code other than it; of a pointer fact, whether a gesture is live, whether Space is held, and
- * whether it lies on open ground, its `hit` null: nothing of the picture under it, neither a key nor the mouse's
- * buttons, body or wheel, the panel's text being looked through; every other flag false.
+ * whether it lies on open ground, its `hit` null -- nothing of the picture under it, neither a key nor the mouse's
+ * buttons, body or wheel, the panel's text being looked through -- or one of the view pane's precision lines, which
+ * mark ground and are hit-tested only for their readout (docs/DECISIONS.md 0014); every other flag false.
  */
 export function contextOfFact(fact: DeliveredFact, state: SessionState): TesterContext {
 	if (fact.type === "key-down" || fact.type === "key-up") {
@@ -81,7 +82,7 @@ export function contextOfFact(fact: DeliveredFact, state: SessionState): TesterC
 		return Object.freeze({ ...NO_KEY_CONTEXT, wasHeld: code !== null && state.keys.includes(code), otherHeld: state.keys.some((held) => held !== code && !isModifierCode(held)) });
 	}
 	if (fact.at === null) return NO_KEY_CONTEXT;
-	return Object.freeze({ ...NO_KEY_CONTEXT, gestureLive: state.gesture !== null, spaceHeld: state.keys.includes("Space"), openGround: fact.hit === null });
+	return Object.freeze({ ...NO_KEY_CONTEXT, gestureLive: state.gesture !== null, spaceHeld: state.keys.includes("Space"), openGround: fact.hit === null || fact.hit.layer === "precision" });
 }
 
 /** Opens a router over one table and the session it drives. */

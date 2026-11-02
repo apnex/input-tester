@@ -334,17 +334,17 @@ It shows an unbounded grid of 60, a red cross at 0, 0, and two green precision l
 Its readouts, at its top left in 13-pixel text, give the level and the scale in pixels a unit, the centre, what the latest view row did, and, while a precision line stands in the pane, where it should be on screen and how far from there the platform hits it and the browser reports it.\
 The same numbers stand in the picture's view lines, under the mouse.
 
-Open the page with `#view` at the end of its address, or press "large, to judge each gesture" beside the plans, and the pane takes 48% of the window's width; "small" gives the picture its room back.\
-After a resize, or a change between the two, the pane is drawn again at the next input over it: move the pointer over it once.
+Open the page with `#view` at the end of its address, or press "large, to judge each gesture" beside the plans, and the pane takes 48% of the window's width, drawn at once for that size; "small" gives the picture its room back, the pane drawn again at once.\
+A resize of the window is no input, and the page writes nothing but in answer to one, so after a resize the pane keeps the view it had -- its grid may stop short of its new edges, its origin off its new centre -- until the pointer next moves over it or any key or gesture comes: move the pointer over the pane once after resizing.
 
 Each step, on the pane, then what to report back:
 1. Two-finger scroll on the touchpad, every direction: the grid moves the way the fingers do, as a page scrolls; the centre in the readouts changes by the scroll's pixels over the scale.
 2. Pinch apart and together on the touchpad: the level steps 0.5x, 1x, 2x and 3x, never between, and the point under the fingers stays under them; report whether one step takes a comfortable pinch -- the step is 100 pixels of the pinch, which headless Chrome sends as a pinch to about 2.7 times.
 3. Ctrl and the mouse wheel, if a mouse is at hand: the same levels, one notch or a few a step, about the pointer.
-4. Space held with a left drag; a middle drag; a right drag: each pans once the pointer has travelled 4 pixels, the grid following the pointer, and a release changes nothing more; report a middle press that starts the browser's own scrolling arrows instead.
+4. Space held with a left drag; a middle drag; a right drag, which pans on the precision lines too, since they mark ground: each pans once the pointer has travelled 4 pixels, the grid following the pointer, and a release changes nothing more; report a middle press that starts the browser's own scrolling arrows instead.
 5. The keys, with the page focused: `=` or `+` a level in and `-` a level out, about the pane's centre; Shift and 0 the default level, 1x; Shift and 1 fit, which here is the first opening, 0, 0 at 1x; `h` home.
 6. The reticle, "home 0, 0": the cross comes back to the pane's centre at the level it was.
-7. "line at 1,000,000", then `-` three times: at each level the green line's left edge stands at the pane's centre, and the readouts say how far it is hit and reported from where it should be; write down the four pairs, and the same for "line at 2^21".
+7. "line at 1,000,000", then `-` three times: the button brings the pane to its nearest level, 0.5x -- on a 1366 by 657 window about 0.68 pixels a unit with the pane large and 0.28 with it small -- and at each level the green line's left edge stands at the pane's centre, and the readouts say how far it is hit and reported from where it should be; write down the four pairs, and the same for "line at 2^21".
 8. Throughout, the picture of the keyboard and mouse stays where it is, and the page itself neither scrolls nor zooms.
 
 Report each step as accepted or returned, with what was seen when it is returned; the eight pairs of precision figures; and any level that should be nearer or farther, since the levels are held in one place, `ZOOM_LEVELS` in `src/view-steps.ts`, to be tuned by one edit.

@@ -22,10 +22,17 @@ function elementOf<T extends Element>(id: string, kind: { new (): T; prototype: 
 	return element;
 }
 const paneReadouts = elementOf("view-readouts", SVGSVGElement, "<svg>");
+// The pane's size is a hidden checkbox the stylesheet reads, set from the address before anything is composed, so
+// the first paint is drawn at the size the address asks: `#view` the large pane
+const large = elementOf("view-large", HTMLInputElement, "<input>");
+large.checked = new URL(document.URL).hash === "#view";
+const paneSize = { large: (on: boolean): void => void (large.checked = on) };
+const paneLarge = elementOf("pane-large", HTMLButtonElement, "<button>");
+const paneSmall = elementOf("pane-small", HTMLButtonElement, "<button>");
 const reticle = elementOf("view-home", HTMLButtonElement, "<button>");
 const goMillion = elementOf("go-million", HTMLButtonElement, "<button>");
 const goTwoTo21 = elementOf("go-two-to-21", HTMLButtonElement, "<button>");
 /** Where the browser reports a precision line's left edge on screen, by its distance: its element's bounding box, Chrome's own geometry. */
 const precisionBounds = (distance: number): number | null => pane.querySelector(`.precision-${distance}`)?.getBoundingClientRect().left ?? null;
-const page = composeTesterPage({ surface, keySource: window, address: document.URL, browser, pane, paneReadouts, precisionBounds, reticle, goMillion, goTwoTo21 });
+const page = composeTesterPage({ surface, keySource: window, address: document.URL, browser, pane, paneReadouts, precisionBounds, reticle, goMillion, goTwoTo21, paneSize, paneLarge, paneSmall });
 Object.defineProperty(globalThis, "inputTester", { value: page, enumerable: false, writable: false, configurable: false });

@@ -27,7 +27,7 @@ import { FULL_SIZE_ANSI_PLAN, KEYBOARD_PLANS, QUARTER_KEY_GRID, placePlanOnGrid 
 import type { KeyboardPlan, PlanName } from "./keyboard-plans.js";
 import { SCENE_LAYERS, paintEveryKey, paintPictureChanges, paintRefusedOpening, paintWholePage } from "./picture-painter.js";
 import type { PaintView } from "./picture-painter.js";
-import { EMPTY_PICTURE, applyPaneButton, applyVerdict } from "./picture-state.js";
+import { EMPTY_PICTURE, applyPaneButton, applyPaneGeometry, applyVerdict } from "./picture-state.js";
 import type { Picture, PictureEntry } from "./picture-state.js";
 import { openViewPane } from "./view-pane.js";
 import type { PrecisionBounds, ViewPane } from "./view-pane.js";
@@ -55,6 +55,9 @@ export interface TesterPlatform<E extends ElementSlice<E>> {
 	readonly reticle?: PaneButton;
 	readonly goMillion?: PaneButton;
 	readonly goTwoTo21?: PaneButton;
+	readonly paneSize?: { readonly large: (on: boolean) => void };
+	readonly paneLarge?: PaneButton;
+	readonly paneSmall?: PaneButton;
 }
 
 /** A button of the page's, whose press the composition root listens for. */
@@ -141,6 +144,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		if (openedPane.ok) pane = openedPane.pane;
 		else problems.push(...openedPane.problems);
 	}
+	if (pane !== null) picture = applyPaneGeometry(picture, pane.geometry()).picture;
 	paintWholePage(scene, view, picture);
 	pane?.show(picture.view);
 
@@ -190,6 +194,20 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	if (!openedCapture.ok) problems.push(`the capture refused its declaration: ${JSON.stringify(openedCapture.problems)}`);
 	if (openedPaneCapture !== null && !openedPaneCapture.ok) problems.push(`the view pane's capture refused its declaration: ${JSON.stringify(openedPaneCapture.problems)}`);
 	if (problems.length > 0) paintWholePage(scene, view, picture);
+	/**
+	 * The header's two buttons, large and small: each sets the pane's size and, inside its own delivery, draws the
+	 * pane again at its new size, its centre and level held, so no stale view is left for the next input to mend.
+	 */
+	for (const [button, large] of [[platform.paneLarge, true], [platform.paneSmall, false]] as const) {
+		button?.addEventListener("click", () => {
+			platform.paneSize?.large(large);
+			const paneGeometry = pane?.geometry() ?? null;
+			const previous = picture;
+			const applied = applyPaneGeometry(previous, paneGeometry);
+			picture = applied.picture;
+			paintChanges(previous, applied.changed, paneGeometry);
+		});
+	}
 	for (const [button, verb] of [[platform.reticle, "home"], [platform.goMillion, "go-million"], [platform.goTwoTo21, "go-two-to-21"]] as const) {
 		button?.addEventListener("click", () => {
 			const paneGeometry = pane?.geometry() ?? null;

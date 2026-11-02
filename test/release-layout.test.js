@@ -24,7 +24,7 @@ test("the site holds the entry and one folder named by the release, and nothing 
 test("the entry names only its own folder -- its stylesheet and its one module script -- and holds no inline script and no other address", () => {
 	const entry = fs.readFileSync(path.join(siteRoot, "index.html"), "utf8");
 	const addresses = [...entry.matchAll(/\b(?:src|href)="([^"]*)"/g)].map((m) => m[1]);
-	assert.deepEqual(addresses, ["data:,", `${releaseFolder}/input-tester.css`, `${releaseFolder}/app/page-entry.js`, "?plan=ansi", "?plan=chromebook", "#view", "#"], "the plans' links, and the pane's two fragments, which load nothing");
+	assert.deepEqual(addresses, ["data:,", `${releaseFolder}/input-tester.css`, `${releaseFolder}/app/page-entry.js`, "?plan=ansi", "?plan=chromebook"]);
 	assert.equal([...entry.matchAll(/<script\b/g)].length, 1, "one script element");
 	assert.match(entry, /<script type="module" src="[^"]+"><\/script>/, "and it is the module script, with no inline body");
 	assert.ok(!/<style\b|\bstyle="|\bon[a-z]+="/i.test(entry), "no inline style and no handler attribute");

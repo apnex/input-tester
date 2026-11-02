@@ -419,6 +419,12 @@ export function applyPaneButton(picture: Picture, verb: "home" | "go-million" | 
 	return { picture: next, changed: new Set<PictureEntry>(view === picture.view ? [] : ["view"]) };
 }
 
+/** Applies the pane's size, outside any verdict -- at the first paint, and when the header's buttons change its size -- answering the record, its view's scale the pane's at that size, and which entries changed. */
+export function applyPaneGeometry(picture: Picture, pane: PaneGeometry | null): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
+	const view = withScale(picture.view, pane);
+	return { picture: view === picture.view ? picture : Object.freeze({ ...picture, view }), changed: new Set<PictureEntry>(view === picture.view ? [] : ["view"]) };
+}
+
 /** The view with its scale for the pane's geometry, the very view when the scale is the same, or when no pane is laid out. */
 function withScale(view: ViewPicture, pane: PaneGeometry | null): ViewPicture {
 	const scale = paneLaidOut(pane) ? paneScale(pane, view.level) : view.scale;

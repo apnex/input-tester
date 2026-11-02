@@ -11,9 +11,9 @@
 <header>
 <h1>input-tester</h1>
 <p>What your keyboard, mouse and touchpad send, and what each gesture is taken to mean, as it happens. Nothing you press, move or type leaves this page, and nothing is stored.</p>
-<nav>Plan: <a href="?plan=ansi">full-size ANSI</a> <a href="?plan=chromebook">Chromebook</a> | View pane: <a href="#view">large, to judge each gesture</a> <a href="#">small</a></nav>
+<nav>Plan: <a href="?plan=ansi">full-size ANSI</a> <a href="?plan=chromebook">Chromebook</a> | View pane: <button id="pane-large" type="button">large, to judge each gesture</button> <button id="pane-small" type="button">small</button></nav>
 </header>
-<span id="view"></span>
+<input id="view-large" type="checkbox" hidden aria-hidden="true">
 <main>
 <svg id="input-surface" viewBox="0 0 1640 900" preserveAspectRatio="xMidYMin meet" role="img" aria-label="A keyboard and a mouse, lit as you use them, with every rule they are matched against"></svg>
 <div id="view-pane-box">

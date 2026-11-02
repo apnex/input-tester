@@ -481,3 +481,23 @@ The version is `0.2.0`: the release workflow refuses a tag that is not `package.
 - Five mutants, each killed: `M77`, a precision button a cell off its line; `M78`, the readout never finding the hit; `M79`, the pane shown only when the view changes, so a resize of its height alone is never followed; `M80`, the scale not shown; `M81`, the large pane's split not applied at `#view`; `M75` names the pane's code as it now stands.
 - The gate's viewport stays 2,080 pixels wide, the picture a drawing unit to a pixel with the pane small; the precision test opens `#view`.
 
+---
+
+## 0014 - Move 6's verification: the large pane right at its first paint, and the precision lines as ground
+
+**Ruled by:** move 6's verifier, 2026-11-02, failing `0013`'s build on one blocking finding, B1, with two findings and three low ones beside it, and accepting `0012`'s and `0013`'s errata (draw's `H26-23`, PAN-ZOOM.md move 6).\
+**Affects:** `src/page-entry.ts`, `src/composition-root.ts`, `src/picture-state.ts`, `src/input-router.ts`, `src/input-bindings.ts`; `page/index.html`, `page/input-tester.css`; `test/`; `tools/run-mutants.mjs`; `docs/GUIDE.md`; and `docs/ARCHITECTURE-TARGET.md`, revision 13.
+
+**Ruling.**\
+Loaded fresh at `#view`, as GUIDE section 9 tells the director, the pane was drawn at the small layout's scale and centre until the pointer first moved -- at 1366 by 657 a scale of 0.1422 where 0.3411 was right, the grid over about 42% of the pane, the origin off its centre: the page composes before Chrome matches `:target`, so `0013`'s layout by the fragment's selector came too late for the first paint.\
+The layout is now a hidden checkbox the stylesheet reads, `#view-large`, which `page-entry.ts` sets from the address's fragment before anything is composed, so the first paint is drawn at the size the address asks; writing a checkbox's `checked` is the page's one write outside a scene, made at load and in a button's press, both before or inside a delivery, as GT2 asks.\
+The header's "large" and "small" are buttons, no longer links: each sets the layout and, inside its own press, draws the pane again at its new size, its centre and level held, so the director meets no stale pane after either.\
+A resize of the window is still no input, so the pane is drawn again at the next one; GUIDE section 9 says plainly what the director sees until then -- the view it had, its grid perhaps short of its new edges -- and to move the pointer over it once.\
+A right drag that starts on a precision line now pans: the line is hit-tested by the platform, so the pane can read out where it is hit, and a layer the platform looks through would refuse that; so a press on a precision line counts as open ground instead, the line marking ground as draw's canvas passes a zone pressed without Shift.\
+The view's scale is set at the first paint, so the picture's view lines and the pane's readouts agree before any input; the pane's width has a plain `20vw` or `48vw` before its whole-pixel `round()`, for a browser without `round()`; and GUIDE section 9's precision step names the pane's nearest level at 1366 by 657, about 0.68 pixels a unit large and 0.28 small.
+
+**Settled by the build.**
+- `test/browser/view-pane.test.js` loads `#view` fresh and holds the pane's scale, centre and grid to its large size before any input, with the readouts and the picture's view lines giving that scale -- failing on `0013`'s code, a scale of 0.2167 against 0.5198; presses "large" and then "small" and holds the pane right at each before the pointer reaches it; and pans from a press on the line at 1,000,000.
+- `test/worked-verdicts.test.js` pans by several moves, each measured from where the pan engaged.
+- Five mutants, each killed: `M82`, each pan move measured from the centre the last left (the verifier's m2); `M83`, the layout not set from the address; `M84`, the header's buttons leaving the pane for the next input; `M85`, a precision line no ground; `M86`, the first paint without the scale; `M48` and `M81` name the code as it now stands.
+

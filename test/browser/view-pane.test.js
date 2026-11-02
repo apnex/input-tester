@@ -263,3 +263,72 @@ test("a resize redraws the pane at the next input, inside its delivery (GT2): it
 	await t.load("?plan=ansi");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
+
+test("loaded fresh at #view, as GUIDE section 9 tells the director, the pane is drawn for its large size before any input: its scale the 1920 by 1080 frame's fit in it, 0, 0 at its centre, its grid reaching its edges, and the readouts and the picture's view lines giving that scale", TEST, async () => {
+	await t.load("?plan=chromebook#view");
+	await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+	const facts = await t.facts();
+	const p = await pane();
+	assert.ok(p.width > 0.45 * VIEWPORT.width, `the pane large: ${p.width} of ${VIEWPORT.width}`);
+	close(p.view.scale, Math.min(p.width / 1920, p.height / 1080), "the scale before any input");
+	close(p.view.x + p.width / (2 * p.view.scale), 0, "the centre's x before any input");
+	close(p.view.y + p.height / (2 * p.view.scale), 0, "the centre's y before any input");
+	const xs = await t.page("[...document.querySelector('#view-pane .pane-dots').getAttribute('d').matchAll(/M(-?[0-9.e+-]+) /g)].map((m) => Number(m[1]))");
+	const right = p.view.x + p.width / p.view.scale;
+	assert.ok(Math.max(...xs) >= right - 2 * 60 * 8, `the grid reaches the pane's right edge, ${right}: its last column at ${Math.max(...xs)}`);
+	const scaleWords = String(Math.round(p.view.scale * 10000) / 10000);
+	assert.match(await t.page("[...document.querySelectorAll('#view-readouts text tspan')].map((s) => s.textContent).join(' ')"), new RegExp(`scale ${scaleWords.replace(".", "\\.")} pixels a unit`));
+	assert.match(await t.page("[...document.querySelectorAll('#input-surface .view-line tspan')].map((s) => s.textContent).join(' ')"), new RegExp(`^view: 1x, scale ${scaleWords.replace(".", "\\.")}`), "the picture's view lines agree with the pane");
+	assert.equal(await t.facts(), facts, "no input was delivered");
+	await t.load("?plan=ansi");
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+/** A trusted click at the centre of the element of the given id. */
+async function click(id) {
+	const at = await t.page(`(() => { const r = document.getElementById('${id}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+	await t.mouse("mouseMoved", at);
+	await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+	await t.mouse("mouseReleased", at, { button: "left", buttons: 0 });
+	await t.settle();
+}
+
+test("the header's large and small buttons each draw the pane again at its new size inside their own press, its centre and level held, before the pointer reaches the pane", TEST, async () => {
+	await t.load("?plan=ansi");
+	await t.key("keyDown", "-", "Minus", { text: "-", windowsVirtualKeyCode: 189 });
+	await t.key("keyUp", "-", "Minus", { windowsVirtualKeyCode: 189 });
+	await t.wheel(await t.page("(() => { const r = document.getElementById('view-pane').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()"), 90, 30);
+	await t.settle();
+	const before = await pane();
+	for (const [id, share] of [["pane-large", 0.45], ["pane-small", 0.25]]) {
+		await click(id);
+		const p = await pane();
+		assert.ok(id === "pane-large" ? p.width > share * VIEWPORT.width : p.width < share * VIEWPORT.width, `${id}: a pane ${p.width} wide`);
+		close(p.view.scale, Math.min(p.width / 1920, p.height / 2 / 540) / 2, `${id}: the scale at 2x for the new size`);
+		close(p.view.x + p.width / (2 * p.view.scale), before.centre.x, `${id}: the centre's x held`);
+		close(p.view.y + p.height / (2 * p.view.scale), before.centre.y, `${id}: the centre's y held`);
+		assert.equal(p.level, 2, `${id}: the level held`);
+	}
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+test("a right drag that starts on a precision line pans: the line marks ground, hit-tested for its readout alone (0014)", TEST, async () => {
+	await t.load("?plan=ansi");
+	await click("go-million");
+	const p = await pane();
+	const on = { x: Math.round(p.left + p.width / 2 + 20), y: Math.round(p.top + p.height / 2 + 40) };
+	assert.equal(await t.page(`document.elementFromPoint(${on.x}, ${on.y})?.getAttribute('class') ?? null`), "precision-line precision-1000000", "the press lands on the line");
+	await t.mouse("mouseMoved", on);
+	await t.mouse("mousePressed", on, { button: "right", buttons: 2 });
+	await t.mouse("mouseMoved", { x: on.x + 10, y: on.y }, { buttons: 2 });
+	await t.mouse("mouseMoved", { x: on.x + 60, y: on.y + 20 }, { buttons: 2 });
+	await t.settle();
+	assert.equal(await t.page("inputTester.picture.view.pan?.gesture ?? null"), "pan-right");
+	const after = await pane();
+	close(after.centre.x - p.centre.x, -50 / after.view.scale, "the pan's x");
+	close(after.centre.y - p.centre.y, -20 / after.view.scale, "the pan's y");
+	await t.mouse("mouseReleased", { x: on.x + 60, y: on.y + 20 }, { button: "right", buttons: 0 });
+	await t.settle();
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+

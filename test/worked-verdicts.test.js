@@ -400,3 +400,20 @@ test("move 6b, the precision buttons: each brings the centre to its line, 1,000,
 	assert.deepEqual(centreAndLevel(page), [0, 0, 0.5]);
 });
 
+test("move 6, a pan of several moves: the centre follows the travel since the pan engaged, each move measured from where it engaged and not from the centre the last move left", () => {
+	const { platform, page } = freshPage();
+	platform.pointer("down", { clientX: 100, clientY: 100, button: 1, buttons: 4 });
+	platform.pointer("move", { clientX: 110, clientY: 100, button: -1, buttons: 4 });
+	for (const [x, y] of [[130, 110], [170, 90], [200, 140]]) {
+		platform.pointer("move", { clientX: x, clientY: y, button: -1, buttons: 4 });
+		assert.deepEqual(centreAndLevel(page), [-(x - 110) / paneScaleAt(1), -(y - 100) / paneScaleAt(1), 1], `after the move to ${x}, ${y}`);
+	}
+	platform.pointer("up", { clientX: 200, clientY: 140, button: 1, buttons: 0 });
+});
+
+test("move 6, the first paint: the view's scale is the pane's from the start, so the picture's view lines and the pane agree before any input", () => {
+	const { platform, page } = freshPage();
+	assert.equal(page.picture.view.scale, paneScaleAt(1));
+	assert.match(platform.textOf("view-line"), /^view: 1x, scale 0\.3125\n/);
+});
+

@@ -8,8 +8,8 @@ header nav { font-size: 13px; margin-top: 4px; }
 header nav a { margin-right: 10px; }
 main { padding: 0 8px; display: flex; gap: 8px; align-items: flex-start; }
 #input-surface { display: block; flex: 1 1 0; min-width: 0; height: auto; max-height: calc(100vh - 70px); touch-action: none; user-select: none; -webkit-user-select: none; }
-#view-pane-box { position: relative; flex: 0 0 round(down, 20vw, 1px); height: calc(100vh - 70px); }
-#view:target ~ main #view-pane-box { flex-basis: round(down, 48vw, 1px); }
+#view-pane-box { position: relative; flex: 0 0 20vw; flex-basis: round(down, 20vw, 1px); height: calc(100vh - 70px); }
+#view-large:checked ~ main #view-pane-box { flex-basis: 48vw; flex-basis: round(down, 48vw, 1px); }
 #view-pane { display: block; width: 100%; height: 100%; background: #fff; outline: 1px solid #bbb; touch-action: none; user-select: none; -webkit-user-select: none; }
 #view-readouts { position: absolute; left: 0; top: 0; width: 100%; height: 50%; pointer-events: none; }
 #view-buttons { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; }
