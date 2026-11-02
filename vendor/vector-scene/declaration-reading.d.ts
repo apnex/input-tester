@@ -16,11 +16,12 @@ export interface JudgedLayer {
     readonly attrs: readonly (readonly [string, string])[];
     readonly foreign: boolean;
 }
-/** A declaration with no problem: what a scene is opened from. */
+/** A declaration with no problem: what a scene is opened from, and whether it asked for a view (VS14). */
 export interface JudgedDeclaration {
     readonly ok: true;
     readonly platform: PlatformRoot | null;
     readonly layers: readonly JudgedLayer[];
+    readonly view: boolean;
 }
 /** VS2 rule 2 and VS3: every problem a declaration has, or what a scene is opened from. Never throws. */
 export declare function judgeDeclaration(declaration: unknown): JudgedDeclaration | {

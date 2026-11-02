@@ -114,11 +114,11 @@ test("GT4: the backlog check passes over docs/BACKLOG.md, and fails an open work
 	const r = run("check-backlog.mjs");
 	assert.equal(r.status, 0, r.stdout);
 	const pinned = pinnedVersions();
-	assert.deepEqual(pinned, { "input-capture": "0.2.0", "input-binding": "0.2.0", "vector-scene": "0.2.0", "snap-grid": "0.1.1" });
+	assert.deepEqual(pinned, { "input-capture": "0.2.0", "input-binding": "0.3.0", "vector-scene": "0.3.0", "snap-grid": "0.1.2" });
 	const table = (row) => `## Workarounds\n\n| id | workaround | evidence | retired by | state |\n|---|---|---|---|---|\n${row}\n`;
-	assert.match(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | `vector-scene` `0.2.0` | open |"), pinned).join(), /open while `vector-scene` 0\.2\.0, at or beyond the 0\.2\.0 named to retire it, is installed/);
+	assert.match(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | `vector-scene` `0.3.0` | open |"), pinned).join(), /open while `vector-scene` 0\.3\.0, at or beyond the 0\.3\.0 named to retire it, is installed/);
 	assert.match(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | `vector-scene` `0.1.5` | open |"), pinned).join(), /GT4/);
-	assert.deepEqual(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | `vector-scene` `0.3.0` | open |"), pinned), [], "open while its retiring release is not yet installed");
+	assert.deepEqual(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | `vector-scene` `0.4.0` | open |"), pinned), [], "open while its retiring release is not yet installed");
 	assert.deepEqual(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | `vector-scene` `0.2.0` | retired |"), pinned), []);
 	assert.match(backlogProblems(table("| W1 | a second hit test | `src/x.ts:1` | a later release | open |"), pinned).join(), /names no shared part and release/);
 	assert.match(backlogProblems("| id | finding | evidence | revival trigger |\n|---|---|---|---|\n| B1 | x | `y` | later |\n", pinned).join(), /B1 has no revival trigger/);

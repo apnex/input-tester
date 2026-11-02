@@ -12,7 +12,7 @@ export declare class ProblemList {
     get size(): number;
     /** True when a problem lies at the pointer or beneath it. */
     hasAtOrBeneath(pointer: string): boolean;
-    /** The refusal: a fresh, frozen, ordered list of fresh records. */
+    /** The refusal: a fresh, frozen, ordered list of fresh records, each frozen as it is made, tracking none. */
     refusal(): OpenGridResult<never>;
 }
 /** The value of an own property when it is a data property; undefined for an accessor or an absent one. */

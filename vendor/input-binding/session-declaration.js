@@ -1,14 +1,17 @@
 /**
  * A session's declaration, checked (CONTRACT.md, IB9): every problem it has, each at its pointer, or the
- * threshold and the gestures a session is opened from.
+ * threshold, the gestures and the measure a session is opened from.
  *
  * Read whole, value by value, in IB2's order: the declaration; its threshold; its gestures, each
- * gesture's name, engaged and button. Each value is judged at its own pointer before anything beneath it
- * is read (src/reflection.ts), so a gestures descriptor whose trap rewrites the threshold finds it read.
+ * gesture's name, engaged and button; its measure, when it holds one (IB16). Each value is judged at its
+ * own pointer before anything beneath it is read (src/reflection.ts), so a gestures descriptor whose trap
+ * rewrites the threshold finds it read.
  */
 import { childPointer, ProblemList } from "./declaration-problems.js";
 import { arrayProperty, dataValue, judgeRecord } from "./reflection.js";
-const DECLARATION_FORM = ["threshold", "gestures"];
+const DECLARATION_FORM = ["threshold", "gestures", "measure"];
+/** The properties a declaration must hold; measure is optional (IB9 step 2). */
+const REQUIRED_FORM = ["threshold", "gestures"];
 const GESTURE_FORM = ["name", "engaged", "button"];
 /** IB9: every problem a session's declaration has, or what a session is opened from. */
 export function checkSessionDeclaration(declaration) {
@@ -21,7 +24,7 @@ export function checkSessionDeclaration(declaration) {
     }
     for (const name of root.unknown)
         problems.add(childPointer("", name), "unknown-property");
-    for (const name of DECLARATION_FORM)
+    for (const name of REQUIRED_FORM)
         if (!root.properties.has(name))
             problems.add(childPointer("", name), "missing-property");
     // step 3
@@ -76,8 +79,19 @@ export function checkSessionDeclaration(declaration) {
         else
             seen.add(name);
     }
+    // step 6: measure, after threshold and gestures, when present a data property holding 'at' or 'screen';
+    // an accessor's value reads undefined, so it is refused with every other value
+    let measure = null;
+    const measureProperty = root.properties.get("measure");
+    if (measureProperty !== undefined) {
+        const value = dataValue(measureProperty);
+        if (value === "at" || value === "screen")
+            measure = value;
+        else
+            problems.add("/measure", "invalid-value");
+    }
     if (problems.size > 0)
         return { ok: false, problems };
-    return { ok: true, threshold: threshold + 0, gestures };
+    return { ok: true, threshold: threshold + 0, gestures, measure };
 }
 //# sourceMappingURL=session-declaration.js.map

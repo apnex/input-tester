@@ -13,11 +13,19 @@
  * them, throws while a put or a removal writes to the platform, since the scene is not re-entrant there.
  * close marks the scene closed first, then removes every layer element in reverse, attempting each, and
  * throws the first error a removal threw; every later call answers undefined and calls nothing.
+ *
+ * A scene declared with a view (VS14 to VS17) writes the view's transform on each layer's element as it is
+ * made, and again on every one at each setView, holding its writing state while it writes; then it tells the
+ * listeners registered at that moment, in order, what is visible, and while it tells them setView, put,
+ * remove and close throw, every reading function answering. Its conversions compose the view with the root's
+ * screen transform. A scene declared without one is exactly a scene of 0.2.0 but for the five functions the
+ * view adds, each of which it refuses.
  */
 import { isObject, malformed, readRecordArgument } from "./argument-reading.js";
-import { convertPoint, readPoint } from "./conversion.js";
+import { convertPoint, readPoint, readTransform } from "./conversion.js";
 import { judgeDeclaration } from "./declaration-reading.js";
 import { elementCalls, elementWriter, SVG_NAMESPACE } from "./scene-writing.js";
+import { openingView, readView, transformText, unwritable, visibleAnswer } from "./scene-view.js";
 import { firstHeldAtPoint } from "./shape-at-point.js";
 import { frozenAttributes, readShapes } from "./shape-reading.js";
 /**
@@ -35,6 +43,10 @@ function openSceneOver(declaration) {
     if (!judged.ok)
         return judged.refusal;
     const { platform } = judged;
+    // VS14: a view, asked beside a root -- which judging the declaration ensures -- so a viewed scene always has a platform
+    const viewed = judged.view && platform !== null;
+    // VS14: the view written -- the scene's own opening view until the first setView, made as the scene opens
+    let current = openingView();
     const layers = Object.freeze(judged.layers.map((layer) => Object.freeze({ name: layer.name, attrs: frozenAttributes(layer.attrs), foreign: layer.foreign })));
     const sceneLayers = new Map();
     const foreignLayers = new Set();
@@ -58,6 +70,9 @@ function openSceneOver(declaration) {
                 inProgress = element;
                 for (const [name, written] of layer.attrs)
                     opening.setAttribute(inProgress, name, written);
+                // VS14: the opening view written as the layer is made, so no frame shows a layer unviewed
+                if (viewed)
+                    opening.setAttribute(inProgress, "transform", transformText(current));
                 Reflect.apply(platform.appendChild, platform.root, [inProgress]);
             }
             catch (error) {
@@ -79,6 +94,10 @@ function openSceneOver(declaration) {
     let state = "open";
     let writing = false;
     let writingFor = "";
+    // VS17: true while setView tells its listeners, when setView, put, remove and close throw
+    let telling = false;
+    // VS17: the listeners, each its own entry, so one function registered twice is two
+    const listeners = [];
     const writer = platform === null ? null : elementWriter(platform.rootDocument, platform.createElementNS, () => writingFor);
     const placing = elementCalls(() => writingFor);
     const closing = elementCalls(() => "close");
@@ -91,7 +110,20 @@ function openSceneOver(declaration) {
         if (state === "failed")
             throw new Error(`${fn}: the scene failed when the platform threw while it wrote; only close is left`);
     };
-    /** Runs the platform calls of one put or removal; a throw fails the scene and propagates unchanged. */
+    /** VS17: a call that changes the scene, refused while setView tells its listeners. */
+    const judgeNotTelling = (fn) => {
+        if (telling)
+            throw new Error(`${fn}: called while the scene tells its view's listeners, where it is not re-entrant`);
+    };
+    /** VS14: the scene's state, then a scene declared without a view refused; a call that changes the scene refused while listeners are told. */
+    const judgeViewed = (fn, changes) => {
+        judgeState(fn);
+        if (changes)
+            judgeNotTelling(fn);
+        if (!viewed)
+            throw new Error(`${fn}: the scene was declared without a view`);
+    };
+    /** Runs the platform calls of one put, removal or setView; a throw fails the scene and propagates unchanged. */
     const write = (fn, work) => {
         writing = true;
         writingFor = fn;
@@ -149,6 +181,7 @@ function openSceneOver(declaration) {
             }
         }
         judgeState(fn);
+        judgeNotTelling(fn);
         const items = target.items;
         let ahead = null;
         if (before !== null) {
@@ -208,6 +241,7 @@ function openSceneOver(declaration) {
         const target = readLayer(fn, layer);
         const name = readKey(fn, key);
         judgeState(fn);
+        judgeNotTelling(fn);
         const at = target.items.findIndex((item) => item.key === name);
         if (at < 0)
             return undefined;
@@ -272,13 +306,123 @@ function openSceneOver(declaration) {
             throw new Error(`${fn}: the scene has no root, so no layer has an element`);
         return layerElements.get(name);
     };
-    /** VS10: a conversion, its point read first, then the scene's state, then the root's screen transform. */
+    /**
+     * VS10: a conversion, its point read first, then the scene's state, then the root's screen transform; a viewed
+     * scene's composed with its view, each step in binary64 in this order: toScreen applies the root's transform
+     * to (s * (p.x - x), s * (p.y - y)), and toDrawing answers (r.x / s + x, r.y / s + y) for r the root point VS10
+     * answers.
+     */
     const convert = (fn, point, inverted) => {
         const read = readPoint(fn, point);
         judgeState(fn);
         if (platform === null)
             throw new Error(`${fn}: the scene has no root, so no screen transform`);
-        return convertPoint(fn, platform, read, inverted);
+        if (!viewed)
+            return convertPoint(fn, platform, read, inverted);
+        const { x, y, scale: s } = current;
+        if (!inverted)
+            return convertPoint(fn, platform, { x: s * (read.x - x), y: s * (read.y - y) }, false);
+        const r = convertPoint(fn, platform, read, true);
+        const answer = { x: r.x / s + x, y: r.y / s + y };
+        if (!Number.isFinite(answer.x) || !Number.isFinite(answer.y))
+            throw new Error(`${fn}: the converted point is not finite`);
+        return Object.freeze(answer);
+    };
+    /**
+     * VS15: what the root shows -- its clientWidth and then its clientHeight read at the call, each judged as
+     * read, then its screen transform read as VS10 reads one -- judged whole by visibleAnswer.
+     */
+    const visibleNow = (fn) => {
+        const root = platform.root;
+        const width = root.clientWidth;
+        if (typeof width !== "number" || !Number.isFinite(width) || !(width >= 0))
+            throw new Error(`${fn}: the root's clientWidth must be a finite number at least 0`);
+        const height = root.clientHeight;
+        if (typeof height !== "number" || !Number.isFinite(height) || !(height >= 0))
+            throw new Error(`${fn}: the root's clientHeight must be a finite number at least 0`);
+        const { a, b } = readTransform(fn, platform, false);
+        const { x, y, scale: s } = current;
+        return visibleAnswer(fn, x, y, width / s, height / s, s * Math.hypot(a, b));
+    };
+    /**
+     * VS14: writes a view: its argument read first, then the scene's state, then its transform's members judged,
+     * all before any platform write; then the transform written on every layer's element, scene and foreign
+     * alike, in declared order, while the scene holds its writing state; then the listeners told (VS17).
+     */
+    const setView = (value) => {
+        const fn = "setView";
+        const read = readView(fn, value);
+        judgeViewed(fn, true);
+        const refused = unwritable(read);
+        if (refused !== null)
+            throw malformed(fn, refused);
+        const text = transformText(read);
+        write(fn, () => {
+            for (const element of made)
+                placing.setAttribute(element, "transform", text);
+        });
+        current = Object.freeze({ x: read.x, y: read.y, scale: read.scale });
+        const told = [...listeners];
+        if (told.length > 0) {
+            telling = true;
+            try {
+                const seen = visibleNow(fn);
+                for (const { listener } of told)
+                    Reflect.apply(listener, undefined, [seen]);
+            }
+            finally {
+                telling = false;
+            }
+        }
+        return current;
+    };
+    /** VS14: the view written. */
+    const view = () => {
+        judgeViewed("view", false);
+        return current;
+    };
+    /** VS15: what the root shows, in snap-grid's view form. */
+    const visible = () => {
+        judgeViewed("visible", false);
+        return visibleNow("visible");
+    };
+    /**
+     * VS16: the view at `scale` that keeps the drawing point under `screen` where it is, setting nothing: the root
+     * point r under the screen point read as toDrawing reads it through the root's screen transform, the drawing
+     * point p under it, and x' = p.x - r.x / scale; an answer setView would refuse is refused with Errors' Error.
+     */
+    const zoomAbout = (screen, scale) => {
+        const fn = "zoomAbout";
+        const point = readPoint(fn, screen);
+        if (typeof scale !== "number" || !Number.isFinite(scale) || !(scale > 0))
+            throw malformed(fn, "the scale must be a finite number above 0");
+        judgeViewed(fn, false);
+        const r = convertPoint(fn, platform, point, true);
+        const { x, y, scale: s } = current;
+        const p = { x: r.x / s + x, y: r.y / s + y };
+        const answer = { x: p.x - r.x / scale, y: p.y - r.y / scale, scale };
+        const refused = unwritable(answer);
+        if (refused !== null)
+            throw new Error(`${fn}: ${refused}`);
+        return Object.freeze(answer);
+    };
+    /** VS17: registers a listener told after each setView; answers a function that removes it, a second call doing nothing. */
+    const onView = (listener) => {
+        const fn = "onView";
+        if (typeof listener !== "function")
+            throw malformed(fn, "the listener must be a function");
+        judgeViewed(fn, false);
+        const entry = { listener: listener };
+        listeners.push(entry);
+        let registered = true;
+        const removeListener = () => {
+            if (!registered)
+                return undefined;
+            registered = false;
+            listeners.splice(listeners.indexOf(entry), 1);
+            return undefined;
+        };
+        return Object.freeze(removeListener);
     };
     /** VS3's rule 5: closes the scene, then removes every layer element it made, in reverse. */
     const close = () => {
@@ -286,6 +430,7 @@ function openSceneOver(declaration) {
             return undefined;
         if (writing)
             throw new Error("close: called while the scene writes to the platform, where it is not re-entrant");
+        judgeNotTelling("close");
         state = "closed";
         let failed = false;
         let first;
@@ -306,9 +451,9 @@ function openSceneOver(declaration) {
     };
     const toDrawing = (screen) => convert("toDrawing", screen, true);
     const toScreen = (point) => convert("toScreen", point, false);
-    for (const fn of [put, remove, items, itemOf, itemAt, layerElement, toDrawing, toScreen, close])
+    for (const fn of [put, remove, items, itemOf, itemAt, layerElement, toDrawing, toScreen, setView, view, visible, zoomAbout, onView, close])
         Object.freeze(fn);
-    const scene = Object.freeze({ layers, put, remove, items, itemOf, itemAt, layerElement, toDrawing, toScreen, close });
+    const scene = Object.freeze({ layers, put, remove, items, itemOf, itemAt, layerElement, toDrawing, toScreen, setView, view, visible, zoomAbout, onView, close });
     return Object.freeze({ ok: true, scene });
 }
 //# sourceMappingURL=open-scene.js.map

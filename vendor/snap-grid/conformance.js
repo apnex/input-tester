@@ -26,7 +26,7 @@
  *   as the failure of the tuple it belongs to, and the kit itself never throws for it.
  */
 import { malformed, readArray } from "./argument-check.js";
-import { deepFreeze, exactRecord } from "./plain-data.js";
+import { exactRecord } from "./plain-data.js";
 import { readGridShape } from "./shape-form.js";
 const FN = "checkGridShape";
 const STRIDE_LIMIT = 2 ** 52;
@@ -39,9 +39,11 @@ class Thrown {
     }
 }
 const isObject = (v) => typeof v === "object" && v !== null;
+/** A thrown value's message, always a string: an Error's message taken as a string, anything else by String. */
 const messageOf = (e) => {
     try {
-        return e instanceof Error ? e.message : String(e);
+        const m = e instanceof Error ? e.message : e;
+        return typeof m === "string" ? m : String(m);
     }
     catch {
         return "an unreadable error";
@@ -142,7 +144,10 @@ const isStride = (s) => {
         t /= 2;
     return t === 1;
 };
-/** A point as a failure's args hold it: { x, y } alone, each read once, a read that throws giving undefined. */
+/**
+ * A point as a failure's args hold it: { x, y } alone, each read once, a read that throws giving undefined, and
+ * each copied as any other argument is (copyPlain), so a number is itself and nothing of the caller's is kept.
+ */
 function copyPoint(point) {
     if ((typeof point !== "object" || point === null) && typeof point !== "function")
         return point;
@@ -154,12 +159,15 @@ function copyPoint(point) {
             return undefined;
         }
     };
-    return { x: read("x"), y: read("y") };
+    const x = read("x");
+    const y = read("y");
+    const seen = new Map();
+    return Object.freeze({ x: copyPlain(x, seen), y: copyPlain(y, seen) });
 }
 /**
  * Any other argument as a failure's args hold it: a deep copy of its plain data -- an array's elements, an
  * object's own enumerable data properties -- a function copied as undefined, an object that cannot be read
- * as an empty one.
+ * as an empty one. Each copy is frozen once it is filled, so the failure list is frozen as it is made.
  */
 function copyPlain(value, seen = new Map()) {
     if (typeof value === "function")
@@ -168,29 +176,41 @@ function copyPlain(value, seen = new Map()) {
         return value;
     if (seen.has(value))
         return seen.get(value);
+    let partial = null;
     try {
         if (Array.isArray(value)) {
             const out = [];
+            partial = out;
             seen.set(value, out);
             const length = value.length;
             for (let i = 0; i < length; i++) {
                 const d = Object.getOwnPropertyDescriptor(value, i);
                 out.push(d !== undefined && "value" in d ? copyPlain(d.value, seen) : undefined);
             }
-            return out;
+            return Object.freeze(out);
         }
         const out = {};
+        partial = out;
         seen.set(value, out);
         for (const key of Object.keys(value)) {
             const d = Object.getOwnPropertyDescriptor(value, key);
             if (d !== undefined && "value" in d)
                 out[key] = copyPlain(d.value, seen);
         }
-        return out;
+        return Object.freeze(out);
     }
     catch {
-        const out = {};
-        seen.set(value, out);
+        // a copy begun before the read that threw may be held by a cycle beneath it: frozen as it stands
+        if (partial !== null)
+            Object.freeze(partial);
+        const out = Object.freeze({});
+        try {
+            seen.set(value, out);
+        }
+        catch {
+            // the copy's map is full, as V8 holds a Map to 2^24 entries: this value is not remembered, and is copied
+            // as an empty object wherever it is met, so the kit still answers every failure
+        }
         return out;
     }
 }
@@ -198,10 +218,10 @@ function copyPlain(value, seen = new Map()) {
 function copyGot(value) {
     try {
         if (value instanceof Thrown)
-            return { thrown: value.message };
+            return Object.freeze({ thrown: value.message });
     }
     catch {
-        return {};
+        return Object.freeze({});
     }
     return copyPlain(value);
 }
@@ -219,7 +239,7 @@ function judgeCase(shape, open, c, failures) {
         if (verdict === null)
             return;
         const copied = args.map((a, i) => (points.includes(i) ? copyPoint(a) : copyPlain(a)));
-        failures.push({ invariant, case: c.name, args: copied, got: copyGot(verdict.got) });
+        failures.push(Object.freeze({ invariant, case: c.name, args: Object.freeze(copied), got: copyGot(verdict.got) }));
     };
     // open: the declaration admitted, the answer of SG1's form, frozen, and fresh
     const opened = {};
@@ -514,6 +534,7 @@ export function checkGridShape(shape, cases) {
     const failures = [];
     for (const c of checked)
         judgeCase(shape, parts.open, c, failures);
-    return deepFreeze(failures);
+    // each failure frozen as it is made, tracking none, so the list is as long as the cases make it
+    return Object.freeze(failures);
 }
 //# sourceMappingURL=conformance.js.map

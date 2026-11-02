@@ -33,10 +33,10 @@ Each part is released only as a tarball attached to its GitHub release, so the a
 The tester's dependencies:
 ```json
 "dependencies": {
-  "@apnex/input-binding": "https://github.com/apnex/input-binding/releases/download/v0.2.0/apnex-input-binding-0.2.0.tgz",
+  "@apnex/input-binding": "https://github.com/apnex/input-binding/releases/download/v0.3.0/apnex-input-binding-0.3.0.tgz",
   "@apnex/input-capture": "https://github.com/apnex/input-capture/releases/download/v0.2.0/apnex-input-capture-0.2.0.tgz",
-  "@apnex/snap-grid": "https://github.com/apnex/snap-grid/releases/download/v0.1.1/apnex-snap-grid-0.1.1.tgz",
-  "@apnex/vector-scene": "https://github.com/apnex/vector-scene/releases/download/v0.2.0/apnex-vector-scene-0.2.0.tgz"
+  "@apnex/snap-grid": "https://github.com/apnex/snap-grid/releases/download/v0.1.2/apnex-snap-grid-0.1.2.tgz",
+  "@apnex/vector-scene": "https://github.com/apnex/vector-scene/releases/download/v0.3.0/apnex-vector-scene-0.3.0.tgz"
 }
 ```
 

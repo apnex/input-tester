@@ -11,8 +11,12 @@
  * what it left. A refused operation throws an Error whose message begins with its name, and changes nothing.
  *
  * The session's state is one frozen value, replaced exactly when it changes (IB12). The session holds
- * nothing of a fact but a copy of its `at`, its `button` and its `pointerId`, and of a key fact its `code`
+ * nothing of a fact but a copy of its point, its `button` and its `pointerId`, and of a key fact its `code`
  * while the key is held; and no working data of a gesture: the live gesture is a name, a row and `engaged`.
+ *
+ * A session declared with `measure: 'screen'` (IB16) reads each pointer fact's `screen` in the place of its
+ * `at`, and never its `at`: every point it measures -- a press's origin, a move's point, a restart's `from` --
+ * is a screen point, and its threshold is in screen pixels.
  */
 import { malformed, readOwnData, readOwnStringKeys, readPoint, requireObjectValue, requirePlainObject } from "./argument-reading.js";
 import { checkSessionDeclaration } from "./session-declaration.js";
@@ -22,12 +26,15 @@ const BECOME_FORM = new Set(["gesture", "from"]);
 const HANDLERS_FORM = new Set(["match", "cancelled"]);
 /** The fact an operation reads: a non-null object, not a function, of any prototype (IB1). */
 const readFact = (fn, fact) => requireObjectValue(fn, fact, "the fact");
-/** A fact's `at`: an own data property holding a point, its x and y then read (IB1, IB2). */
-function readFactAt(fn, fact) {
-    const at = readOwnData(fn, fact, "at", "the fact's at");
-    if (!at.present)
-        throw malformed(fn, "the fact must hold at, an own data property");
-    const { x, y } = readPoint(fn, at.value, "the fact's at");
+/**
+ * A fact's point: its `at`, or under `measure: 'screen'` its `screen` (IB16) -- an own data property holding a
+ * point, its x and y then read (IB1, IB2). The other is never read.
+ */
+function readFactPoint(fn, fact, key) {
+    const point = readOwnData(fn, fact, key, `the fact's ${key}`);
+    if (!point.present)
+        throw malformed(fn, `the fact must hold ${key}, an own data property`);
+    const { x, y } = readPoint(fn, point.value, `the fact's ${key}`);
     return { x: x + 0, y: y + 0 };
 }
 /** A fact's `button`: an own data property holding a safe integer (IB1). */
@@ -60,10 +67,10 @@ function readFactCode(fn, fact) {
         throw malformed(fn, "the fact's code must be a string or null");
     return code.value;
 }
-/** What pointerDown reads, in IB2's order: the fact; its at; that point's x and y; its button; its pointerId. */
-function readDownFact(fn, fact) {
+/** What pointerDown reads, in IB2's order: the fact; its at, or its screen (IB16); that point's x and y; its button; its pointerId. */
+function readDownFact(fn, fact, key) {
     const read = readFact(fn, fact);
-    const at = readFactAt(fn, read);
+    const at = readFactPoint(fn, read, key);
     const button = readFactButton(fn, read);
     const pointer = readFactPointerId(fn, read);
     return { at, button, pointer };
@@ -92,7 +99,10 @@ export function openGestureSession(declaration) {
     const threshold = checked.threshold;
     const gestures = Object.freeze(checked.gestures.map((g) => Object.freeze({ name: g.name, engaged: g.engaged, button: g.button })));
     const declared = new Map(gestures.map((g) => [g.name, g]));
-    const sessionDeclaration = Object.freeze({ threshold, gestures });
+    // IB9 and IB16: 0.2.0's declaration exactly when it holds no measure, and the measure beside it when it does
+    const sessionDeclaration = checked.measure === null ? Object.freeze({ threshold, gestures }) : Object.freeze({ threshold, gestures, measure: checked.measure });
+    // IB16: the property of a pointer fact the session measures, its at or its screen
+    const pointKey = checked.measure === "screen" ? "screen" : "at";
     let state = Object.freeze({ press: null, gesture: null, keys: Object.freeze([]) });
     /**
      * IB15's "the press": which press the session holds, counted -- a new number at every pointerDown, the
@@ -189,7 +199,7 @@ export function openGestureSession(declaration) {
         },
         /** IB10, IB11: replaces the press; the live gesture takes it when it declares the fact's button. */
         pointerDown(fact) {
-            const down = readDownFact("pointerDown", fact);
+            const down = readDownFact("pointerDown", fact, pointKey);
             const taken = downTransition(down);
             return Object.freeze({ state, phase: null, gesture: null, taken });
         },
@@ -206,7 +216,7 @@ export function openGestureSession(declaration) {
         pointerMove(fact) {
             const fn = "pointerMove";
             const read = readFact(fn, fact);
-            const at = readFactAt(fn, read);
+            const at = readFactPoint(fn, read, pointKey);
             const pointer = readFactPointerId(fn, read);
             const press = state.press;
             if (press !== null && pointer !== press.pointer)
@@ -294,7 +304,7 @@ export function openGestureSession(declaration) {
         resolvePress(fact, handlers) {
             const fn = "resolvePress";
             // step 1: the fact, as pointerDown reads it; then the handlers, as startGesture reads its argument
-            const down = readDownFact(fn, fact);
+            const down = readDownFact(fn, fact, pointKey);
             const read = requirePlainObject(fn, handlers, "the handlers");
             const keys = readArgumentKeys(fn, read, HANDLERS_FORM, "the handlers", "match");
             const matchProperty = readOwnData(fn, read, "match", "the handlers' match");

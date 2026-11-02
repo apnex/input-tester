@@ -5,6 +5,15 @@ export declare function readPoint(fn: string, value: unknown): {
     readonly x: number;
     readonly y: number;
 };
+/** VS10 steps 3 to 5: the root's screen transform, or its inverse for toDrawing, its a to f read in order, all before any is judged. */
+export declare function readTransform(fn: string, platform: PlatformRoot, inverted: boolean): {
+    readonly a: number;
+    readonly b: number;
+    readonly c: number;
+    readonly d: number;
+    readonly e: number;
+    readonly f: number;
+};
 /** VS10 steps 3 to 6: the point converted through the root's screen transform, or its inverse for toDrawing. */
 export declare function convertPoint(fn: string, platform: PlatformRoot, point: {
     readonly x: number;
