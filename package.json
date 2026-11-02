@@ -1,6 +1,6 @@
 {
   "name": "input-tester",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Show a person, live and exactly, what their keyboard, mouse and touchpad send and what each gesture is taken to mean, composed only from four published, reusable components.",
   "license": "MIT",

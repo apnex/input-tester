@@ -7,9 +7,10 @@
 // drawn from what is visible, thinned to 24 screen pixels; and the picture of the keyboard and mouse unmoved throughout.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import zlib from "node:zlib";
 
 import { siteRoot } from "../support/built-site.js";
-import { MODIFIERS, openTesterInChrome } from "./tester-in-chrome.js";
+import { MODIFIERS, VIEWPORT, openTesterInChrome } from "./tester-in-chrome.js";
 
 const TEST = { timeout: 90000 };
 let t;
@@ -133,5 +134,132 @@ test("every gesture on the pane moves its view as section 3.6 says, the picture 
 	close(p.view.x + p.width / (2 * p.view.scale), 0, "home's centre on the pane");
 
 	assert.equal(await t.page(PICTURE), picture, "the picture's keys and mouse, and its root on screen, never moved");
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+/** A PNG's pixels, 8-bit RGB or RGBA and not interlaced, as Chrome writes a screenshot: `coordinate-precision.mjs`'s reader. */
+function pixels(buf) {
+	let pos = 8;
+	let w = 0;
+	let h = 0;
+	let type = 0;
+	const idat = [];
+	while (pos < buf.length) {
+		const len = buf.readUInt32BE(pos);
+		const kind = buf.toString("ascii", pos + 4, pos + 8);
+		const body = buf.subarray(pos + 8, pos + 8 + len);
+		if (kind === "IHDR") {
+			w = body.readUInt32BE(0);
+			h = body.readUInt32BE(4);
+			type = body[9];
+		}
+		if (kind === "IDAT") idat.push(body);
+		pos += 12 + len;
+	}
+	const bpp = type === 6 ? 4 : 3;
+	const raw = zlib.inflateSync(Buffer.concat(idat));
+	const stride = w * bpp;
+	const out = Buffer.alloc(h * stride);
+	for (let y = 0; y < h; y++) {
+		const f = raw[y * (stride + 1)];
+		const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+		for (let x = 0; x < stride; x++) {
+			const a = x >= bpp ? out[y * stride + x - bpp] : 0;
+			const b = y ? out[(y - 1) * stride + x] : 0;
+			const c = x >= bpp && y ? out[(y - 1) * stride + x - bpp] : 0;
+			const p = a + b - c;
+			const pa = Math.abs(p - a);
+			const pb = Math.abs(p - b);
+			const pc = Math.abs(p - c);
+			out[y * stride + x] = (line[x] + [0, a, b, (a + b) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? b : c][f]) & 255;
+		}
+	}
+	return { w, h, bpp, data: out };
+}
+
+/** The precision line's colour's red channel, `.precision-line`'s #1e6f3a, against the pane's white. */
+const LINE_RED = 0x1e;
+
+/**
+ * Measures a precision line through the pane as `coordinate-precision.mjs` measures its bar: where its left edge
+ * should be on screen by the scene view written, in binary64; where it is drawn, by its coverage in a screenshot
+ * row; where the platform hits it, stepping an eighth of a pixel with `elementFromPoint`; and where the browser
+ * reports it -- each as an offset in pixels -- beside the pane's own readout of the same.
+ */
+async function measureLine(distance) {
+	const g = await t.page(`(() => { const r = document.getElementById('view-pane').getBoundingClientRect(); const v = inputTester.paneView; const expected = r.left + (${distance} - v.x) * v.scale; const row = Math.round(r.top + r.height / 2) + 11; const bar = document.querySelector('#view-pane .precision-${distance}'); let hit = null; for (let k = -96; k <= 96 && hit === null; k++) if (document.elementFromPoint(expected + k / 8, row) === bar) hit = k / 8; return { expected, row, hit, reported: bar.getBoundingClientRect().left - expected, readout: inputTester.precision.find((m) => m.distance === ${distance}) ?? null, scale: v.scale, level: inputTester.picture.view.level }; })()`);
+	const shot = await t.chrome.send("Page.captureScreenshot", { format: "png", clip: { x: 0, y: g.row, width: VIEWPORT.width, height: 1, scale: 1 } });
+	const img = pixels(Buffer.from((shot.result ?? shot).data, "base64"));
+	const cover = (x) => (x < 0 || x >= img.w ? 0 : Math.min(1, Math.max(0, (255 - img.data[x * img.bpp]) / (255 - LINE_RED))));
+	const left = Math.floor(g.expected) - 20;
+	let white = 0;
+	for (let x = left; x < left + 40; x++) white += 1 - cover(x);
+	return { ...g, drawn: left + white - g.expected };
+}
+
+const thousandth = (n) => (n === null ? null : Math.round(n * 1000) / 1000);
+
+test("PZ31 through the pane: the line at 1,000,000 drawn, hit and reported within coordinate-precision.mjs's budget -- a tenth of a pixel drawn and reported, a quarter hit -- at every level, and the line at 2^21 measured beside it, the pane's own readout agreeing", TEST, async (tc) => {
+	await t.load("?plan=ansi#view");
+	const p0 = await pane();
+	assert.ok(p0.width > 0.45 * VIEWPORT.width, `the pane large at #view: ${p0.width} of ${VIEWPORT.width}`);
+	const figures = [];
+	for (const [button, distance] of [["go-million", 1_000_000], ["go-two-to-21", 2 ** 21]]) {
+		const at = await t.page(`(() => { const r = document.getElementById('${button}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+		await t.mouse("mouseMoved", at);
+		await t.mouse("mousePressed", at, { button: "left", buttons: 1 });
+		await t.mouse("mouseReleased", at, { button: "left", buttons: 0 });
+		await t.settle();
+		for (let i = 0; i < 4; i++) {
+			await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+			const m = await measureLine(distance);
+			figures.push({ distance, level: m.level, scale: thousandth(m.scale), drawn: thousandth(m.drawn), hit: m.hit, reported: thousandth(m.reported), readoutHit: m.readout?.hit ?? null, readoutReported: thousandth(m.readout?.reported ?? null) });
+			assert.ok(m.readout !== null, `the pane reads out the line at ${distance} at ${m.level}x`);
+			close(m.readout.expected, m.expected, `the readout's expected edge at ${m.level}x`);
+			assert.ok(m.readout.hit !== null && m.hit !== null && Math.abs(m.readout.hit - m.hit) <= 0.125, `the readout's hit, ${m.readout.hit}, the platform's, ${m.hit}`);
+			assert.ok(m.readout.reported !== null && Math.abs(m.readout.reported - m.reported) <= 0.001, `the readout's reported edge, ${m.readout.reported}, the browser's, ${m.reported}`);
+			if (distance === 1_000_000) {
+				assert.ok(Math.abs(m.drawn) <= 0.1 && Math.abs(m.reported) <= 0.1, `1,000,000 at ${m.level}x drawn ${m.drawn}, reported ${m.reported}: within a tenth of a pixel`);
+				assert.ok(m.hit !== null && Math.abs(m.hit) <= 0.25, `1,000,000 at ${m.level}x hit ${m.hit}: within a quarter`);
+			} else assert.ok(Math.abs(m.drawn) <= 0.52 && m.hit !== null && Math.abs(m.hit) <= 0.625, `2^21 at ${m.level}x drawn ${m.drawn}, hit ${m.hit}: within coordinate-precision.mjs's worst at 2^21, 0.52 and 0.625`);
+			if (i < 3) {
+				await t.key("keyDown", "-", "Minus", { text: "-", windowsVirtualKeyCode: 189 });
+				await t.key("keyUp", "-", "Minus", { windowsVirtualKeyCode: 189 });
+				await t.settle();
+			}
+		}
+	}
+	tc.diagnostic(JSON.stringify(figures));
+	await t.load("?plan=ansi");
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+test("a resize redraws the pane at the next input, inside its delivery (GT2): its scale the frame's fit at its new size, its centre held -- after a resize of its height alone, which leaves its scale as it was, too; nothing is written on the resize itself", TEST, async () => {
+	await t.load("?plan=ansi");
+	const p0 = await pane();
+	await t.chrome.evaluate("window.paneWrites = 0; window.paneWatcher = new MutationObserver((r) => (window.paneWrites += r.length)); window.paneWatcher.observe(document.getElementById('view-pane'), { subtree: true, childList: true, attributes: true })");
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 800, deviceScaleFactor: 1, mobile: false });
+	await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+	assert.equal(await t.chrome.evaluate("window.paneWrites"), 0, "the resize itself writes nothing");
+	let p = await pane();
+	assert.ok(p.width < p0.width, "the pane is smaller");
+	await t.mouse("mouseMoved", { x: Math.round(p.left + p.width / 2), y: Math.round(p.top + p.height / 2) });
+	await t.settle();
+	p = await pane();
+	close(p.view.scale, Math.min(p.width / 1920, p.height / 1080), "the scale at the pane's new size");
+	close(p.view.x + p.width / (2 * p.view.scale), 0, "the centre's x held");
+	close(p.view.y + p.height / (2 * p.view.scale), 0, "the centre's y held");
+	const scale = p.view.scale;
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 700, deviceScaleFactor: 1, mobile: false });
+	await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+	p = await pane();
+	await t.mouse("mouseMoved", { x: Math.round(p.left + p.width / 2), y: Math.round(p.top + p.height / 2) });
+	await t.settle();
+	p = await pane();
+	close(p.view.scale, scale, "a resize of the height alone leaves the scale, the width binding it");
+	close(p.view.y + p.height / (2 * p.view.scale), 0, "and the centre's y is held at the new height");
+	await t.chrome.evaluate("window.paneWatcher.disconnect()");
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+	await t.load("?plan=ansi");
 	await t.chrome.evaluate("window.notReloaded = true");
 });

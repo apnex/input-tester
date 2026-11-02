@@ -517,7 +517,7 @@ test("wheels: up, down, sideways and still, each a scroll pan, claimed, in the u
 	const v = await verdict();
 	assert.deepEqual([v.hits, v.claimed], [["pinch-zoom"], true]);
 	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 20, `pinch zoom: 1x to 2x, 1 level, the scale times 0.5, about the pane's centre, the pointer off the pane at screen ${at.x}, ${at.y}, 20 pixels held`]);
-	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, centre 0, 0pinch held 20 pxno panpinch zoom: 1x to 2x/, "the view's lines drawn");
+	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, scale [0-9.]+centre 0, 0pinch held 20 pxno panpinch zoom: 1x to 2x/, "the view's lines drawn");
 	assert.equal(await t.chrome.evaluate("visualViewport.scale"), 1, "Ctrl and a mouse wheel make no page zoom in headless Chrome, claimed or not (section 10, row 9)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });

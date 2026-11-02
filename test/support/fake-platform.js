@@ -112,6 +112,10 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 					},
 				});
 	const reticle = { addEventListener: (name, listener) => reticleListeners.set(name, listener) };
+	const millionListeners = new Map();
+	const twoTo21Listeners = new Map();
+	const goMillion = { addEventListener: (name, listener) => millionListeners.set(name, listener) };
+	const goTwoTo21 = { addEventListener: (name, listener) => twoTo21Listeners.set(name, listener) };
 	const keySource = {
 		addEventListener: (name, listener) => keyListeners.set(name, listener),
 		removeEventListener: (name) => keyListeners.delete(name),
@@ -141,7 +145,7 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 		keySource,
 		address,
 		browser,
-		...(paneRoot === undefined ? {} : { pane: paneRoot, reticle }),
+		...(paneRoot === undefined ? {} : { pane: paneRoot, reticle, goMillion, goTwoTo21 }),
 		writes,
 		root,
 		paneRoot,
@@ -151,6 +155,9 @@ export function fakePlatform({ address = "https://input.example/", brands = ["Ch
 		paneWheel: (fields = {}) => dispatch(paneListeners, "wheel", { clientX: 0, clientY: 0, button: 0, buttons: 0, deltaX: 0, deltaY: 0, deltaZ: 0, deltaMode: 0, ...fields }),
 		/** The reticle's press. */
 		pressReticle: () => dispatch(reticleListeners, "click", {}),
+		/** The presses of the pane's buttons to the precision lines. */
+		pressGoMillion: () => dispatch(millionListeners, "click", {}),
+		pressGoTwoTo21: () => dispatch(twoTo21Listeners, "click", {}),
 		/** A pointer event of the family named, at a screen point, its fields as given; a mouse's pointer 1 by default. */
 		pointer: (type, fields = {}) => dispatch(surfaceListeners, POINTER_EVENTS[type], { clientX: 0, clientY: 0, button: 0, buttons: 0, pointerId: 1, pointerType: "mouse", ...fields }),
 		/** A key event: `key-down` or `key-up`. */

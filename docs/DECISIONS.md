@@ -447,3 +447,37 @@ The pane's centre and level are shown as numbers in the view's lines in the pict
 **Left to 6b.**\
 The line at 1,000,000 and the one at 2^21 from the origin, shown at the pane's nearest level with their hit readouts, and `coordinate-precision.mjs`'s figures reproduced by the pane in headless Chrome (PZ31); the release readied for the director's acceptance on the Chromebook.
 
+---
+
+## 0013 - Move 6b: the pane sized to judge in, the precision lines, the scale, and v0.2.0
+
+**Ruled by:** the programme, 2026-11-02 (draw's `H26-23`, PAN-ZOOM.md move 6, its second part; PZ31).\
+**Affects:** `src/view-pane.ts`, `src/view-steps.ts`, `src/picture-state.ts`, `src/picture-painter.ts`, `src/composition-root.ts`, `src/page-entry.ts`, `src/input-bindings.ts`; `page/index.html`, `page/input-tester.css`; `test/`; `tools/run-mutants.mjs`; `docs/GUIDE.md`; `package.json` and its lockfile, now `0.2.0`; and `docs/ARCHITECTURE-TARGET.md`, revision 12.
+
+**Ruling.**\
+The page has two layouts, chosen by the address's fragment with no script, since GT1 forbids one: by default the pane is a fifth of the window's width, so the picture keeps its room; at `#view`, which the header's link "large, to judge each gesture" opens, the pane is 48%, for the director to judge each gesture in.\
+A pane of at least 45% and a legible picture cannot both be had at the viewports measured -- the picture is bound by its width, and at 48% its text is 3.6 to 5.2 pixels -- so the pane carries its own readouts, 13-pixel text on a scene of their own without a view over its top-left corner, each line wrapped within their width: the level and the scale, the centre, the latest view row's words and each precision line's measure.\
+Measured in headless Chrome on the Chromebook plan, the picture's text being its 11 units at the picture's scale (screenshots in the programme's `drawv2-eval-runs/h26-tester-pz/`):
+
+| Viewport | Pane | Pane, width and share | Picture | Picture's text, pixels | Pane's scale at 1x |
+|---|---|---|---|---|---|
+| 1366 by 657 | small, the default | 273 by 587, 20% | 1069 by 587 | 7.2 | 0.142 |
+| 1093 by 526 | small, the default | 218 by 456, 19.9% | 836 by 456 | 5.6 | 0.114 |
+| 1536 by 750 | small, the default | 307 by 680, 20% | 1205 by 661 | 8.1 | 0.16 |
+| 1366 by 657 | large, `#view` | 655 by 587, 48% | 687 by 377 | 4.6 | 0.341 |
+| 1093 by 526 | large, `#view` | 524 by 456, 47.9% | 530 by 291 | 3.6 | 0.273 |
+| 1536 by 750 | large, `#view` | 737 by 680, 48% | 775 by 425 | 5.2 | 0.384 |
+
+The pane's width is rounded down to a whole pixel, so its left edge lies on one: at a fractional edge Chrome drew the precision line 0.2 pixels from where it reported it (measured), an offset of the pane's placement and not of coordinates.\
+The precision lines (PZ31): a green bar at 1,000,000 and one at 2^21 from the origin, 240 units wide, and two buttons beside the reticle, "line at 1,000,000" and "line at 2^21", each bringing the centre to its line's left edge at the nearest level; while a line stands in the pane its readout gives where its left edge should be on screen by the scene view written, where the platform hits it, stepping an eighth of a pixel through the scene's `itemAt`, and where the browser reports it, by the page's means to read its element's box.\
+Through the pane in headless Chrome, at a pane 998 pixels wide and its four levels, scales 1.04, 0.52, 0.26 and 0.173, the line at 1,000,000 is drawn within 0.031 pixels, hit within 0.125 and reported within 0.033, inside `coordinate-precision.mjs`'s budget of a tenth drawn and a quarter hit; the line at 2^21 within 0.062, 0.125 and 0.063; the probe's excess at 2^21, 0.52 and 0.625, was at scales 2.5 and 4, which the pane never enters (appendix A, reading 6's row).\
+The view's scale is shown beside its level, in the readouts and the picture's view lines.\
+A resize cannot redraw the pane when it happens: GT1 forbids a frame's callback and GT2 any write outside an input's delivery, so no observer may write; the pane is shown at every delivery instead, and drawn again at the next input after its size changed, its centre and level held -- a resize of its height alone, which leaves its scale, too -- the resize itself writing nothing.\
+`docs/GUIDE.md` gains section 9, the pane on the Chromebook: the director's steps, each gesture, the keys, the reticle and the precision lines, and what to report back, its check a block the gate runs; the traps become section 10.\
+The version is `0.2.0`: the release workflow refuses a tag that is not `package.json`'s version and builds the release's folder from the tag, and `tools/deploy` takes the tag, so a `v0.2.0` tag publishes and deploys to the lab with neither changed.
+
+**Settled by the build.**
+- The precision measures' "reported" edge is read by `page-entry.ts` from the line element's bounding box, a member GT1 does not forbid, handed to the pane as a function; the fake platform offers none, and its readout says "not measured here".
+- Five mutants, each killed: `M77`, a precision button a cell off its line; `M78`, the readout never finding the hit; `M79`, the pane shown only when the view changes, so a resize of its height alone is never followed; `M80`, the scale not shown; `M81`, the large pane's split not applied at `#view`; `M75` names the pane's code as it now stands.
+- The gate's viewport stays 2,080 pixels wide, the picture a drawing unit to a pixel with the pane small; the precision test opens `#view`.
+

@@ -80,10 +80,10 @@ after(async () => {
 }, { timeout: 30000 });
 
 test("a first deploy: the manifest checked against the tag's attached SHA256SUMS, then every gcloud call exactly as section 9 lists them, the lab's then production's, the entry last under generation 0", TEST, async () => {
-	const run = await deploy([releaseA.dir, "--tag", "v0.1.0", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be", "--prod-bucket", prod.bucket, "--prod-host", servers.prod.origin, "--prod-backend", "prod-be"]);
+	const run = await deploy([releaseA.dir, "--tag", releaseA.folder, "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be", "--prod-bucket", prod.bucket, "--prod-host", servers.prod.origin, "--prod-backend", "prod-be"]);
 	assert.equal(run.status, 0, run.output);
 	const [gh, ...gcloud] = run.calls;
-	assert.deepEqual(gh.slice(0, 8), ["gh", "release", "download", "v0.1.0", "--repo", "apnex/input-tester", "--pattern", "SHA256SUMS"]);
+	assert.deepEqual(gh.slice(0, 8), ["gh", "release", "download", releaseA.folder, "--repo", "apnex/input-tester", "--pattern", "SHA256SUMS"]);
 	assert.equal(gh[8], "--dir");
 	const expected = [];
 	for (const [bucket, backend] of [[lab.bucket, "lab-be"], [prod.bucket, "prod-be"]]) {
@@ -94,7 +94,7 @@ test("a first deploy: the manifest checked against the tag's attached SHA256SUMS
 	}
 	assert.deepEqual(gcloud, expected);
 	const steps = 2 * (releaseA.files.length + 3);
-	assert.match(run.output, new RegExp(`deploy: PASS -- v0\\.1\\.0: ${steps} step\\(s\\) done, lab at .* then production at `), "each target's steps: a copy of each folder object, the folder's check, the entry's copy and its check");
+	assert.match(run.output, new RegExp(`deploy: PASS -- ${releaseA.folder.replaceAll(".", "\\.")}: ${steps} step\\(s\\) done, lab at .* then production at `), "each target's steps: a copy of each folder object, the folder's check, the entry's copy and its check");
 	assert.equal(prod.metadata("index.html").generation, 1);
 });
 
@@ -115,7 +115,7 @@ test("a second release, its options in another order: every folder object copied
 });
 
 test("a rollback, the first release deployed again: every folder object skipped, and said so; the entry switched back under generation 2", TEST, async () => {
-	const run = await deploy([releaseA.dir, "--tag", "v0.1.0", "--lab-only", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"]);
+	const run = await deploy([releaseA.dir, "--tag", releaseA.folder, "--lab-only", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"]);
 	assert.equal(run.status, 0, run.output);
 	const gcloud = run.calls.slice(1);
 	assert.equal(gcloud.filter((c) => c[1] === "cp").length, 1, "only the entry copied");
@@ -126,18 +126,18 @@ test("a rollback, the first release deployed again: every folder object skipped,
 });
 
 test("a release whose manifest is not the SHA256SUMS attached to its tag, or whose folder is not its tag, is refused before any gcloud call", TEST, async () => {
-	const wrongTag = await deploy([releaseB.dir, "--tag", "v0.1.0", "--lab-only", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"]);
+	const wrongTag = await deploy([releaseB.dir, "--tag", releaseA.folder, "--lab-only", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"]);
 	assert.notEqual(wrongTag.status, 0);
-	assert.match(wrongTag.output, /the release's folder is v0\.1\.1, not the tag v0\.1\.0/);
+	assert.match(wrongTag.output, new RegExp(`the release's folder is v0\\.1\\.1, not the tag ${releaseA.folder.replaceAll(".", "\\.")}`));
 	assert.deepEqual(wrongTag.calls, []);
-	fs.writeFileSync(path.join(releases, "v0.1.0", "SHA256SUMS"), "not the manifest CI attached\n");
+	fs.writeFileSync(path.join(releases, releaseA.folder, "SHA256SUMS"), "not the manifest CI attached\n");
 	try {
-		const tampered = await deploy([releaseA.dir, "--tag", "v0.1.0", "--lab-only", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"]);
+		const tampered = await deploy([releaseA.dir, "--tag", releaseA.folder, "--lab-only", "--lab-bucket", lab.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"]);
 		assert.notEqual(tampered.status, 0);
-		assert.match(tampered.output, /the release's manifest is not the SHA256SUMS attached to apnex\/input-tester's release v0\.1\.0/);
+		assert.match(tampered.output, new RegExp(`the release's manifest is not the SHA256SUMS attached to apnex/input-tester's release ${releaseA.folder.replaceAll(".", "\\.")}`));
 		assert.deepEqual(tampered.calls.map((c) => c[0]), ["gh"], "gh asked, and no gcloud call made");
 	} finally {
-		fs.writeFileSync(path.join(releases, "v0.1.0", "SHA256SUMS"), releaseA.manifest);
+		fs.writeFileSync(path.join(releases, releaseA.folder, "SHA256SUMS"), releaseA.manifest);
 	}
 });
 
@@ -145,7 +145,7 @@ test("an object is taken as missing only on gcloud's `not found: 404.`: any othe
 	fs.mkdirSync(path.join(scratch, "denied"), { recursive: true });
 	fs.writeFileSync(path.join(scratch, "denied", "gcloud"), `#!/bin/sh\nif [ "$1 $2 $3" = "storage objects describe" ]; then echo 'ERROR: (gcloud.storage.objects.describe) HTTPError 403: caller does not have storage.objects.get access' >&2; exit 1; fi\nexec "${path.join(fakeBin, "gcloud")}" "$@"\n`, { mode: 0o755 });
 	const denied = localBucket(path.join(state, "buckets", "denied-cli"), "gs://denied-cli");
-	const refused = await deploy([releaseA.dir, "--tag", "v0.1.0", "--lab-only", "--lab-bucket", denied.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"], { PATH: `${path.join(scratch, "denied")}:${fakeBin}:${process.env.PATH}` });
+	const refused = await deploy([releaseA.dir, "--tag", releaseA.folder, "--lab-only", "--lab-bucket", denied.bucket, "--lab-host", servers.lab.origin, "--lab-backend", "lab-be"], { PATH: `${path.join(scratch, "denied")}:${fakeBin}:${process.env.PATH}` });
 	assert.notEqual(refused.status, 0);
 	assert.match(refused.output, /HTTPError 403/);
 	assert.deepEqual(refused.calls.filter((c) => c[1] === "cp"), [], "no copy attempted, though gcloud would have made it");

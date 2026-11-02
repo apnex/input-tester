@@ -14,10 +14,10 @@
 import type { CapturePoint, KeyFact, WheelFact } from "../vendor/input-capture/index.js";
 import type { LiveGesture, Phase, Press, SessionState, TraceRecord, Trigger } from "../vendor/input-binding/index.js";
 import { PAN_GESTURES, viewKeyVerb } from "./input-bindings.js";
-import type { ViewKeyVerb } from "./input-bindings.js";
+import type { ViewVerb } from "./input-bindings.js";
 import type { DeliveredFact, ItemUnderPointer, TesterFact } from "./input-bindings.js";
 import type { Verdict, VerdictStep } from "./input-router.js";
-import { DEFAULT_ZOOM_LEVEL, ZOOM_LEVELS, ZOOM_STEP_PIXELS, centreKeeping, levelWords, normalisedDelta, onPane, paneLaidOut, paneScale, screenDistance, stepZoom } from "./view-steps.js";
+import { DEFAULT_ZOOM_LEVEL, PRECISION_LINES, ZOOM_LEVELS, ZOOM_STEP_PIXELS, centreKeeping, levelWords, normalisedDelta, onPane, paneLaidOut, paneScale, screenDistance, stepZoom } from "./view-steps.js";
 import type { PaneGeometry } from "./view-steps.js";
 
 /** How many lines the log keeps, newest first. */
@@ -84,6 +84,7 @@ export interface PanPicture {
 export interface ViewPicture {
 	readonly centre: CapturePoint;
 	readonly level: number;
+	readonly scale: number | null;
 	readonly acc: number;
 	readonly pan: PanPicture | null;
 	readonly words: string | null;
@@ -130,7 +131,7 @@ export type PictureEntry = keyof Picture;
 export const BUTTONS_REPORTED_BY: readonly string[] = Object.freeze(["down", "move", "up", "cancel", "context-menu"]);
 
 /** The record before any fact. */
-export const EMPTY_PICTURE: Picture = Object.freeze({ heldKeys: Object.freeze([]), unidentifiedKey: null, buttons: null, wheel: null, gesture: null, press: null, pressFrom: null, pointerAt: null, view: Object.freeze({ centre: Object.freeze({ x: 0, y: 0 }), level: DEFAULT_ZOOM_LEVEL, acc: 0, pan: null, words: null }), log: Object.freeze([]), legend: null, under: null, latestFact: null, facts: 0 });
+export const EMPTY_PICTURE: Picture = Object.freeze({ heldKeys: Object.freeze([]), unidentifiedKey: null, buttons: null, wheel: null, gesture: null, press: null, pressFrom: null, pointerAt: null, view: Object.freeze({ centre: Object.freeze({ x: 0, y: 0 }), level: DEFAULT_ZOOM_LEVEL, scale: null, acc: 0, pan: null, words: null }), log: Object.freeze([]), legend: null, under: null, latestFact: null, facts: 0 });
 
 /** The difference of two facts' times, or null when either is null: never a clock reading. */
 export function timeBetween(earlier: number | null, later: number | null): number | null {
@@ -264,7 +265,7 @@ function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly stri
  * 0, 0 at the default level (PZ7); home, the centre to 0, 0, the level kept. A verb that changes nothing does
  * nothing; one that sets a view sets the pinch's held pixels to 0, the view not the wheel's.
  */
-export function viewAfterVerb(view: ViewPicture, verb: ViewKeyVerb, by: string): ViewPicture {
+export function viewAfterVerb(view: ViewPicture, verb: ViewVerb, by: string): ViewPicture {
 	const index = ZOOM_LEVELS.indexOf(view.level);
 	const origin = view.centre.x === 0 && view.centre.y === 0;
 	const set = (centre: CapturePoint, level: number, words: string): ViewPicture => Object.freeze({ ...view, centre: Object.freeze({ x: centre.x, y: centre.y }), level, acc: 0, words });
@@ -284,6 +285,13 @@ export function viewAfterVerb(view: ViewPicture, verb: ViewKeyVerb, by: string):
 			return origin && view.level === DEFAULT_ZOOM_LEVEL ? none(`${by}, fit: nothing drawn here to fit, and the first opening already shown, so nothing`) : set({ x: 0, y: 0 }, DEFAULT_ZOOM_LEVEL, `${by}, fit: nothing drawn here to fit, so the first opening, the centre 0, 0 at ${levelWords(DEFAULT_ZOOM_LEVEL)}`);
 		case "home":
 			return origin ? none(`${by}, home: the centre at 0, 0 already, so nothing`) : set({ x: 0, y: 0 }, view.level, `${by}, home: the centre to 0, 0, the level kept at ${levelWords(view.level)}`);
+		case "go-million":
+		case "go-two-to-21": {
+			const distance = PRECISION_LINES[verb === "go-million" ? 0 : 1] as number;
+			const nearest = ZOOM_LEVELS[0] as number;
+			const name = verb === "go-million" ? "1,000,000" : "2^21";
+			return view.centre.x === distance && view.centre.y === 0 && view.level === nearest ? none(`${by}, to the line at ${name}: there already, so nothing`) : set({ x: distance, y: 0 }, nearest, `${by}, to the line at ${name}: the centre to ${distance}, 0 at the nearest level, ${levelWords(nearest)}`);
+		}
 	}
 }
 
@@ -358,6 +366,7 @@ export function applyVerdict(picture: Picture, verdict: Verdict, surface: ViewSu
 	view = viewAfterWheel(view, fact, hits, pagePixels, pane);
 	const verb = hits.includes("view-key") ? viewKeyVerb(fact) : null;
 	if (verb !== null) view = viewAfterVerb(view, verb, "a view key");
+	view = withScale(view, pane);
 	if (view !== picture.view && view.words !== null && view.words !== picture.view.words && (fact.type === "wheel" || verdict.steps.some((s) => s.operation !== "pointerMove"))) notes.push(view.words);
 	const newest = log[0];
 	if (fact.type === "wheel") {
@@ -398,10 +407,21 @@ export function applyVerdict(picture: Picture, verdict: Verdict, surface: ViewSu
 	return { picture: next, changed };
 }
 
-/** Applies the reticle's press, home, outside any verdict: the view's centre to 0, 0, the level kept (PZ6), answering the record and which entries changed. */
-export function applyReticle(picture: Picture): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
-	const view = viewAfterVerb(picture.view, "home", "the reticle");
+/**
+ * Applies a press of one of the pane's buttons, outside any verdict -- the reticle, home (PZ6), or the way to a
+ * precision line (PZ31) -- answering the record and which entries changed; the pane's geometry, when it is laid
+ * out, gives the view's scale.
+ */
+export function applyPaneButton(picture: Picture, verb: "home" | "go-million" | "go-two-to-21", pane: PaneGeometry | null = null): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
+	const moved = viewAfterVerb(picture.view, verb, verb === "home" ? "the reticle" : "a precision button");
+	const view = withScale(moved, pane);
 	const next: Picture = Object.freeze({ ...picture, view });
 	return { picture: next, changed: new Set<PictureEntry>(view === picture.view ? [] : ["view"]) };
+}
+
+/** The view with its scale for the pane's geometry, the very view when the scale is the same, or when no pane is laid out. */
+function withScale(view: ViewPicture, pane: PaneGeometry | null): ViewPicture {
+	const scale = paneLaidOut(pane) ? paneScale(pane, view.level) : view.scale;
+	return scale === view.scale ? view : Object.freeze({ ...view, scale });
 }
 

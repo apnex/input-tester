@@ -27,10 +27,11 @@ import { FULL_SIZE_ANSI_PLAN, KEYBOARD_PLANS, QUARTER_KEY_GRID, placePlanOnGrid 
 import type { KeyboardPlan, PlanName } from "./keyboard-plans.js";
 import { SCENE_LAYERS, paintEveryKey, paintPictureChanges, paintRefusedOpening, paintWholePage } from "./picture-painter.js";
 import type { PaintView } from "./picture-painter.js";
-import { EMPTY_PICTURE, applyReticle, applyVerdict } from "./picture-state.js";
+import { EMPTY_PICTURE, applyPaneButton, applyVerdict } from "./picture-state.js";
 import type { Picture, PictureEntry } from "./picture-state.js";
 import { openViewPane } from "./view-pane.js";
-import type { ViewPane } from "./view-pane.js";
+import type { PrecisionBounds, ViewPane } from "./view-pane.js";
+import type { PaneGeometry } from "./view-steps.js";
 
 /** What the browser says of itself, as the covered-browsers notice reads it: the brands of `navigator.userAgentData`, where it has one. */
 export interface BrowserBrands {
@@ -40,7 +41,8 @@ export interface BrowserBrands {
 /**
  * The platform the page is composed on: the `<svg>` it draws on and listens to, the key source, its address, and
  * the browser's `navigator`; and, when the page holds them, the view pane's `<svg>`, which it shows the view on and
- * listens to as well, and the reticle, whose press brings the view home.
+ * listens to as well, the `<svg>` its readouts are drawn on, the page's means to read where the browser reports a
+ * precision line, and the pane's buttons: the reticle, whose press brings the view home, and one to each precision line.
  */
 export interface TesterPlatform<E extends ElementSlice<E>> {
 	readonly surface: SceneRoot<E> & CaptureSurface;
@@ -48,13 +50,23 @@ export interface TesterPlatform<E extends ElementSlice<E>> {
 	readonly address: string;
 	readonly browser: KeyboardMapSource & BrowserBrands;
 	readonly pane?: SceneRoot<E> & CaptureSurface;
-	readonly reticle?: { readonly addEventListener: (type: "click", listener: () => void) => void };
+	readonly paneReadouts?: SceneRoot<E>;
+	readonly precisionBounds?: PrecisionBounds;
+	readonly reticle?: PaneButton;
+	readonly goMillion?: PaneButton;
+	readonly goTwoTo21?: PaneButton;
+}
+
+/** A button of the page's, whose press the composition root listens for. */
+export interface PaneButton {
+	readonly addEventListener: (type: "click", listener: () => void) => void;
 }
 
 /** The composed page, as the proof reads it: the record of what is shown, the latest verdict, the plan, any problems, the view pane's scene view written, and close. */
 export interface TesterPage {
 	readonly picture: Picture;
 	readonly paneView: { readonly x: number; readonly y: number; readonly scale: number } | null;
+	readonly precision: readonly { readonly distance: number; readonly expected: number; readonly hit: number | null; readonly reported: number | null }[];
 	readonly latestVerdict: Verdict | null;
 	readonly plan: PlanName;
 	readonly problems: readonly string[];
@@ -116,7 +128,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	const notices = { planLine: planLineWords(plan, asked), coveredBrowser: isChromiumBrowser(platform.browser), problems };
 	if (!openedGrid.ok || !openedTable.ok || !openedSession.ok) {
 		paintRefusedOpening(scene, problems);
-		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, paneView: null, plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
+		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, paneView: null, precision: [], plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
 	}
 	const table = openedTable.table;
 	const router = openInputRouter(table, openedSession.session);
@@ -125,29 +137,34 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	let latestVerdict: Verdict | null = null;
 	let pane: ViewPane<E> | null = null;
 	if (platform.pane !== undefined) {
-		const openedPane = openViewPane(platform.pane);
+		const openedPane = openViewPane(platform.pane, platform.paneReadouts, platform.precisionBounds);
 		if (openedPane.ok) pane = openedPane.pane;
 		else problems.push(...openedPane.problems);
 	}
 	paintWholePage(scene, view, picture);
 	pane?.show(picture.view);
 
-	/** Puts what a change of the record changed, in the picture and, when the view moved, in the pane. */
-	function paintChanges(previous: Picture, changed: ReadonlySet<PictureEntry>): void {
+	/**
+	 * Puts what a change of the record changed in the picture, and shows the view on the pane at every delivery: the
+	 * pane writes only when its scene view, at its size now, differs from the one written, so a pane resized since
+	 * the last input is drawn again at the next, inside its delivery (GT2).
+	 */
+	function paintChanges(previous: Picture, changed: ReadonlySet<PictureEntry>, paneGeometry: PaneGeometry | null): void {
 		paintPictureChanges(scene, view, previous, picture, changed);
-		if (changed.has("view")) pane?.show(picture.view);
+		pane?.show(picture.view, paneGeometry);
 	}
 
 	/** A capture's delivery: the fact routed by its family, the verdict applied to the record with what the view's rows need of the page, and what changed put, before it returns. */
 	function deliverFrom(fromPane: boolean) {
 		return (fact: DeliveredFact, reply: CaptureReply): void => {
+			const paneGeometry = pane?.geometry() ?? null;
+			const pageHeight = fromPane ? platform.pane?.clientHeight : platform.surface.clientHeight;
 			const verdict = routeByFamily(router, fact, reply);
 			const previous = picture;
-			const pageHeight = fromPane ? platform.pane?.clientHeight : platform.surface.clientHeight;
-			const applied = applyVerdict(previous, verdict, { pagePixels: fact.type === "wheel" ? (pageHeight ?? Number.NaN) : Number.NaN, pane: pane?.geometry() ?? null, fromPane });
+			const applied = applyVerdict(previous, verdict, { pagePixels: fact.type === "wheel" ? (pageHeight ?? Number.NaN) : Number.NaN, pane: paneGeometry, fromPane });
 			picture = applied.picture;
 			latestVerdict = verdict;
-			paintChanges(previous, applied.changed);
+			paintChanges(previous, applied.changed, paneGeometry);
 		};
 	}
 	const deliverFact = deliverFrom(false);
@@ -173,12 +190,15 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	if (!openedCapture.ok) problems.push(`the capture refused its declaration: ${JSON.stringify(openedCapture.problems)}`);
 	if (openedPaneCapture !== null && !openedPaneCapture.ok) problems.push(`the view pane's capture refused its declaration: ${JSON.stringify(openedPaneCapture.problems)}`);
 	if (problems.length > 0) paintWholePage(scene, view, picture);
-	platform.reticle?.addEventListener("click", () => {
-		const previous = picture;
-		const applied = applyReticle(previous);
-		picture = applied.picture;
-		paintChanges(previous, applied.changed);
-	});
+	for (const [button, verb] of [[platform.reticle, "home"], [platform.goMillion, "go-million"], [platform.goTwoTo21, "go-two-to-21"]] as const) {
+		button?.addEventListener("click", () => {
+			const paneGeometry = pane?.geometry() ?? null;
+			const previous = picture;
+			const applied = applyPaneButton(previous, verb, paneGeometry);
+			picture = applied.picture;
+			paintChanges(previous, applied.changed, paneGeometry);
+		});
+	}
 	let closed = false;
 	void askKeyboardMap(platform.browser).then((map) => {
 		if (map === null || closed) return;
@@ -194,6 +214,9 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		},
 		get paneView() {
 			return pane === null ? null : pane.scene.view();
+		},
+		get precision() {
+			return pane === null ? [] : pane.measures();
 		},
 		plan: plan.name,
 		problems: Object.freeze(problems),

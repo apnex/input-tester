@@ -158,6 +158,9 @@ const chordModifierHeld = (fact: KeyFact<null>): boolean => fact.ctrlKey || fact
 /** The view's keys (draw's PAN-ZOOM.md 3.6 and 3.7, PZ28), each a verb of the view: a level nearer, a level farther, the default level, fit, home. */
 export type ViewKeyVerb = "zoom-in" | "zoom-out" | "default-level" | "fit" | "home";
 
+/** The view's verbs: a view key's, and the pane's buttons' -- home, and the way to each precision line (PZ31). */
+export type ViewVerb = ViewKeyVerb | "go-million" | "go-two-to-21";
+
 /**
  * The view verb a key fact names, or null: a fresh press, no chord modifier held, of `=` or `+` (a level in), `-`
  * (a level out), `h` (home), each by the character it prints, or of the physical 0 or 1 with Shift held (the

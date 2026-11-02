@@ -108,3 +108,13 @@ export function centreKeeping(centre: { readonly x: number; readonly y: number }
 	return { x: centre.x + rx / from - rx / to, y: centre.y + ry / from - ry / to };
 }
 
+/**
+ * The precision lines (PZ31): the distances from the origin at which the pane draws a line, so the director can see
+ * on the Chromebook where each is drawn and hit against where it should be -- 1,000,000, the bound draw's
+ * coordinates keep, and 2^21, 2,097,152, past the budget `coordinate-precision.mjs` measured in headless Chrome.
+ */
+export const PRECISION_LINES: readonly number[] = Object.freeze([1_000_000, 2 ** 21]);
+
+/** A precision line's width in drawing units: four cells of the grid, so it stands clear at every level. */
+export const PRECISION_LINE_WIDTH = 240;
+

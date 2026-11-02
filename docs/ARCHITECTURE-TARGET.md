@@ -16,7 +16,7 @@ Every section is approved; each reopens on the trigger section 1 names for it.
 ## 1. Status and authority
 
 Authored by the architect, ratified by the director per section; approval is aggregate-only.\
-Revision 11, 2026-11-02, absorbing `0012`, the view pane and the view keys (move 6a); revision 10 absorbed `0011`, a refused opening's problems drawn again, wrapped in the left column's head; revision 9 absorbed `0010`, every free text block bounded by construction; revision 8 absorbed `0009`, the picture's text held to one layout; revision 7 absorbed `0008`, the mouse column's lines clear of the legend and open ground as the code tests it; revision 6 absorbed `0007`, the view's rows (the programme's `H26-23`, draw's PAN-ZOOM.md PZ30), and the non-goal it amends; revision 5 absorbed `0004`, the director's ratification of the first build's record, `0002` as amended, with its seven errata.\
+Revision 12, 2026-11-02, absorbing `0013`, the pane sized to judge in, the precision lines, the scale shown and `v0.2.0`; revision 11 absorbed `0012`, the view pane and the view keys (move 6a); revision 10 absorbed `0011`, a refused opening's problems drawn again, wrapped in the left column's head; revision 9 absorbed `0010`, every free text block bounded by construction; revision 8 absorbed `0009`, the picture's text held to one layout; revision 7 absorbed `0008`, the mouse column's lines clear of the legend and open ground as the code tests it; revision 6 absorbed `0007`, the view's rows (the programme's `H26-23`, draw's PAN-ZOOM.md PZ30), and the non-goal it amends; revision 5 absorbed `0004`, the director's ratification of the first build's record, `0002` as amended, with its seven errata.\
 Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26-14`), every decision of section 11 at its recommendation, on top of what `H26-12` and `H26-13`, each as amended, had settled; recorded as this repository's own ruling `0001` in `docs/DECISIONS.md`; revision 4 folded in the first three readings (section 12).
 
 | Section | Maturity | Reopens on |
@@ -24,8 +24,8 @@ Ratified as recommended by the director, 2026-10-24 (the programme's ruling `H26
 | 2 Identity, scope, non-goals | approved: the repository, the name, the address, the touchpad in scope and the non-goals by `H26-12` and `H26-13`; the rest, the covered browsers among it (IT-D12), by `H26-14`; the view's gestures and the amended non-goal by `H26-23` (`0007`) | A ruling that changes scope, or an input a person can make that the scope leaves out |
 | 3 Justification chain | approved (`H26-14`) | A ruling recorded in `docs/DECISIONS.md`, or an amendment of `VISION.md` |
 | 4 Axiom alignment | approved (`H26-14`; `0004`) | A change to the tester's traits, or a tension discharged or found |
-| 5 Anchored core | approved (`H26-14`; `0012`) | A duty with no owner, owned twice, or held here that a shared part should hold |
-| 6 Entities, data, interfaces | approved (`H26-14`; `0004`; `0007`; `0008`; `0009`; `0010`; `0011`; `0012`) | A shown thing with no entity behind it |
+| 5 Anchored core | approved (`H26-14`; `0012`; `0013`) | A duty with no owner, owned twice, or held here that a shared part should hold |
+| 6 Entities, data, interfaces | approved (`H26-14`; `0004`; `0007`; `0008`; `0009`; `0010`; `0011`; `0012`; `0013`) | A shown thing with no entity behind it |
 | 7 Run time | approved (`H26-14`; `0004`; `0007`; `0012`) | A sequence of inputs whose picture is not listed |
 | 8 Verification | approved (`H26-14`; `0004`; `0007`; `0012`) | A success dimension, or a claim, with no check |
 | 9 Delivery and hosting | approved: the buckets, the two hosts, IAP left out, a deploy that copies one release to the lab first, and a browser rule in the response headers by `H26-13` as amended; the rest by `H26-14` | A change of host, or a deploy that is not a copy of one release |
@@ -55,7 +55,7 @@ Its repository is `apnex/input-tester`, public.
 - The wheel and the touchpad's scroll and pinch, as the browser delivers them, with their units.
 - The context menu, and the page losing focus.
 - What each input is taken to mean: every binding row's standing for it, the matched one marked, and each gesture's phase as it falls due.
-- The view's gestures as draw's pan and zoom design gives them (`0007`): a scroll pan, a pinch zoom stepping among the zoom levels, and a pan with the middle button, with the right on open ground and with the left while Space is held, each verdict shown in numbers -- a pan by its travel on screen, a zoom by its levels, its factor and the point it keeps -- and on a view pane beside the picture, with the view keys and a reticle home (`0012`).
+- The view's gestures as draw's pan and zoom design gives them (`0007`): a scroll pan, a pinch zoom stepping among the zoom levels, and a pan with the middle button, with the right on open ground and with the left while Space is held, each verdict shown in numbers -- a pan by its travel on screen, a zoom by its levels, its factor and the point it keeps -- and on a view pane beside the picture, with the view keys, a reticle home, its scale and centre shown, and two precision lines, at 1,000,000 and 2^21 from the origin, each measured where it is drawn and hit (`0012`, `0013`).
 - What the browser cannot report, said to be unreported.
 
 **Non-goals.**
@@ -409,7 +409,7 @@ There is no server logic.
 | 13 | The parts' documents left six things to guess, none needing a workaround: the conservative scale's recipe, `takePointer` on a synthetic event, boundary facts after `takePointer`, the vocabulary list, the held button a trusted move must name, and a painter typed over any scene (D1 to D6) | Each belongs to its part's next release |
 | 14 | The guide's cold reading is owed (B7) | Teachability is claimed until a newcomer has built from it |
 | 15 | Matching the browser's own keys by `code` or by letter leaves a few other shortcuts to the browser on Dvorak and Colemak -- Ctrl+P on `KeyR`, Colemak's Ctrl+L and Dvorak's Ctrl+G each on `KeyU` -- argued from Chromium's source, not measured; raised by the first build's review A and held by the recorder | On Dvorak and Colemak the page leaves those keys unclaimed and the browser acts on them; the refinement, matching by the letter when `key` is a Latin letter and by `code` otherwise, is held with the trigger "a person on Dvorak or Colemak reports a shortcut taken by the browser while the page is open" |
-| 16 | The line at 1,000,000 and the one at 2^21 from the origin, with their hit readouts, and `coordinate-precision.mjs`'s figures reproduced by the pane in headless Chrome, are move 6b's (`0012`) | What a Chromebook's raster shows far from the origin is not yet shown |
+| 16 | The precision lines are measured in headless Chrome alone; the Chromebook's GPU raster and device-pixel ratio are the director's reading (PZ31, `0013`) | Precision on the Chromebook rests on that reading until it is recorded |
 ---
 
 ## 11. Decisions

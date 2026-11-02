@@ -309,11 +309,11 @@ const WHEEL_ROOM_LINES = 4;
 /** Where the view's lines start: below the wheel's room, or below its last line when it has more, by the column's gap. */
 const viewLinesY = (picture: Picture): number => WHEEL_LINES_Y + Math.max(WHEEL_ROOM_LINES, wheelLines(picture).length) * MOUSE_COLUMN_LEADING + MOUSE_COLUMN_GAP;
 
-/** The view's lines, the view pane's readouts: the zoom level and the centre; the pinch's held pixels; a live pan's travel; and what the latest view row did, wrapped to the mouse column. */
+/** The view's lines, the view pane's readouts: the zoom level and its scale, and the centre; the pinch's held pixels; a live pan's travel; and what the latest view row did, wrapped to the mouse column. */
 export function viewLines(picture: Picture): string[] {
-	const { centre, level, acc, pan, words } = picture.view;
+	const { centre, level, scale, acc, pan, words } = picture.view;
 	const panWords = pan === null ? "no pan" : `${pan.gesture} live, ${Math.round(pan.distance * 10) / 10} screen pixels`;
-	return [`view: ${levelWords(level)}, centre ${tenthWords(centre.x)}, ${tenthWords(centre.y)}`, `pinch held ${Math.round(acc * 10) / 10} px`, panWords, words ?? "no view row yet"].flatMap((line) => wrapWords(line, MOUSE_COLUMN_CHARACTERS));
+	return [`view: ${levelWords(level)}, scale ${scale === null ? "not yet known" : Math.round(scale * 10000) / 10000}`, `centre ${tenthWords(centre.x)}, ${tenthWords(centre.y)}`, `pinch held ${Math.round(acc * 10) / 10} px`, panWords, words ?? "no view row yet"].flatMap((line) => wrapWords(line, MOUSE_COLUMN_CHARACTERS));
 }
 
 /** The view's lines, in the mouse column below the wheel's, clear of the legend: the view the view's rows would set, as numbers (the view pane is a move of its own). */

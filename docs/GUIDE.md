@@ -327,7 +327,66 @@ The gate's other proofs are each one file in `test/browser/`: every row the brow
 
 ---
 
-## 9. The traps, collected
+## 9. The view pane, on the Chromebook
+
+The view pane is the second scene, on its own `<svg>` beside the picture, declared with a view, so the picture never moves (`src/view-pane.ts`).\
+It shows an unbounded grid of 60, a red cross at 0, 0, and two green precision lines, at 1,000,000 and at 2^21, 2,097,152, from the origin.\
+Its readouts, at its top left in 13-pixel text, give the level and the scale in pixels a unit, the centre, what the latest view row did, and, while a precision line stands in the pane, where it should be on screen and how far from there the platform hits it and the browser reports it.\
+The same numbers stand in the picture's view lines, under the mouse.
+
+Open the page with `#view` at the end of its address, or press "large, to judge each gesture" beside the plans, and the pane takes 48% of the window's width; "small" gives the picture its room back.\
+After a resize, or a change between the two, the pane is drawn again at the next input over it: move the pointer over it once.
+
+Each step, on the pane, then what to report back:
+1. Two-finger scroll on the touchpad, every direction: the grid moves the way the fingers do, as a page scrolls; the centre in the readouts changes by the scroll's pixels over the scale.
+2. Pinch apart and together on the touchpad: the level steps 0.5x, 1x, 2x and 3x, never between, and the point under the fingers stays under them; report whether one step takes a comfortable pinch -- the step is 100 pixels of the pinch, which headless Chrome sends as a pinch to about 2.7 times.
+3. Ctrl and the mouse wheel, if a mouse is at hand: the same levels, one notch or a few a step, about the pointer.
+4. Space held with a left drag; a middle drag; a right drag: each pans once the pointer has travelled 4 pixels, the grid following the pointer, and a release changes nothing more; report a middle press that starts the browser's own scrolling arrows instead.
+5. The keys, with the page focused: `=` or `+` a level in and `-` a level out, about the pane's centre; Shift and 0 the default level, 1x; Shift and 1 fit, which here is the first opening, 0, 0 at 1x; `h` home.
+6. The reticle, "home 0, 0": the cross comes back to the pane's centre at the level it was.
+7. "line at 1,000,000", then `-` three times: at each level the green line's left edge stands at the pane's centre, and the readouts say how far it is hit and reported from where it should be; write down the four pairs, and the same for "line at 2^21".
+8. Throughout, the picture of the keyboard and mouse stays where it is, and the page itself neither scrolls nor zooms.
+
+Report each step as accepted or returned, with what was seen when it is returned; the eight pairs of precision figures; and any level that should be nearer or farther, since the levels are held in one place, `ZOOM_LEVELS` in `src/view-steps.ts`, to be tuned by one edit.
+
+The steps' own check, run in the gate, on the tester's page with the pane small: a line, home and the levels by Ctrl and the wheel, each read back from the page:
+```mjs
+async function evaluate(send, expression) {
+  const { result } = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+  return result.value;
+}
+
+async function centreOf(send, id) {
+  return evaluate(send, `(() => { const r = document.getElementById("${id}").getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+}
+
+async function press(send, id) {
+  const { x, y } = await centreOf(send, id);
+  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "none", buttons: 0 });
+  await send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
+  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+}
+
+export async function inChrome(send) {
+  await press(send, "go-million");
+  const line = await evaluate(send, "inputTester.precision.find((m) => m.distance === 1000000) ?? null");
+  if (line === null || line.hit === null || Math.abs(line.hit) > 0.25) throw new Error(`the line at 1,000,000 is not hit within a quarter of a pixel: ${JSON.stringify(line)}`);
+  await press(send, "view-home");
+  const home = await evaluate(send, "inputTester.picture.view");
+  if (home.centre.x !== 0 || home.centre.y !== 0 || home.level !== 0.5) throw new Error(`home did not bring 0, 0 back at 0.5x: ${JSON.stringify(home)}`);
+  const { x, y } = await centreOf(send, "view-pane");
+  const levels = [];
+  for (let i = 0; i < 3; i++) {
+    await send("Input.dispatchMouseEvent", { type: "mouseWheel", x, y, deltaX: 0, deltaY: 100, modifiers: 2 });
+    levels.push(await evaluate(send, "new Promise((r) => setTimeout(() => r(inputTester.picture.view.level), 50))"));
+  }
+  if (levels.join() !== "1,2,3") throw new Error(`Ctrl and the wheel stepped ${levels}, not 1x, 2x and 3x`);
+}
+```
+
+---
+
+## 10. The traps, collected
 
 - An import map is an inline script: under a strict browser rule, vendor the parts and import them by relative path (section 2).
 - A root scaled differently on each axis, or sheared, needs the smallest stretch of its transform as `inView`'s scale; its `a`, the root of its determinant and its shorter column each crowd (section 3).

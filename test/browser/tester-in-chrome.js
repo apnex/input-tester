@@ -6,8 +6,9 @@
 // each mouse event's params are headless-chromium's: launchChrome, connectToPage and mouseEventParams.
 //
 // The page is laid out so a screen pixel is one drawing unit: the viewport is 2080 CSS pixels wide, so the view
-// pane beside the picture is a fifth of it, 416, and the picture's `<svg>`, between the page's 8-pixel margins and
-// the 8-pixel gap before the pane, is 1640 pixels wide, its viewBox's width; the session measures
+// pane beside the picture, small unless the address's fragment is #view, is a fifth of it, 416, and the picture's
+// `<svg>`, between the page's 8-pixel margins and the 8-pixel gap before the pane, is 1640 pixels wide, its
+// viewBox's width; the session measures
 // on screen, so a press travelling 4 pixels travels exactly its threshold of 4 screen pixels at any scale.
 import { setTimeout as sleep } from "node:timers/promises";
 

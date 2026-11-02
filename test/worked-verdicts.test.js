@@ -95,7 +95,7 @@ test("worked verdict: Ctrl and the wheel -- a pinch zoom, Ctrl and wheel or a to
 	assert.equal(claimed, true);
 	assert.equal(page.picture.wheel.latest.deltaY, -12.5, "drawn with its delta, exact");
 	assert.deepEqual([page.picture.view.level, page.picture.view.acc], [1, -12.5]);
-	assert.equal(platform.textOf("view-line"), "view: 1x, centre 0, 0\npinch held -12.5 px\nno pan\npinch zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
+	assert.equal(platform.textOf("view-line"), "view: 1x, scale 0.3125\ncentre 0, 0\npinch held -12.5 px\nno pan\npinch zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
 });
 
 /** The view's level and the pinch's held pixels, as the picture keeps them. */
@@ -384,5 +384,19 @@ test("move 6a, the pane's own surface: a pan on the pane moves the view and is s
 	assert.deepEqual(centreAndLevel(page), [-55 / paneScaleAt(1), 0, 1], "the view follows the travel since engaging");
 	assert.deepEqual([page.picture.pointerAt, page.picture.pressFrom], [pointerAt, null], "the picture's own points kept");
 	platform.panePointer("up", { clientX: 315, clientY: 200, button: 2, buttons: 0 });
+});
+
+test("move 6b, the precision buttons: each brings the centre to its line, 1,000,000 or 2^21 from the origin, at the nearest level; the pane's scene view follows, the view's scale shown", () => {
+	const { platform, page } = freshPage();
+	platform.pressGoMillion();
+	assert.deepEqual(centreAndLevel(page), [1_000_000, 0, 0.5]);
+	assert.equal(page.picture.view.scale, paneScaleAt(0.5));
+	assert.match(page.picture.view.words, /^a precision button, to the line at 1,000,000: the centre to 1000000, 0 at the nearest level, 0\.5x$/);
+	assert.deepEqual(page.paneView, { x: 1_000_000 - 300 / paneScaleAt(0.5), y: -300 / paneScaleAt(0.5), scale: paneScaleAt(0.5) });
+	assert.match(platform.textOf("view-line"), /^view: 0\.5x, scale 0\.625\ncentre 1000000, 0\n/);
+	platform.pressGoTwoTo21();
+	assert.deepEqual(centreAndLevel(page), [2 ** 21, 0, 0.5]);
+	platform.pressReticle();
+	assert.deepEqual(centreAndLevel(page), [0, 0, 0.5]);
 });
 

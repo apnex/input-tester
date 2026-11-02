@@ -15,7 +15,17 @@ if (!(surface instanceof SVGSVGElement)) throw new Error("page-entry: the entry 
 const browser = navigator as KeyboardMapSource & BrowserBrands;
 const pane = document.getElementById("view-pane");
 if (!(pane instanceof SVGSVGElement)) throw new Error("page-entry: the entry document holds no <svg> with the id view-pane");
-const reticle = document.getElementById("view-home");
-if (!(reticle instanceof HTMLButtonElement)) throw new Error("page-entry: the entry document holds no <button> with the id view-home");
-const page = composeTesterPage({ surface, keySource: window, address: document.URL, browser, pane, reticle });
+/** The element of the given id, held to its kind, or the page's error naming it. */
+function elementOf<T extends Element>(id: string, kind: { new (): T; prototype: T }, what: string): T {
+	const element = document.getElementById(id);
+	if (!(element instanceof kind)) throw new Error(`page-entry: the entry document holds no ${what} with the id ${id}`);
+	return element;
+}
+const paneReadouts = elementOf("view-readouts", SVGSVGElement, "<svg>");
+const reticle = elementOf("view-home", HTMLButtonElement, "<button>");
+const goMillion = elementOf("go-million", HTMLButtonElement, "<button>");
+const goTwoTo21 = elementOf("go-two-to-21", HTMLButtonElement, "<button>");
+/** Where the browser reports a precision line's left edge on screen, by its distance: its element's bounding box, Chrome's own geometry. */
+const precisionBounds = (distance: number): number | null => pane.querySelector(`.precision-${distance}`)?.getBoundingClientRect().left ?? null;
+const page = composeTesterPage({ surface, keySource: window, address: document.URL, browser, pane, paneReadouts, precisionBounds, reticle, goMillion, goTwoTo21 });
 Object.defineProperty(globalThis, "inputTester", { value: page, enumerable: false, writable: false, configurable: false });

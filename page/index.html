@@ -11,13 +11,19 @@
 <header>
 <h1>input-tester</h1>
 <p>What your keyboard, mouse and touchpad send, and what each gesture is taken to mean, as it happens. Nothing you press, move or type leaves this page, and nothing is stored.</p>
-<nav>Plan: <a href="?plan=ansi">full-size ANSI</a> <a href="?plan=chromebook">Chromebook</a></nav>
+<nav>Plan: <a href="?plan=ansi">full-size ANSI</a> <a href="?plan=chromebook">Chromebook</a> | View pane: <a href="#view">large, to judge each gesture</a> <a href="#">small</a></nav>
 </header>
+<span id="view"></span>
 <main>
 <svg id="input-surface" viewBox="0 0 1640 900" preserveAspectRatio="xMidYMin meet" role="img" aria-label="A keyboard and a mouse, lit as you use them, with every rule they are matched against"></svg>
 <div id="view-pane-box">
 <svg id="view-pane" role="img" aria-label="The view pane: an unbounded grid, panned and zoomed by the view's gestures and keys"></svg>
+<svg id="view-readouts" aria-hidden="true"></svg>
+<div id="view-buttons">
+<button id="go-million" type="button" aria-label="Go to the line at 1,000,000 from the origin, at the nearest level">line at 1,000,000</button>
+<button id="go-two-to-21" type="button" aria-label="Go to the line at 2 to the 21st, 2,097,152, from the origin, at the nearest level">line at 2^21</button>
 <button id="view-home" type="button" aria-label="Home: the view's centre to 0, 0, the level kept">home 0, 0</button>
+</div>
 </div>
 </main>
 </body>
