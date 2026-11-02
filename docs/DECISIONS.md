@@ -516,4 +516,5 @@ GUIDE section 9 says plainly that the address is read once, as the page opens, s
 **Settled by the build.**
 - `test/browser/view-pane.test.js` loads the page at 1366 by 657, 1093 by 526 and 1536 by 750, each with the pane small and large, and holds the document no larger than the window and every button, the header's two and the pane's three, wholly inside it; on `0014`'s stylesheet it fails at 1093 by 526, a document 537 pixels tall in a window of 526.
 - One mutant, `M87`, the pane's height a constant below the header again, killed by it.
+- Each of the test's loads differs from the last before its fragment, so it is a new page: as first written, its `#view` loads followed loads of the same address and were fragments changed on the open page, which L2 says change nothing, so the large pane was never loaded at those windows; it now also holds each pane's width to its size and its foot inside the window, and on `0014`'s stylesheet fails at 1093 by 526 in both sizes, the pane ending at 537.
 

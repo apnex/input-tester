@@ -339,11 +339,14 @@ test("at the Chromebook's likely windows -- 1366 by 657, 1093 by 526 at 125%, 15
 		for (const [width, height] of [[1366, 657], [1093, 526], [1536, 750]]) {
 			await t.chrome.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
 			for (const fragment of ["", "#view"]) {
-				await t.load(`?plan=chromebook${fragment}`);
+				// each load's address differs before its fragment, so it is a new page and not a fragment changed on the old one (L2)
+				await t.load(`?plan=chromebook&window=${width}x${height}${fragment === "" ? "small" : "large"}${fragment}`);
 				await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-				const m = await t.page("(() => { const d = document.documentElement; const buttons = [...document.querySelectorAll('button')].map((b) => { const r = b.getBoundingClientRect(); return [b.id, r.left, r.top, r.right, r.bottom]; }); return { scrollWidth: d.scrollWidth, scrollHeight: d.scrollHeight, innerWidth, innerHeight, header: Math.round(document.querySelector('header').getBoundingClientRect().height), buttons }; })()");
+				const m = await t.page("(() => { const d = document.documentElement; const pane = document.getElementById('view-pane').getBoundingClientRect(); const buttons = [...document.querySelectorAll('button')].map((b) => { const r = b.getBoundingClientRect(); return [b.id, r.left, r.top, r.right, r.bottom]; }); return { paneWidth: pane.width, paneBottom: pane.bottom, scrollWidth: d.scrollWidth, scrollHeight: d.scrollHeight, innerWidth, innerHeight, header: Math.round(document.querySelector('header').getBoundingClientRect().height), buttons }; })()");
 				const where = `${width} by ${height}${fragment === "" ? ", the pane small" : ", the pane large"}`;
-				seen.push(`${where}: header ${m.header}, document ${m.scrollWidth} by ${m.scrollHeight}`);
+				seen.push(`${where}: header ${m.header}, pane ${Math.round(m.paneWidth)} wide to y ${Math.round(m.paneBottom)}, document ${m.scrollWidth} by ${m.scrollHeight}`);
+				assert.ok(fragment === "" ? m.paneWidth < 0.25 * width : m.paneWidth > 0.45 * width, `${where}: the pane is ${m.paneWidth} wide`);
+				assert.ok(m.paneBottom <= m.innerHeight, `${where}: the pane ends at ${m.paneBottom}, past the window's ${m.innerHeight}`);
 				assert.ok(m.scrollHeight <= m.innerHeight && m.scrollWidth <= m.innerWidth, `${where}: the document is ${m.scrollWidth} by ${m.scrollHeight}, the window ${m.innerWidth} by ${m.innerHeight}: it scrolls`);
 				assert.equal(m.buttons.length, 5, `${where}: the header's two buttons and the pane's three`);
 				for (const [id, left, top, right, bottom] of m.buttons) assert.ok(left >= 0 && top >= 0 && right <= m.innerWidth && bottom <= m.innerHeight, `${where}: the button ${id} (${left}, ${top} to ${right}, ${bottom}) leaves the window`);
