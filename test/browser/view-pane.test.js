@@ -565,6 +565,40 @@ test("0017: from the small pane at 2x on a 1093 by 526 window to the large at th
 	}
 });
 
+test("0019's floor, one edit back: with GRID_FLOOR planted back at 4 in a built copy, 0018's drops return, each tier by its own spacing -- the quarter tier at 3x in the small pane on all three of the Chromebook's windows, the half tier kept, and the half tier at 2x on 1093 by 526 -- the tiers kept drawn whole, the large pane's tiers all kept", TEST, async (tc) => {
+	const { GRID_TIERS } = await importBuilt("view-steps.js");
+	const planted = plantedSite([{ file: "app/view-steps.js", find: "export const GRID_FLOOR = 0;", replace: "export const GRID_FLOOR = 4;" }]);
+	const main = t;
+	const seen = [];
+	let n = 0;
+	try {
+		t = await openTesterInChrome({ siteDir: planted.dir });
+		for (const [width, height, size, level, want] of [
+			[1366, 657, "small", 3, [null, null, "spacing"]],
+			[1093, 526, "small", 3, [null, null, "spacing"]],
+			[1536, 750, "small", 3, [null, null, "spacing"]],
+			[1093, 526, "small", 2, [null, "spacing"]],
+			[1093, 526, "large", 3, [null, null, null]],
+		]) {
+			await t.chrome.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+			await t.load(`?plan=chromebook&floor=${n++}${size === "large" ? "#view" : ""}`);
+			for (let l = 1; l < level; l++) await viewKey("-", "Minus", 189);
+			const g = await gridAgainstView(GRID_TIERS);
+			const where = `${width} by ${height}, the ${size} pane at ${level}x, the floor at 4`;
+			seen.push(`${where}: ${g.dots.tiers.map((x) => `${x.opacity} every ${x.every}: ${x.drawn}${x.dropped ? ` (${x.dropped})` : ""}`).join(", ")}`);
+			assert.equal(g.dots.level, level, where);
+			assert.deepEqual(g.dots.tiers.map((x) => x.dropped), want, `${where}: the tiers left out`);
+			assert.deepEqual(g.wrong, [], `${where}: the tiers kept drawn whole`);
+			assert.equal(g.dots.listed, g.dots.tiers.reduce((sum, x) => sum + x.drawn, 0), `${where}: nothing listed but what is drawn`);
+		}
+	} finally {
+		tc.diagnostic(seen.join("; "));
+		await t.close();
+		t = main;
+		planted.remove();
+	}
+});
+
 test("0018, 0019, draw's reading 10's o:F1: past the listing's bound, a stand-in planted in a built copy, the finest faded tier is left out first by the count, the tiers kept drawn whole -- at 3000, the quarter tier at 3x and the half at 2x -- and where even the full tier would pass it -- at 60 -- every faded tier is left out and the full tier's lattice thinned by inView's own stride doubling, anchored at the origin, the origin always drawn", TEST, async (tc) => {
 	const { GRID_TIERS } = await importBuilt("view-steps.js");
 	const main = t;

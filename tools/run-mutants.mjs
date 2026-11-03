@@ -174,6 +174,8 @@ export const MUTANTS = [
 	["M108", "the floor back at 4, so the quarter tier drops out in the small pane at 3x (0019)", "src/view-steps.ts", "export const GRID_FLOOR = 0;", "export const GRID_FLOOR = 4;", ["test/browser/view-pane.test.js"]],
 	["M109", "the bound back at 10,000, so the quarter tier drops out by the count in the small pane at 3x (0019)", "src/view-steps.ts", "export const GRID_MAX = 25000;", "export const GRID_MAX = 10000;", ["test/browser/view-pane.test.js"]],
 	["M110", "a faded tier left out by the old 10,000, below the bound (0019)", "src/view-pane.ts", "const tooMany = pointsIn(v, every * PANE_GRID.pitch) > GRID_MAX;", "const tooMany = pointsIn(v, every * PANE_GRID.pitch) > 10000;", ["test/browser/view-pane.test.js"]],
+	["M111", "the floor's check removed, so a tier is never left out by its spacing whatever GRID_FLOOR is (0019's check, f1)", "src/view-pane.ts", "const tooClose = every * PANE_GRID.pitch * visible.scale < GRID_FLOOR;", "const tooClose = false;", ["test/browser/view-pane.test.js"]],
+	["M112", "a tier floored by the grid's own spacing, not its own, so the half tier left out with the quarter (0019's check, f2)", "src/view-pane.ts", "const tooClose = every * PANE_GRID.pitch * visible.scale < GRID_FLOOR;", "const tooClose = PANE_GRID.pitch * visible.scale < GRID_FLOOR;", ["test/browser/view-pane.test.js"]],
 ];
 
 const rebuilds = (file) => file.startsWith("src/") || file.startsWith("page/");
