@@ -595,3 +595,56 @@ GUIDE section 9's step 2 says a dot is full only where every fifth row meets eve
 - The pan and wheel figures are `B20`'s: two runs each, in headless Chrome, at 1366 by 657 and 1536 by 750, the small pane at 2x and the large at 3x, 81 moves of a middle pan and 40 notches of Ctrl and the wheel.
 - The tests read the dots paths, absolute and relative moves alike, with a parser of their own.
 
+---
+
+## 0018 - The grid's tiers per level, a grid within a grid, and v0.4.0
+
+**Ruled by:** the director, 2026-11-03, on the Chromebook in the lab, of `v0.3.0` (draw's PAN-ZOOM.md PZ24, restated in its revision 14 by its drafter).\
+**Affects:** `src/view-steps.ts`, `src/view-pane.ts`; `test/browser/view-pane.test.js`; `tools/run-mutants.mjs`; `docs/GUIDE.md`, `docs/BACKLOG.md`; `package.json` and its lockfile, now `0.4.0`; and `docs/ARCHITECTURE-TARGET.md`, revision 16.
+
+**Ruling.**\
+The director refined `0016`'s grid: "Can we change the shade so its every 4th one that is full? i.e 3 50% opacity dots in between at 2x zoom.\
+Wondering then - if we adjust the concept when we move to 3x zoom - to have 2 levels of opacity, full, 50% and 25% (in between every 50% opacity one at 3x zoom). we could do this for a 9 point run. so full,50,25,50,25,50,25,50,25,50,full"; shown the two ways that fills a grid, the director chose "grid within a grid. continue".\
+`GRID_EMPHASIS` and `GRID_FADE` give way to one table beside `ZOOM_LEVELS` in `src/view-steps.ts`, `GRID_TIERS`, as draw's design names it: each level's tiers, coarsest first, each `{ every, opacity }`, a point taking the first tier whose `every` divides both its cell indices -- 0.5x and 1x one tier, every point full; 2x every fourth full and every other point at half; 3x every tenth full, every second at half and every other point at a quarter.\
+So at 3x a row through a full dot runs full, a quarter, a half, a quarter, ... a quarter, full, ten cells from full to full, and the rows between are all at a quarter: the grid within a grid the director chose, where the run quoted, read along one line, would fill the plane as a chessboard.\
+Each faded tier is left out, the finest first, where its own points would sit under `GRID_FLOOR`, 4 screen pixels, apart -- its spacing `every` times the pitch times the scale -- or where listing it in view would pass `inView`'s 10,000; the full tier is never left out, its lattice thinned from the origin by `inView`'s own stride doubling past the bound, as `0017` ruled; the margin, the redraw policy and the reading before putting are `0017`'s.\
+The version is `0.4.0`, for the reason `0016` gave `0.3.0`: a change to what the page shows by a new ruling, not a fix of `0.3.0`, which drew what `0016` ruled; the release workflow and `tools/deploy` are unchanged.
+
+**What the pane draws**, measured in headless Chrome on the Chromebook plan, stepped by the view keys; "in view" counts the grid's points in the pane, and each tier's figure the points it drew, with the margin:
+
+| Window | Pane | Level | Spacing, pixels | In view | Drawn, by tier's opacity |
+|---|---|---|---|---|---|
+| 1366 by 657 | small | 0.5x | 17.06 | 595 | 1: 943 |
+| 1366 by 657 | small | 1x | 8.53 | 2277 | 1: 2925 |
+| 1366 by 657 | small | 2x | 4.27 | 8905 | 1: 595; 0.5: 9134 |
+| 1366 by 657 | small | 3x | 2.84 | 20079 | 1: 231; 0.5: 5226; 0.25: 0, left out by spacing and count |
+| 1366 by 657 | large | 0.5x | 40.94 | 255 | 1: 483 |
+| 1366 by 657 | large | 1x | 20.47 | 957 | 1: 1365 |
+| 1366 by 657 | large | 2x | 10.23 | 3705 | 1: 255; 0.5: 4218 |
+| 1366 by 657 | large | 3x | 6.82 | 8439 | 1: 99; 0.5: 2298; 0.25: 7182 |
+| 1093 by 526 | small | 0.5x | 13.63 | 561 | 1: 897 |
+| 1093 by 526 | small | 1x | 6.81 | 2145 | 1: 2769 |
+| 1093 by 526 | small | 2x | 3.41 | 8385 | 1: 561; 0.5: 0, left out by spacing |
+| 1093 by 526 | small | 3x | 2.27 | 18721 | 1: 209; 0.5: 4840; 0.25: 0, left out by spacing and count |
+| 1093 by 526 | large | 0.5x | 32.75 | 221 | 1: 437 |
+| 1093 by 526 | large | 1x | 16.38 | 891 | 1: 1287 |
+| 1093 by 526 | large | 2x | 8.19 | 3445 | 1: 255; 0.5: 3934 |
+| 1093 by 526 | large | 3x | 5.46 | 7857 | 1: 99; 0.5: 2094; 0.25: 6768 |
+| 1536 by 750 | small | 0.5x | 19.19 | 595 | 1: 943 |
+| 1536 by 750 | small | 1x | 9.59 | 2343 | 1: 3003 |
+| 1536 by 750 | small | 2x | 4.80 | 9165 | 1: 595; 0.5: 8986 |
+| 1536 by 750 | small | 3x | 3.20 | 20661 | 1: 231; 0.5: 5328; 0.25: 0, left out by spacing and count |
+| 1536 by 750 | large | 0.5x | 46.06 | 255 | 1: 483 |
+| 1536 by 750 | large | 1x | 23.03 | 957 | 1: 1365 |
+| 1536 by 750 | large | 2x | 11.52 | 3835 | 1: 289; 0.5: 4326 |
+| 1536 by 750 | large | 3x | 7.68 | 8633 | 1: 99; 0.5: 2298; 0.25: 7388 |
+
+No tier is left out in the large pane at the three windows; with the pane small, the quarter tier is left out at 3x on all three, its points both too close and too many, the half tier kept, and the half tier at 2x on the 1093 by 526 window, too close.
+
+**Settled by the build.**
+- One listing serves a drawing: the lattice of the finest tier kept, through the origin, each point sorted into the first tier whose lattice it lies on; a faded tier's spacing and count are asked before anything is listed, so nothing is listed and thrown away.
+- Each faded tier is a path of its own, `pane-dots-tier-1` and `pane-dots-tier-2`, its opacity from the table; a level with fewer tiers, or a tier left out, draws its path empty; the GT8 test steps the fake platform's pane to 3x before it reads the shapes, since at 1x no faded path carries an opacity, and holds the opacities it finds to the table's half and quarter.
+- `test/browser/view-pane.test.js` holds the table to the director's values as literals, each tier's lattice within the coarser's and fainter; at every level every point in view at its tier by its cell indices, the origin full, 3x's row through the origin and the row below it as the director put them, the spacing closing up; the floors -- the quarter tier left out by the count at the gate's small pane at 3x and by the spacing alone on a 1600 by 300 window, the half tier kept, the half tier left out at 2x on 1093 by 526 -- nothing listed beyond the finest tier kept; and the overflow with a stand-in bound of 60, every faded tier left out by the count and the full tier thinned to every 8 cells at 1x and every 20 at 3x.
+- Mutants, each killed: `M105`, every fifth point full at 2x again; `M106`, the tiers taken finest first; `M107`, a tier's lattice a chessboard; `M93`, a faded tier kept under the floor; `M104`, the full tier left out at the floor; and `M89` to `M103` named again for the code as it now stands.
+- The pans and wheel notches, timed as `0017` timed them, two runs: in the large pane at 3x a pan's 95th percentile 9.3 to 14.0 ms, in the small pane at 2x 9.2 to 19.5 ms, and the wheel's notches 9.4 to 27.0 ms -- the points drawn the same as before, so the figures stand within the runs' spread, and `B20` holds them.
+

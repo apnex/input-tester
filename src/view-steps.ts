@@ -11,26 +11,44 @@
 /** The zoom levels, nearest first: 0.5x twice as close as the default, 1x the default, 2x and 3x farther out (PZ12). */
 export const ZOOM_LEVELS: readonly number[] = Object.freeze([0.5, 1, 2, 3]);
 
+/** One tier of the grid at a level: the points whose cell indices are both multiples of `every`, drawn at `opacity`. */
+export interface GridTier {
+	readonly every: number;
+	readonly opacity: number;
+}
+
+const tier = (every: number, opacity: number): GridTier => Object.freeze({ every, opacity });
+
 /**
- * The grid's emphasis at each level (the director's ruling, docs/DECISIONS.md 0016; draw's PZ24 as restated): every
- * grid point is drawn at every level, so the dots close up as the view zooms out, and at a level whose interval N is
- * above 1 only the points whose cell indices are both multiples of N -- the origin always among them -- are drawn
- * full, every other point at `GRID_FADE`. N 1 draws every point full, as up close. Held here beside the
- * levels, to be tuned by one edit; a level the table does not name draws every point full.
+ * The grid's tiers at each level, coarsest first (the director's rulings, docs/DECISIONS.md 0016 and 0018; draw's PZ24
+ * as restated, which names it so): every grid point is drawn at every level, so the dots close up as the view zooms
+ * out, and a point takes the first tier whose `every` divides both its cell indices -- a grid within a grid, the
+ * origin always in the first, full tier. Up close every point is full; at 2x every fourth full and the three between
+ * at half opacity; at 3x every tenth full, every second at half and the rest at a quarter, so a row through a full dot
+ * runs full, 25, 50, 25, ... 25, full and the rows between are all at a quarter. Held here beside the levels, to be
+ * tuned by one edit; a level the table does not name draws every point full.
  */
-export const GRID_EMPHASIS: Readonly<Record<number, number>> = Object.freeze({ 0.5: 1, 1: 1, 2: 5, 3: 7 });
+export const GRID_TIERS: Readonly<Record<number, readonly GridTier[]>> = Object.freeze({
+	0.5: Object.freeze([tier(1, 1)]),
+	1: Object.freeze([tier(1, 1)]),
+	2: Object.freeze([tier(4, 1), tier(1, 0.5)]),
+	3: Object.freeze([tier(10, 1), tier(2, 0.5), tier(1, 0.25)]),
+});
 
-/** The opacity of a grid point that is not emphasised: half, the director's "perhaps 50% opacity"; named as draw's design names it, so one search finds both. */
-export const GRID_FADE = 0.5;
-
-/** The least spacing on screen, in pixels, at which the faded points are drawn: closer, the emphasised points alone; named as draw's design names it. */
+/** The least spacing on screen, in pixels, at which a faded tier's points are drawn -- its spacing `every` times the pitch times the scale; closer, the tier is left out; named as draw's design names it. */
 export const GRID_FLOOR = 4;
 
-/** A level's emphasis interval: the table's, or 1. */
-export const emphasisOf = (level: number): number => GRID_EMPHASIS[level] ?? 1;
+/** A level's tiers: the table's, or every point full. */
+export const tiersOf = (level: number): readonly GridTier[] => GRID_TIERS[level] ?? [tier(1, 1)];
 
-/** Whether a grid point, by its cell indices, is emphasised at an interval: both indices multiples of it, so 0, 0 always is. */
-export const isEmphasised = (col: number, row: number, interval: number): boolean => col % interval === 0 && row % interval === 0;
+/** Whether a grid point, by its cell indices, lies on a tier's lattice: both indices multiples of its `every`, so 0, 0 always does. */
+export const onTier = (col: number, row: number, every: number): boolean => col % every === 0 && row % every === 0;
+
+/** The tier a grid point takes among the first `count` of a level's tiers: the first, coarsest first, whose lattice it lies on. */
+export function tierOf(col: number, row: number, tiers: readonly GridTier[], count = tiers.length): number {
+	for (let i = 0; i < count; i++) if (onTier(col, row, (tiers[i] as GridTier).every)) return i;
+	return count - 1;
+}
 
 /** The level the view opens at: the default, 1x. */
 export const DEFAULT_ZOOM_LEVEL = 1;

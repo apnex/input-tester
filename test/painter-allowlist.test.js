@@ -45,6 +45,10 @@ test("GT8: every shape the painter puts, across every family of input, is of the
 	const platform = fakePlatform({ keyboardMap: null });
 	composeTesterPage(platform);
 	driveEveryFamily(platform);
+	for (const key of ["-", "-"]) {
+		platform.key("key-down", { key, code: "Minus" });
+		platform.key("key-up", { key, code: "Minus" });
+	}
 	const layers = platform.root.children;
 	assert.deepEqual(layers.map((l) => l.attributes.get("class")), SCENE_LAYERS.map((l) => l.attrs.class), "the scene's four layers, back to front");
 	const paneLayers = platform.paneRoot.children;
@@ -66,7 +70,7 @@ test("GT8: every shape the painter puts, across every family of input, is of the
 	for (const tag of ["script", "foreignObject", "use", "image", "a", "style"]) assert.ok(!PAINTER_TAGS.includes(tag), tag);
 	for (const name of ["href", "xlink:href", "style", "onclick", "src", "fill"]) assert.ok(!PAINTER_ATTRIBUTES.includes(name), name);
 	const opacities = shapes.filter((e) => e.attributes.has("opacity")).map((e) => Number(e.attributes.get("opacity")));
-	assert.ok(opacities.length > 0 && opacities.every((o) => Number.isFinite(o) && o >= 0 && o <= 1), `every opacity a number from 0 to 1: ${opacities}`);
+	assert.deepEqual([...new Set(opacities)].sort(), [0.25, 0.5], `at 3x, the faded tiers' opacities, each a number from 0 to 1: ${opacities}`);
 });
 
 test("GT8: the stylesheet, as built into the release, holds no url( and no @import", () => {

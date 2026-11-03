@@ -5,7 +5,7 @@
  *
  * It holds an unbounded square grid of 60, every point in view drawn from the scene's `visible()` by `snap-grid`'s
  * `inView` at stride 1, so the dots close up as the view zooms out, each level's emphasised points full and the rest
- * faded (`GRID_EMPHASIS` in view-steps.ts, docs/DECISIONS.md 0016), and a cross at the origin. Asked to show a view -- a centre and a level, the
+ * by its tier (`GRID_TIERS` in view-steps.ts, docs/DECISIONS.md 0016 and 0018), and a cross at the origin. Asked to show a view -- a centre and a level, the
  * picture state's -- it turns it into the scene's form, the drawing point at its top-left corner at the level's
  * scale, writes it with `setView` when it differs from the view written, and draws the grid again for what is now
  * visible: inside the delivery that moved the view, never later, as GT2 asks, so at most once a delivery. The grid is
@@ -26,8 +26,8 @@ import { openScene } from "../vendor/vector-scene/index.js";
 import { wrapWords } from "./picture-painter.js";
 import type { ElementSlice, Scene, SceneRoot, SceneView } from "../vendor/vector-scene/index.js";
 import type { ViewPicture } from "./picture-state.js";
-import { GRID_FLOOR, GRID_FADE, PRECISION_LINES, PRECISION_LINE_WIDTH, emphasisOf, isEmphasised, levelWords, paneLaidOut, paneScale } from "./view-steps.js";
-import type { PaneGeometry } from "./view-steps.js";
+import { GRID_FLOOR, GRID_TIERS, PRECISION_LINES, PRECISION_LINE_WIDTH, levelWords, paneLaidOut, paneScale, tierOf, tiersOf } from "./view-steps.js";
+import type { GridTier, PaneGeometry } from "./view-steps.js";
 
 /** The pane's grid: square, 60 units apart, its origin at 0, 0 -- draw's default grid. */
 export const PANE_GRID = Object.freeze({ shape: "square", pitch: 60, origin: Object.freeze({ x: 0, y: 0 }) });
@@ -47,16 +47,27 @@ const pointsIn = (r: { readonly x: number; readonly y: number; readonly w: numbe
 /** What the pane drew of its grid at its latest view: the level and its interval, the spacing on screen, the full and faded points' counts, and why the faded were left out, if they were. */
 export interface PaneDots {
 	readonly level: number;
-	readonly interval: number;
 	readonly spacing: number;
 	readonly inView: number;
 	readonly margin: number;
 	readonly listed: number;
+	readonly tiers: readonly PaneTier[];
 	readonly full: number;
 	readonly faded: number;
-	readonly floor: "spacing" | "count" | "spacing and count" | null;
+	readonly floor: string | null;
 	readonly draws: number;
 }
+
+/** One tier as the pane drew it: its `every` and opacity, how many of its points it drew, and why it was left out, if it was. */
+export interface PaneTier {
+	readonly every: number;
+	readonly opacity: number;
+	readonly drawn: number;
+	readonly dropped: "spacing" | "count" | "spacing and count" | null;
+}
+
+/** How many faded tiers any level has: one path is kept for each, empty where a level has fewer or leaves one out. */
+const FADED_PATHS = Math.max(...Object.values(GRID_TIERS).map((t) => t.length)) - 1;
 
 /** A scene's `visible()` answer, as the pane reads it once a delivery, before anything is put. */
 type Visible = ReturnType<Scene["visible"]>;
@@ -187,43 +198,59 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 		return d;
 	};
 	/**
-	 * Draws the grid for a level and what is visible: every point in view and up to `PANE_MARGIN_CELLS` beyond, listed
-	 * at stride 1, the emphasised ones full and the rest at `GRID_FADE` -- unless the points would stand closer than
-	 * `GRID_FLOOR` on screen, or listing the view would pass `inView`'s bound, each known before anything is listed;
-	 * then the emphasised lattice alone, a grid of the interval times the pitch through the origin, which `inView`
-	 * thins by its own stride doubling, anchored at the origin, when it too would pass the bound (draw's reading 10, o:F1).
+	 * Draws the grid for a level and what is visible, by the level's tiers: every point in view and up to
+	 * `PANE_MARGIN_CELLS` beyond, each at the opacity of the first tier whose `every` divides both its cell indices. A
+	 * faded tier is left out, the finest first, where its own points would stand under `GRID_FLOOR` on screen or
+	 * listing them in view would pass `inView`'s bound, each known before anything is listed; the full tier is never
+	 * left out, its lattice thinned by `inView`'s own stride doubling, anchored at the origin, past the bound (draw's
+	 * reading 10, o:F1). One listing serves: the lattice of the finest tier kept, through the origin.
 	 */
 	const drawGrid = (level: number, visible: Visible): void => {
-		const interval = emphasisOf(level);
+		const tiers = tiersOf(level);
 		const spacing = PANE_GRID.pitch * visible.scale;
 		const v = visible.region;
 		const inView = pointsIn(v, PANE_GRID.pitch);
+		const dropped: PaneTier["dropped"][] = tiers.map(() => null);
+		for (let i = tiers.length - 1; i >= 1; i--) {
+			const every = (tiers[i] as GridTier).every;
+			const tooClose = every * PANE_GRID.pitch * visible.scale < GRID_FLOOR;
+			const tooMany = pointsIn(v, every * PANE_GRID.pitch) > PANE_MAX_DOTS;
+			if (!tooClose && !tooMany) break;
+			dropped[i] = tooClose && tooMany ? "spacing and count" : tooMany ? "count" : "spacing";
+		}
+		let kept = dropped.indexOf(null) === -1 ? 0 : tiers.length - [...dropped].reverse().indexOf(null);
 		const grown = (m: number) => ({ kind: "rect" as const, x: v.x - m * PANE_GRID.pitch, y: v.y - m * PANE_GRID.pitch, w: v.w + 2 * m * PANE_GRID.pitch, h: v.h + 2 * m * PANE_GRID.pitch });
-		let margin = PANE_MARGIN_CELLS;
-		while (margin > 0 && pointsIn(grown(margin), PANE_GRID.pitch) > PANE_MAX_DOTS) margin--;
-		const region = grown(margin);
-		const tooClose = spacing < GRID_FLOOR;
-		let tooMany = inView > PANE_MAX_DOTS;
+		let margin = 0;
+		let region = grown(0);
+		let points: { x: number; y: number; tier: number }[] = [];
 		let listed = 0;
-		let full: { x: number; y: number }[] = [];
-		const faded: { x: number; y: number }[] = [];
-		if (!tooClose && !tooMany) {
-			const listing = grid.inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
+		for (;;) {
+			const every = (tiers[kept - 1] as GridTier).every;
+			margin = PANE_MARGIN_CELLS;
+			while (margin > 0 && pointsIn(grown(margin), every * PANE_GRID.pitch) > PANE_MAX_DOTS) margin--;
+			region = grown(margin);
+			const listing = emphasisGrid(every).inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
 			listed += listing.positions.length;
-			if (listing.stride !== 1) tooMany = true;
-			else for (const p of listing.positions) (isEmphasised(p.position.col, p.position.row, interval) ? full : faded).push(p.point);
+			if (listing.stride !== 1 && kept > 1) {
+				kept--;
+				dropped[kept] = "count";
+				continue;
+			}
+			points = listing.positions.map((p) => ({ ...p.point, tier: tierOf(p.position.col * every, p.position.row * every, tiers, kept) }));
+			break;
 		}
-		if (tooClose || tooMany) {
-			const lattice = emphasisGrid(interval).inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
-			listed += lattice.positions.length;
-			full = lattice.positions.map((p) => p.point);
-			faded.length = 0;
+		const byTier = tiers.map((_, i) => points.filter((p) => p.tier === i));
+		scene.put("grid", "dots", [{ tag: "path", attrs: { d: dotsPath(byTier[0] ?? []), class: "pane-dots" } }]);
+		for (let i = 1; i <= FADED_PATHS; i++) {
+			const t = tiers[i];
+			const attrs = t === undefined ? { d: "", class: `pane-dots pane-dots-faded pane-dots-tier-${i}` } : { d: dotsPath(byTier[i] ?? []), class: `pane-dots pane-dots-faded pane-dots-tier-${i}`, opacity: t.opacity };
+			scene.put("grid", `faded dots ${i}`, [{ tag: "path", attrs }]);
 		}
-		scene.put("grid", "dots", [{ tag: "path", attrs: { d: dotsPath(full), class: "pane-dots" } }]);
-		scene.put("grid", "faded dots", [{ tag: "path", attrs: { d: dotsPath(faded), class: "pane-dots pane-dots-faded", opacity: GRID_FADE } }]);
 		drawnRegion = region;
 		draws++;
-		drawnDots = Object.freeze({ level, interval, spacing, inView, margin, listed, full: full.length, faded: faded.length, floor: tooMany && tooClose ? "spacing and count" : tooMany ? "count" : tooClose ? "spacing" : null, draws });
+		const drawnTiers = tiers.map((t, i) => Object.freeze({ every: t.every, opacity: t.opacity, drawn: (byTier[i] ?? []).length, dropped: dropped[i] ?? null }));
+		const floor = drawnTiers.filter((t) => t.dropped !== null).map((t) => `the ${t.opacity} tier by ${t.dropped}`).join("; ");
+		drawnDots = Object.freeze({ level, spacing, inView, margin, listed, tiers: Object.freeze(drawnTiers), full: drawnTiers[0]?.drawn ?? 0, faded: points.length - (drawnTiers[0]?.drawn ?? 0), floor: floor === "" ? null : floor, draws });
 	};
 	/**
 	 * Measures each precision line whose left edge stands in what is visible, as the probe did: expected by the view's
