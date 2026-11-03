@@ -35,8 +35,21 @@ export const GRID_TIERS: Readonly<Record<number, readonly GridTier[]>> = Object.
 	3: Object.freeze([tier(10, 1), tier(2, 0.5), tier(1, 0.25)]),
 });
 
-/** The least spacing on screen, in pixels, at which a faded tier's points are drawn -- its spacing `every` times the pitch times the scale; closer, the tier is left out; named as draw's design names it. */
-export const GRID_FLOOR = 4;
+/**
+ * The least spacing on screen, in pixels, at which a faded tier's points are drawn -- its spacing `every` times the
+ * pitch times the scale; closer, the tier is left out; named as draw's design names it. 0 for the lab's try of every
+ * dot drawn at every level (docs/DECISIONS.md 0019, the director's "showing all dots at 3x zoom (not dropping out?)"),
+ * so it never applies; 4, `0018`'s, is one edit away.
+ */
+export const GRID_FLOOR = 0;
+
+/**
+ * The most grid points the pane lists at once, a tier's or the margin's: past it a faded tier is left out, the finest
+ * first, and the full tier's lattice thinned from the origin by `inView`'s own stride doubling (`0017`, `0018`). 25,000
+ * lists every point in view and 3 cells beyond at stride 1 at the Chromebook's three windows in both sizes of the pane,
+ * the most 22,557 (the small pane at 3x on 1536 by 750, measured), with room for a taller window (`0019`).
+ */
+export const GRID_MAX = 25000;
 
 /** A level's tiers: the table's, or every point full. */
 export const tiersOf = (level: number): readonly GridTier[] => GRID_TIERS[level] ?? [tier(1, 1)];

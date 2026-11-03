@@ -648,3 +648,36 @@ No tier is left out in the large pane at the three windows; with the pane small,
 - Mutants, each killed: `M105`, every fifth point full at 2x again; `M106`, the tiers taken finest first; `M107`, a tier's lattice a chessboard; `M93`, a faded tier kept under the floor; `M104`, the full tier left out at the floor; and `M89` to `M103` named again for the code as it now stands.
 - The pans and wheel notches, timed as `0017` timed them, two runs: in the large pane at 3x a pan's 95th percentile 9.3 to 14.0 ms, in the small pane at 2x 9.2 to 19.5 ms, and the wheel's notches 9.4 to 27.0 ms -- the points drawn the same as before, so the figures stand within the runs' spread, and `B20` holds them.
 
+---
+
+## 0019 - The lab's try: every dot drawn at every level, and v0.5.0
+
+**Ruled by:** the director, 2026-11-03, on the Chromebook in the lab, of `v0.4.0`: "Can we try showing all dots at 3x zoom (not dropping out?)" -- a try, to be judged and tuned (draw's PAN-ZOOM.md PZ24).\
+**Affects:** `src/view-steps.ts`, `src/view-pane.ts`; `test/browser/view-pane.test.js`; `tools/run-mutants.mjs`; `docs/GUIDE.md`, `docs/BACKLOG.md`; `package.json` and its lockfile, now `0.5.0`; and `docs/ARCHITECTURE-TARGET.md`, revision 17.
+
+**Ruling.**\
+In `v0.4.0` a faded tier dropped out in the small pane: at 3x the quarter tier at all three windows, its dots 2.3 to 3.2 pixels apart and 18,700 to 20,700 of them in view, past the 10,000 the pane listed; and at 2x on 1093 by 526 the half tier, 3.4 pixels apart.\
+No dot drops out now at the presets on the three windows, in either size of the pane, at any level.\
+`GRID_FLOOR` is kept, set to 0, so it never applies: the try is to be judged and tuned, and the floor of 4 is one edit back, where removing the mechanism would make it a change of code; the floor is decided again when the director rules on the try.\
+The pane's listing bound, 10,000, becomes `GRID_MAX`, held beside `GRID_TIERS` in `src/view-steps.ts`, 25,000: every point in view and 3 cells beyond is listed at stride 1 at the three windows in both sizes of the pane, the most 22,557, the small pane at 3x on 1536 by 750 (measured, below), with room for a taller window; past it the rule of `0017` and `0018` stands, the finest faded tier left out first and the full tier thinned from the origin.\
+What the director will see in the small pane at 3x: dots 2.3 to 3.2 pixels apart, about 21,000 of them with the margin, the quarter dots a fine, dense texture close to a grey wash, the half dots every second row and column a little firmer, and the full dots every tenth standing out as a lattice; and a pan there that may stutter -- each move that leaves the cells drawn puts 22,000 points again, and the margin of 3 cells is under 10 pixels of travel.\
+The version is `0.5.0`, a visible change under a new ruling, as `0.3.0` and `0.4.0` were; the release workflow and `tools/deploy` are unchanged.
+
+**Measured**, in headless Chrome on the Chromebook plan, every point in view with a margin of 3 cells -- what `GRID_MAX` must list:
+
+| Window | Pane | 0.5x | 1x | 2x | 3x |
+|---|---|---|---|---|---|
+| 1366 by 657 | small | 943 | 2,925 | 10,153 | 21,939 |
+| 1366 by 657 | large | 483 | 1,365 | 4,473 | 9,579 |
+| 1093 by 526 | small | 897 | 2,769 | 9,585 | 20,497 |
+| 1093 by 526 | large | 437 | 1,287 | 4,189 | 8,961 |
+| 1536 by 750 | small | 943 | 3,003 | 10,437 | 22,557 |
+| 1536 by 750 | large | 483 | 1,365 | 4,615 | 9,785 |
+
+At 3x with the pane small the pane draws, full, half and quarter: 231, 5,226 and 16,482 on 1366 by 657; 209, 4,840 and 15,448 on 1093 by 526; 231, 5,328 and 16,998 on 1536 by 750; and at 2x on 1093 by 526, 561 full and 9,024 half.\
+A pan's moves at their 95th percentile, `v0.4.0` against `v0.5.0`, two runs each: the small pane at 3x 6.3 and 10.0 ms against 19.0 and 43.8 ms on 1366 by 657, and 4.1 and 14.6 against 27.7 and 37.4 on 1536 by 750, single moves reaching 29 to 53 ms; the small pane at 2x on 1093 by 526, its half tier now drawn, 3.2 and 4.2 against 12.9 and 19.5; the large pane at 3x and the small at 2x on 1536 by 750, whose points did not change, within the runs' spread, 9.2 to 26.1 against 13.6 to 15.8; Ctrl and the wheel's notches, between 2x and 3x, in the small pane 6.3 to 18.2 against 18.7 to 32.3 at the 95th percentile.
+
+**Settled by the build.**
+- `test/browser/view-pane.test.js` holds every point in view drawn at its tier's opacity by its cell indices, no tier left out and nothing listed beyond what is drawn, at the three windows, both sizes of the pane and every level; the bound with stand-ins planted in a built copy -- at 3,000 the quarter tier left out by the count at 3x and the half at 2x, the tiers kept whole, and at 60 every faded tier left out and the full tier thinned; the margin's narrowing now where 25,000 narrows it, the small pane at 3x on a 2080 by 1140 window; and the record's spacing held to the view's scale, which a change of scale at one level must redraw.
+- Mutants, each killed: `M108`, the floor back at 4; `M109`, the bound back at 10,000; `M110`, a faded tier left out by the old 10,000, below the bound; `M92` and `M93` named again, the bound not 25,000 and a tier's spacing compared the wrong way round, since with a floor of 0 the floor's mutant of before changed nothing.
+

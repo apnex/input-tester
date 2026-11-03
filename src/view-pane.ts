@@ -26,18 +26,16 @@ import { openScene } from "../vendor/vector-scene/index.js";
 import { wrapWords } from "./picture-painter.js";
 import type { ElementSlice, Scene, SceneRoot, SceneView } from "../vendor/vector-scene/index.js";
 import type { ViewPicture } from "./picture-state.js";
-import { GRID_FLOOR, GRID_TIERS, PRECISION_LINES, PRECISION_LINE_WIDTH, levelWords, paneLaidOut, paneScale, tierOf, tiersOf } from "./view-steps.js";
+import { GRID_FLOOR, GRID_MAX, GRID_TIERS, PRECISION_LINES, PRECISION_LINE_WIDTH, levelWords, paneLaidOut, paneScale, tierOf, tiersOf } from "./view-steps.js";
 import type { GridTier, PaneGeometry } from "./view-steps.js";
 
 /** The pane's grid: square, 60 units apart, its origin at 0, 0 -- draw's default grid. */
 export const PANE_GRID = Object.freeze({ shape: "square", pitch: 60, origin: Object.freeze({ x: 0, y: 0 }) });
 
-/** The most grid points listed at once: `inView`'s bound, past which it doubles its stride and the faded points are not drawn. */
-export const PANE_MAX_DOTS = 10000;
 
 /**
  * How many cells beyond the view the grid is drawn on each side, at most: so a pan redraws it only when the view
- * leaves what was drawn, the listing kept within `PANE_MAX_DOTS` by a smaller margin, or none, when the view needs it.
+ * leaves what was drawn, the listing kept within `GRID_MAX` by a smaller margin, or none, when the view needs it.
  */
 export const PANE_MARGIN_CELLS = 3;
 
@@ -214,7 +212,7 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 		for (let i = tiers.length - 1; i >= 1; i--) {
 			const every = (tiers[i] as GridTier).every;
 			const tooClose = every * PANE_GRID.pitch * visible.scale < GRID_FLOOR;
-			const tooMany = pointsIn(v, every * PANE_GRID.pitch) > PANE_MAX_DOTS;
+			const tooMany = pointsIn(v, every * PANE_GRID.pitch) > GRID_MAX;
 			if (!tooClose && !tooMany) break;
 			dropped[i] = tooClose && tooMany ? "spacing and count" : tooMany ? "count" : "spacing";
 		}
@@ -227,9 +225,9 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 		for (;;) {
 			const every = (tiers[kept - 1] as GridTier).every;
 			margin = PANE_MARGIN_CELLS;
-			while (margin > 0 && pointsIn(grown(margin), every * PANE_GRID.pitch) > PANE_MAX_DOTS) margin--;
+			while (margin > 0 && pointsIn(grown(margin), every * PANE_GRID.pitch) > GRID_MAX) margin--;
 			region = grown(margin);
-			const listing = emphasisGrid(every).inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
+			const listing = emphasisGrid(every).inView({ region, scale: visible.scale }, { minSpacing: 0, max: GRID_MAX });
 			listed += listing.positions.length;
 			if (listing.stride !== 1 && kept > 1) {
 				kept--;

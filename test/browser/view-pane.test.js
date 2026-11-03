@@ -383,7 +383,8 @@ const SPEC_TIERS = {
 	2: [{ every: 4, opacity: 1 }, { every: 1, opacity: 0.5 }],
 	3: [{ every: 10, opacity: 1 }, { every: 2, opacity: 0.5 }, { every: 1, opacity: 0.25 }],
 };
-const SPEC_GRID_FLOOR = 4;
+const SPEC_GRID_FLOOR = 0;
+const SPEC_GRID_MAX = 25000;
 
 /** Presses a view key, waiting for its delivery. */
 async function viewKey(key, code, vk) {
@@ -422,7 +423,8 @@ async function gridAgainstView(table) {
 		if (misfiled) wrong.push(misfiled + ' points in the wrong tier');
 		if (off) wrong.push(off + ' points off the finest tier kept');
 		if (c0 <= 0 && c1 >= 0 && r0 <= 0 && r1 >= 0 && at.get('0,0') !== 0) wrong.push('the origin not full');
-		if (at.size > 10000) wrong.push(at.size + ' points drawn, past the bound');
+		if (at.size > ${SPEC_GRID_MAX}) wrong.push(at.size + ' points drawn, past the bound');
+		if (Math.abs(dots.spacing - 60 * v.scale) > 1e-9 * dots.spacing) wrong.push('the record drawn for a spacing of ' + dots.spacing + ', the view at ' + 60 * v.scale);
 		const opacityAt = (c, w) => { const i = at.get(c * 60 + ',' + w * 60); return i === undefined ? null : tiers[i].opacity; };
 		const run = (w) => Array.from({ length: 11 }, (_, c) => opacityAt(c, w));
 		return { wrong, dots, rows: [run(0), run(1)] };
@@ -433,9 +435,9 @@ async function gridAgainstView(table) {
 const paneCentre = () => t.page("(() => { const r = document.getElementById('view-pane').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()");
 
 test("0018: the tiers held beside the levels are the director's -- every point full up close, every fourth full at 2x and the rest at half, every tenth full at 3x, every second at half and the rest at a quarter -- each tier's lattice within the coarser's, the first full", async () => {
-	const { GRID_TIERS, GRID_FLOOR, ZOOM_LEVELS } = await importBuilt("view-steps.js");
+	const { GRID_TIERS, GRID_FLOOR, GRID_MAX, ZOOM_LEVELS } = await importBuilt("view-steps.js");
 	assert.deepEqual(JSON.parse(JSON.stringify(GRID_TIERS)), SPEC_TIERS, "the tiers, the director's values");
-	assert.equal(GRID_FLOOR, SPEC_GRID_FLOOR);
+	assert.deepEqual([GRID_FLOOR, GRID_MAX], [SPEC_GRID_FLOOR, SPEC_GRID_MAX], "the floor off and the bound raised, the lab's try (0019)");
 	for (const level of ZOOM_LEVELS) {
 		const tiers = GRID_TIERS[level];
 		assert.ok(tiers !== undefined, `${level}x named in the table`);
@@ -474,39 +476,44 @@ test("0018: at every level every point in view drawn at its tier's opacity by it
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
-test("0018's floors, a tier at a time, the finest first: in the small pane at 3x the quarter tier left out, by the count here and by the spacing alone on a 1600 by 300 window, the half tier kept; at 2x on a 1093 by 526 window the half tier left out by the spacing; the full tier always drawn whole; nothing listed beyond the finest tier kept", TEST, async (tc) => {
-	const { GRID_TIERS } = await importBuilt("view-steps.js");
+test("0019: no dot drops out -- at the Chromebook's three windows, in both sizes of the pane, at every level, every point in view drawn at its tier's opacity by its cell indices, no tier left out, nothing listed beyond what is drawn", TEST, async (tc) => {
+	const { GRID_TIERS, ZOOM_LEVELS } = await importBuilt("view-steps.js");
 	const seen = [];
+	let n = 0;
 	try {
-		for (const [width, height, level, plan, wantDropped] of [
-			[2080, 1000, 3, "ansi", [null, null, "count"]],
-			[1600, 300, 3, "ansi", [null, null, "spacing"]],
-			[1093, 526, 2, "chromebook", [null, "spacing"]],
-		]) {
+		for (const [width, height] of [[1366, 657], [1093, 526], [1536, 750]]) {
 			await t.chrome.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
-			await t.load(`?plan=${plan}&tiers=floor${width}x${height}`);
-			for (let l = 1; l < level; l++) await viewKey("-", "Minus", 189);
-			const g = await gridAgainstView(GRID_TIERS);
-			const where = `${width} by ${height}, the small pane at ${level}x`;
-			seen.push({ where, spacing: Math.round(g.dots.spacing * 100) / 100, inView: g.dots.inView, tiers: g.dots.tiers });
-			assert.deepEqual(g.dots.tiers.map((x) => x.dropped), wantDropped, `${where}: the tiers left out`);
-			assert.deepEqual(g.wrong, [], `${where}: the tiers kept drawn whole`);
-			assert.equal(g.dots.listed, g.dots.tiers.reduce((n, x) => n + x.drawn, 0), `${where}: nothing listed but what is drawn`);
+			for (const size of ["small", "large"]) {
+				await t.load(`?plan=chromebook&all=${n++}${size === "large" ? "#view" : ""}`);
+				await viewKey("=", "Equal", 187);
+				for (const level of ZOOM_LEVELS) {
+					if (level !== ZOOM_LEVELS[0]) await viewKey("-", "Minus", 189);
+					const g = await gridAgainstView(GRID_TIERS);
+					const where = `${width} by ${height}, the ${size} pane at ${level}x`;
+					assert.equal(g.dots.level, level, where);
+					assert.deepEqual(g.dots.tiers.map((x) => x.dropped), GRID_TIERS[level].map(() => null), `${where}: no tier left out`);
+					assert.deepEqual(g.wrong, [], where);
+					assert.equal(g.dots.listed, g.dots.tiers.reduce((sum, x) => sum + x.drawn, 0), `${where}: nothing listed but what is drawn`);
+					if (level === 3) seen.push(`${where}: ${g.dots.spacing.toFixed(2)} px, ${g.dots.inView} in view, margin ${g.dots.margin}, ${g.dots.tiers.map((x) => `${x.opacity}: ${x.drawn}`).join(", ")}`);
+				}
+			}
 		}
 	} finally {
-		tc.diagnostic(JSON.stringify(seen));
+		tc.diagnostic(seen.join("; "));
 		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 		await t.load("?plan=ansi");
 		await t.chrome.evaluate("window.notReloaded = true");
 	}
 });
 
-test("0017: a pan across the drawn margin's edge in each of the four directions, where the margin is narrowed to keep the listing within 10,000 -- the small pane at 2x here -- leaves the whole grid drawn after every move", TEST, async (tc) => {
+test("0017: a pan across the drawn margin's edge in each of the four directions, where the margin is narrowed to keep the listing within GRID_MAX -- the small pane at 3x on a 2080 by 1140 window here -- leaves the whole grid drawn after every move", TEST, async (tc) => {
 	const { GRID_TIERS } = await importBuilt("view-steps.js");
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 2080, height: 1140, deviceScaleFactor: 1, mobile: false });
 	await t.load("?plan=ansi&dots=margin");
 	await viewKey("-", "Minus", 189);
+	await viewKey("-", "Minus", 189);
 	let g = await gridAgainstView(GRID_TIERS);
-	assert.deepEqual([g.dots.level, g.dots.floor], [2, null], `at 2x, no tier left out: ${JSON.stringify(g.dots)}`);
+	assert.deepEqual([g.dots.level, g.dots.floor], [3, null], `at 3x, no tier left out: ${JSON.stringify(g.dots)}`);
 	assert.ok(g.dots.margin > 0 && g.dots.margin < 3, `the margin narrowed: ${g.dots.margin}`);
 	assert.deepEqual(g.wrong, [], "at the start");
 	const c = await paneCentre();
@@ -526,24 +533,25 @@ test("0017: a pan across the drawn margin's edge in each of the four directions,
 	}
 	await t.mouse("mouseReleased", at, { button: "middle", buttons: 0 });
 	tc.diagnostic(`margin ${g.dots.margin} cells; ${g.dots.draws - draws} drawings over 24 moves of 10 pixels, ${g.dots.spacing.toFixed(2)} pixels a cell`);
+	await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 	await t.load("?plan=ansi");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
-test("0017: from the small pane at 2x on a 1093 by 526 window, where the half tier is left out, to the large, where it is kept at the same level, and back, the whole grid drawn each time; and a jump far from what was drawn draws it again where the view is", TEST, async () => {
+test("0017: from the small pane at 2x on a 1093 by 526 window to the large at the same level, and back, the whole grid drawn each time, the record at each one's scale; and a jump far from what was drawn draws it again where the view is", TEST, async () => {
 	const { GRID_TIERS } = await importBuilt("view-steps.js");
 	try {
 		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1093, height: 526, deviceScaleFactor: 1, mobile: false });
 		await t.load("?plan=chromebook&dots=lift");
 		await viewKey("-", "Minus", 189);
 		let g = await gridAgainstView(GRID_TIERS);
-		assert.deepEqual([g.dots.tiers.map((x) => x.dropped), g.wrong], [[null, "spacing"], []], "small at 2x");
+		assert.deepEqual([g.dots.tiers.map((x) => x.dropped), g.wrong], [[null, null], []], "small at 2x");
 		await click("pane-large");
 		g = await gridAgainstView(GRID_TIERS);
-		assert.deepEqual([g.dots.level, g.dots.tiers.map((x) => x.dropped), g.wrong], [2, [null, null], []], "large at 2x: the half tier kept, the whole grid drawn");
+		assert.deepEqual([g.dots.level, g.dots.tiers.map((x) => x.dropped), g.wrong], [2, [null, null], []], "large at 2x, the whole grid drawn");
 		await click("pane-small");
 		g = await gridAgainstView(GRID_TIERS);
-		assert.deepEqual([g.dots.tiers.map((x) => x.dropped), g.wrong], [[null, "spacing"], []], "small again");
+		assert.deepEqual([g.dots.tiers.map((x) => x.dropped), g.wrong], [[null, null], []], "small again");
 		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 		await t.load("?plan=ansi&dots=far#view");
 		await viewKey("=", "Equal", 187);
@@ -557,36 +565,44 @@ test("0017: from the small pane at 2x on a 1093 by 526 window, where the half ti
 	}
 });
 
-test("0018, draw's reading 10's o:F1: where even the full tier would pass the listing's bound -- a stand-in bound of 60 planted in a built copy -- every faded tier is left out by the count and the full tier's lattice is thinned by inView's own stride doubling, anchored at the origin, the origin always drawn", TEST, async (tc) => {
+test("0018, 0019, draw's reading 10's o:F1: past the listing's bound, a stand-in planted in a built copy, the finest faded tier is left out first by the count, the tiers kept drawn whole -- at 3000, the quarter tier at 3x and the half at 2x -- and where even the full tier would pass it -- at 60 -- every faded tier is left out and the full tier's lattice thinned by inView's own stride doubling, anchored at the origin, the origin always drawn", TEST, async (tc) => {
 	const { GRID_TIERS } = await importBuilt("view-steps.js");
-	const planted = plantedSite([{ file: "app/view-pane.js", find: "export const PANE_MAX_DOTS = 10000;", replace: "export const PANE_MAX_DOTS = 60;" }]);
 	const main = t;
 	const seen = [];
-	try {
-		t = await openTesterInChrome({ siteDir: planted.dir, query: "?plan=ansi#view" });
-		for (const level of [1, 3]) {
-			if (level === 3) {
-				await viewKey("-", "Minus", 189);
-				await viewKey("-", "Minus", 189);
+	for (const bound of [3000, 60]) {
+		const planted = plantedSite([{ file: "app/view-steps.js", find: "export const GRID_MAX = 25000;", replace: `export const GRID_MAX = ${bound};` }]);
+		try {
+			t = await openTesterInChrome({ siteDir: planted.dir, query: "?plan=ansi#view" });
+			for (const level of bound === 3000 ? [2, 3] : [1, 3]) {
+				while ((await t.page("inputTester.picture.view.level")) < level) await viewKey("-", "Minus", 189);
+				if (bound === 3000) {
+					const g = await gridAgainstView(GRID_TIERS);
+					seen.push({ bound, level, tiers: g.dots.tiers, listed: g.dots.listed });
+					assert.deepEqual(g.dots.tiers.map((x) => x.dropped), level === 2 ? [null, "count"] : [null, null, "count"], `at ${bound}, ${level}x: the finest faded tier left out by the count`);
+					assert.deepEqual(g.wrong, [], `at ${bound}, ${level}x: the tiers kept drawn whole`);
+					assert.equal(g.dots.listed, g.dots.tiers.reduce((sum, x) => sum + x.drawn, 0), `at ${bound}, ${level}x: nothing listed but what is drawn`);
+					continue;
+				}
+				const g = await t.page(`(() => { const pts = ${PATH_POINTS}; const v = inputTester.paneView; const r = document.getElementById('view-pane').getBoundingClientRect(); return { full: pts(document.querySelector('#view-pane .pane-dots:not(.pane-dots-faded)').getAttribute('d')), faded: [...document.querySelectorAll('#view-pane .pane-dots-faded')].flatMap((p) => pts(p.getAttribute('d'))), dots: inputTester.paneDots, x0: v.x, x1: v.x + r.width / v.scale, y0: v.y, y1: v.y + r.height / v.scale }; })()`);
+				const every = GRID_TIERS[level][0].every;
+				const xs = [...new Set(g.full.map(([x]) => x))].sort((a, b) => a - b);
+				const cells = (xs[1] - xs[0]) / 60;
+				const stride = cells / every;
+				seen.push({ bound, level, inView: g.dots.inView, tiers: g.dots.tiers, cells, listed: g.dots.listed });
+				assert.deepEqual(g.dots.tiers.map((x) => x.dropped), GRID_TIERS[level].map((_, i) => (i === 0 ? null : "count")), `at ${level}x every faded tier left out by the count`);
+				assert.ok(stride >= 2 && Number.isInteger(Math.log2(stride)), `at ${level}x the full tier's lattice of ${every} thinned by a power of two: every ${cells} cells`);
+				assert.ok(g.full.length <= bound && g.faded.length === 0, `at ${level}x: ${g.full.length} full points, ${g.faded.length} faded`);
+				assert.equal(g.dots.listed, g.full.length, `at ${level}x: nothing listed but what is drawn`);
+				assert.ok(g.full.every(([x, y]) => (x / 60) % cells === 0 && (y / 60) % cells === 0), `at ${level}x: every point on the thinned lattice through the origin`);
+				assert.ok(g.full.some(([x, y]) => x === 0 && y === 0), `at ${level}x: the origin drawn`);
+				const expected = (Math.floor(g.x1 / (60 * cells)) - Math.ceil(g.x0 / (60 * cells)) + 1) * (Math.floor(g.y1 / (60 * cells)) - Math.ceil(g.y0 / (60 * cells)) + 1);
+				assert.equal(g.full.filter(([x, y]) => x >= g.x0 && x <= g.x1 && y >= g.y0 && y <= g.y1).length, expected, `at ${level}x: every point of the thinned lattice in view drawn`);
 			}
-			const g = await t.page(`(() => { const pts = ${PATH_POINTS}; const v = inputTester.paneView; const r = document.getElementById('view-pane').getBoundingClientRect(); return { full: pts(document.querySelector('#view-pane .pane-dots:not(.pane-dots-faded)').getAttribute('d')), faded: [...document.querySelectorAll('#view-pane .pane-dots-faded')].flatMap((p) => pts(p.getAttribute('d'))), dots: inputTester.paneDots, x0: v.x, x1: v.x + r.width / v.scale, y0: v.y, y1: v.y + r.height / v.scale }; })()`);
-			const every = GRID_TIERS[level][0].every;
-			const xs = [...new Set(g.full.map(([x]) => x))].sort((a, b) => a - b);
-			const cells = (xs[1] - xs[0]) / 60;
-			const stride = cells / every;
-			seen.push({ level, inView: g.dots.inView, tiers: g.dots.tiers, cells });
-			assert.deepEqual(g.dots.tiers.map((x) => x.dropped), GRID_TIERS[level].map((_, i) => (i === 0 ? null : "count")), `at ${level}x every faded tier left out by the count`);
-			assert.ok(stride >= 2 && Number.isInteger(Math.log2(stride)), `at ${level}x the full tier's lattice of ${every} thinned by a power of two: every ${cells} cells`);
-			assert.ok(g.full.length <= 60 && g.faded.length === 0, `at ${level}x: ${g.full.length} full points, ${g.faded.length} faded`);
-			assert.ok(g.full.every(([x, y]) => (x / 60) % cells === 0 && (y / 60) % cells === 0), `at ${level}x: every point on the thinned lattice through the origin`);
-			assert.ok(g.full.some(([x, y]) => x === 0 && y === 0), `at ${level}x: the origin drawn`);
-			const expected = (Math.floor(g.x1 / (60 * cells)) - Math.ceil(g.x0 / (60 * cells)) + 1) * (Math.floor(g.y1 / (60 * cells)) - Math.ceil(g.y0 / (60 * cells)) + 1);
-			assert.equal(g.full.filter(([x, y]) => x >= g.x0 && x <= g.x1 && y >= g.y0 && y <= g.y1).length, expected, `at ${level}x: every point of the thinned lattice in view drawn`);
+		} finally {
+			await t.close();
+			t = main;
+			planted.remove();
 		}
-	} finally {
-		tc.diagnostic(JSON.stringify(seen));
-		await t.close();
-		t = main;
-		planted.remove();
 	}
+	tc.diagnostic(JSON.stringify(seen));
 });
