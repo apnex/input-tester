@@ -27,6 +27,8 @@ import { FULL_SIZE_ANSI_PLAN, KEYBOARD_PLANS, QUARTER_KEY_GRID, placePlanOnGrid 
 import type { KeyboardPlan, PlanName } from "./keyboard-plans.js";
 import { SCENE_LAYERS, paintEveryKey, paintPictureChanges, paintRefusedOpening, paintWholePage } from "./picture-painter.js";
 import type { PaintView } from "./picture-painter.js";
+import { tuningFromAddress, tuningNotes } from "./address-tuning.js";
+import type { AddressTuning } from "./address-tuning.js";
 import { EMPTY_PICTURE, applyPaneButton, applyPaneGeometry, applyVerdict } from "./picture-state.js";
 import type { Picture, PictureEntry } from "./picture-state.js";
 import { openViewPane } from "./view-pane.js";
@@ -71,6 +73,7 @@ export interface TesterPage {
 	readonly paneView: { readonly x: number; readonly y: number; readonly scale: number } | null;
 	readonly precision: readonly { readonly distance: number; readonly expected: number; readonly hit: number | null; readonly reported: number | null }[];
 	readonly paneDots: PaneDots | null;
+	readonly tuning: AddressTuning;
 	readonly latestVerdict: Verdict | null;
 	readonly plan: PlanName;
 	readonly problems: readonly string[];
@@ -119,6 +122,9 @@ export function routeByFamily(router: InputRouter, fact: DeliveredFact, reply: C
 /** Composes the page on its platform: every part opened, the first paint made, the capture listening. */
 export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPlatform<E>): TesterPage {
 	const { plan, asked } = planFromAddress(platform.address);
+	// the view's values, tuned by the lab's address where its host honours it, read once as the page opens (0022)
+	const addressTuning = tuningFromAddress(platform.address);
+	const tuning = addressTuning.tuning;
 	const openedScene = openScene({ root: platform.surface, layers: SCENE_LAYERS });
 	if (!openedScene.ok) throw new Error(`composeTesterPage: the scene refused the page's svg, so nothing can be shown: ${JSON.stringify(openedScene.problems)}`);
 	const scene = openedScene.scene;
@@ -132,7 +138,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	const notices = { planLine: planLineWords(plan, asked), coveredBrowser: isChromiumBrowser(platform.browser), problems };
 	if (!openedGrid.ok || !openedTable.ok || !openedSession.ok) {
 		paintRefusedOpening(scene, problems);
-		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, paneView: null, precision: [], paneDots: null, plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
+		return Object.freeze({ picture: EMPTY_PICTURE, latestVerdict: null, paneView: null, precision: [], paneDots: null, tuning: addressTuning, plan: plan.name, problems: Object.freeze(problems), close: () => scene.close() });
 	}
 	const table = openedTable.table;
 	const router = openInputRouter(table, openedSession.session);
@@ -141,7 +147,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 	let latestVerdict: Verdict | null = null;
 	let pane: ViewPane<E> | null = null;
 	if (platform.pane !== undefined) {
-		const openedPane = openViewPane(platform.pane, platform.paneReadouts, platform.precisionBounds);
+		const openedPane = openViewPane(platform.pane, platform.paneReadouts, platform.precisionBounds, tuning, tuningNotes(addressTuning));
 		if (openedPane.ok) pane = openedPane.pane;
 		else problems.push(...openedPane.problems);
 	}
@@ -166,7 +172,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 			const pageHeight = fromPane ? platform.pane?.clientHeight : platform.surface.clientHeight;
 			const verdict = routeByFamily(router, fact, reply);
 			const previous = picture;
-			const applied = applyVerdict(previous, verdict, { pagePixels: fact.type === "wheel" ? (pageHeight ?? Number.NaN) : Number.NaN, pane: paneGeometry, fromPane });
+			const applied = applyVerdict(previous, verdict, { pagePixels: fact.type === "wheel" ? (pageHeight ?? Number.NaN) : Number.NaN, pane: paneGeometry, fromPane, tuning });
 			picture = applied.picture;
 			latestVerdict = verdict;
 			paintChanges(previous, applied.changed, paneGeometry);
@@ -213,7 +219,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		button?.addEventListener("click", () => {
 			const paneGeometry = pane?.geometry() ?? null;
 			const previous = picture;
-			const applied = applyPaneButton(previous, verb, paneGeometry);
+			const applied = applyPaneButton(previous, verb, paneGeometry, tuning);
 			picture = applied.picture;
 			paintChanges(previous, applied.changed, paneGeometry);
 		});
@@ -237,6 +243,7 @@ export function composeTesterPage<E extends ElementSlice<E>>(platform: TesterPla
 		get precision() {
 			return pane === null ? [] : pane.measures();
 		},
+		tuning: addressTuning,
 		get paneDots() {
 			return pane === null ? null : pane.dots();
 		},

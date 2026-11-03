@@ -683,3 +683,47 @@ A pan's moves at their 95th percentile, `v0.4.0` against `v0.5.0`, two runs each
 - GUIDE section 9's step 8 names the small pane at 3x, where the most dots are drawn now, and asks the director to judge its stutter and whether single dots can be told apart there; `B20` records the check's frame figures; `B21` holds the try's open decision, the director's to rule.
 - Mutants, each killed: `M108`, the floor back at 4; `M109`, the bound back at 10,000; `M110`, a faded tier left out by the old 10,000, below the bound; `M92` and `M93` named again, the bound not 25,000 and a tier's spacing compared the wrong way round, since with a floor of 0 the floor's mutant of before changed nothing.
 
+---
+
+## 0020 - The grid approved as `v0.5.0` draws it
+
+**Ruled by:** the director, 2026-11-03, of `v0.5.0` in the lab: "the updated point grid looks good. approved".\
+**Affects:** `docs/BACKLOG.md`, `B21` retired and `B20`'s trigger; and `docs/ARCHITECTURE-TARGET.md`, revision 18.
+
+**Ruling.**\
+`0019`'s try is kept: every dot drawn at every level, `GRID_FLOOR` at 0 and `GRID_MAX` at 25,000, the tiers as `0018` set them.\
+`B21`, the try's open decision, is retired as kept; `B20`'s trigger loses its clause for the try kept and keeps the rest, a stutter the director reports or a tuning that draws more points.\
+Nothing in the code changes for it.
+
+---
+
+## 0021 - The light path: a small change bound for the lab takes the builder's run alone
+
+**Ruled by:** the director, 2026-11-03, draw's `H26-24`, amending `H26-15`: "we can't keep running full release checks on minor incremental changes".\
+**Affects:** how the tester's changes are verified and recorded from here; and `docs/ARCHITECTURE-TARGET.md`, revision 18.
+
+**Ruling.**\
+A small change of values, wording or appearance, bound only for the lab, takes the builder's own test run, the gate on Node 22, and goes straight to the lab.\
+It takes no independent check and no refresh of the screenshots, and its record here is one short entry.\
+The full checks are run once, when what was built in the lab leaves it for production.\
+A change that is not small, or is bound for production, is verified as `H26-15` rules.
+
+---
+
+## 0022 - The view's values tuned live in the lab's address, and v0.6.0
+
+**Ruled by:** the director, 2026-11-03, asking for the view's values to be tuned live in the lab, built on the light path (`0021`).\
+**Affects:** `src/address-tuning.ts`, new; `src/view-steps.ts`, `src/view-pane.ts`, `src/picture-state.ts`, `src/composition-root.ts` and `src/page-entry.ts`; `test/address-tuning.test.js`, new, and `test/browser/view-pane.test.js`; `tools/run-mutants.mjs`; `docs/GUIDE.md`, section 9; `package.json` and its lockfile, now `0.6.0`; and `docs/ARCHITECTURE-TARGET.md`, revision 18.
+
+**Ruling.**\
+Settings follow `#view` in the address's fragment, each `name=value`, joined by `&`, as `#view&floor=4&max=10000`.\
+They are read once as the page opens, as `#view` is, and honoured on the lab's host, `input-lab.apnex.io`, and on a loopback host, where the gate serves the page; on `input.apnex.io` and every other host they are ignored without a word.\
+Each overrides its constant in `src/view-steps.ts` for that page alone: `levels`, `ZOOM_LEVELS`; `tiers` and a level, as `tiers3`, that level's entry in `GRID_TIERS`; `floor`, `GRID_FLOOR`; `max`, `GRID_MAX`; and `step`, `ZOOM_STEP_PIXELS`.\
+The ranges: 2 to 8 levels from 0.1 to 16, ascending, 1 among them; up to 4 tiers, the first full, the last every point, each finer `every` dividing the coarser's and fainter; a floor of 0 to 50 pixels; a bound of 1 to 200,000; a step of 10 to 1,000 pixels.\
+A value malformed or out of range is ignored, the rest honoured, and the pane's readouts name it and why, after the settings in force, which they show while any is.\
+The fragment never reaches the server, and reading the address as the page opens was already allowed, so GT1 and GT2 hold unchanged.\
+The version is `0.6.0`, a new capability under a new ruling; on production it draws as `v0.5.0` does.
+
+**Settled by the build.**
+- `test/address-tuning.test.js` holds each setting honoured on the lab's host and a loopback host and taking effect in the composed page, none on the production host, each kind of malformed or out-of-range value ignored and named, and GUIDE section 9's examples read whole; `test/browser/view-pane.test.js` loads the page on the gate's host with settings after `#view` and finds the large pane, the readouts naming the settings in force and the one ignored, and the tuned tiers and floor drawn at 3x.
+- Mutants, each killed: `M113` to `M117`, the settings honoured on any host, the floor and the step read but never reaching the grid or the wheel, a tier not dividing the coarser's honoured, and the large pane lost to settings after `#view`; `M83`'s text follows the large pane's line in `src/page-entry.ts`.

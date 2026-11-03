@@ -350,7 +350,7 @@ Each step, on the pane, then what to report back:
 8. Pan for a while with the pane small at 3x, where the most dots are drawn now, about 22,000: say whether the grid keeps up with the fingers or stutters -- in headless Chrome such a pan loses about half its frames on the 1366 and 1093 windows and runs at about 30 frames a second on the 1536, where `v0.4.0` held a steady 60 -- and whether single dots, places a drawing's things may be put, can still be told apart there, or merge into a grey wash; then the same with the pane large at 3x for comparison; the gate times the page's handling of each input only at the first level, 1x, so how the pans feel and look at the farther levels rests on this step (`B20`, `B21`).
 9. Throughout, the picture of the keyboard and mouse stays where it is, and the page itself neither scrolls nor zooms.
 
-Report each step as accepted or returned, with what was seen when it is returned; the eight pairs of precision figures; and any level that should be nearer or farther, since the levels are held in one place, `ZOOM_LEVELS` in `src/view-steps.ts`, to be tuned by one edit.
+Report each step as accepted or returned, with what was seen when it is returned; the eight pairs of precision figures; and any level that should be nearer or farther, since the levels are held in one place, `ZOOM_LEVELS` in `src/view-steps.ts`, to be tuned by one edit, and can be tried first in the address, as below.
 
 The steps' own check, run in the gate, on the tester's page with the pane small: a line, home and the levels by Ctrl and the wheel, each read back from the page:
 ```mjs
@@ -386,6 +386,36 @@ export async function inChrome(send) {
   if (levels.join() !== "1,2,3") throw new Error(`Ctrl and the wheel stepped ${levels}, not 1x, 2x and 3x`);
 }
 ```
+
+### Tuning the pane in the address, in the lab
+
+In the lab the pane's values can be tried without a release: write them after `#view` in the address, each `name=value`, joined by `&` (`src/address-tuning.ts`).\
+They are honoured on `input-lab.apnex.io` and on the gate's own host; on `input.apnex.io` they are ignored and the page draws as released.\
+Each holds for that page only, and while any is in force the readouts show it, after the rest, with any setting ignored and why.
+
+| Setting | What it tunes | As released | Allowed |
+|---|---|---|---|
+| `levels` | the zoom levels, `ZOOM_LEVELS` | `0.5,1,2,3` | 2 to 8, each 0.1 to 16, ascending, 1 among them |
+| `tiers` and a level, as `tiers3` | that level's tiers, each `every:opacity`, coarsest first; a level with none draws every point full | 2x `4:1,1:0.5`; 3x `10:1,2:0.5,1:0.25` | up to 4; the first full, the last every point; each finer `every` divides the coarser's and is fainter |
+| `floor` | `GRID_FLOOR`: a faded tier whose dots stand closer than this many pixels is left out | `0`, never | 0 to 50 |
+| `max` | `GRID_MAX`: the most points listed before a faded tier is left out | `25000` | 1 to 200,000 |
+| `step` | the pixels of pinch, or of Ctrl and the wheel, for one level, `ZOOM_STEP_PIXELS` | `100` | 10 to 1,000 |
+
+Paste one into the address bar, press Enter, then reload with Ctrl and R: the address is read once as the page opens, and a change after `#` alone does not reload it.
+
+The `v0.4.0` look, a faded tier left out where its dots stand under 4 pixels apart and the listing bound back at 10,000:
+
+`https://input-lab.apnex.io/?plan=chromebook#view&floor=4&max=10000`
+
+Every ninth dot full at 3x, not every tenth, every third at half and the rest at a quarter; the middle tier must divide 9, so 3, not 2:
+
+`https://input-lab.apnex.io/?plan=chromebook#view&tiers3=9:1,3:0.5,1:0.25`
+
+A gentler pinch, half as much again for each level:
+
+`https://input-lab.apnex.io/?plan=chromebook#view&step=150`
+
+Report the address that looks right: each setting in it becomes a one-line change to its constant, on the light path (`docs/DECISIONS.md` 0021).
 
 ---
 

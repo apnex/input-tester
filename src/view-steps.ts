@@ -51,8 +51,8 @@ export const GRID_FLOOR = 0;
  */
 export const GRID_MAX = 25000;
 
-/** A level's tiers: the table's, or every point full. */
-export const tiersOf = (level: number): readonly GridTier[] => GRID_TIERS[level] ?? [tier(1, 1)];
+/** A level's tiers: the table's, `GRID_TIERS` or a tuned one, or every point full. */
+export const tiersOf = (level: number, tiers: Readonly<Record<number, readonly GridTier[]>> = GRID_TIERS): readonly GridTier[] => tiers[level] ?? [tier(1, 1)];
 
 /** Whether a grid point, by its cell indices, lies on a tier's lattice: both indices multiples of its `every`, so 0, 0 always does. */
 export const onTier = (col: number, row: number, every: number): boolean => col % every === 0 && row % every === 0;
@@ -98,24 +98,39 @@ export interface ZoomStep {
  * level lies that way, the level steps once and the accumulator loses one step, keeping the remainder; and where
  * no level lies the way the accumulator points, what remains is dropped and it is set to 0.
  */
-export function stepZoom(level: number, acc: number, delta: number): ZoomStep {
+export function stepZoom(level: number, acc: number, delta: number, levels: readonly number[] = ZOOM_LEVELS, stepPixels: number = ZOOM_STEP_PIXELS): ZoomStep {
 	const from = level;
-	let index = ZOOM_LEVELS.indexOf(level);
+	let index = levels.indexOf(level);
 	if (index === -1) throw new Error(`stepZoom: ${level} is no zoom level`);
 	let held = delta !== 0 && acc !== 0 && Math.sign(delta) !== Math.sign(acc) ? 0 : acc;
 	held += delta;
 	let steps = 0;
-	while (Math.abs(held) >= ZOOM_STEP_PIXELS) {
+	while (Math.abs(held) >= stepPixels) {
 		const next = index + Math.sign(held);
-		if (next < 0 || next >= ZOOM_LEVELS.length) break;
+		if (next < 0 || next >= levels.length) break;
 		index = next;
-		held -= Math.sign(held) * ZOOM_STEP_PIXELS;
+		held -= Math.sign(held) * stepPixels;
 		steps++;
 	}
 	const way = Math.sign(held);
-	const dropped = way !== 0 && (index + way < 0 || index + way >= ZOOM_LEVELS.length);
-	return Object.freeze({ from, to: ZOOM_LEVELS[index] as number, steps, acc: dropped ? 0 : held + 0, dropped });
+	const dropped = way !== 0 && (index + way < 0 || index + way >= levels.length);
+	return Object.freeze({ from, to: levels[index] as number, steps, acc: dropped ? 0 : held + 0, dropped });
 }
+
+/**
+ * The values the view and its grid are drawn by, which the address may tune in the lab (docs/DECISIONS.md 0022):
+ * the zoom levels, the tiers per level, the floor, the listing's bound and the pinch's step in pixels.
+ */
+export interface GridTuning {
+	readonly levels: readonly number[];
+	readonly tiers: Readonly<Record<number, readonly GridTier[]>>;
+	readonly floor: number;
+	readonly max: number;
+	readonly step: number;
+}
+
+/** The values as held here, the constants above: what every page draws by unless the lab's address tunes it. */
+export const DEFAULT_TUNING: GridTuning = Object.freeze({ levels: ZOOM_LEVELS, tiers: GRID_TIERS, floor: GRID_FLOOR, max: GRID_MAX, step: ZOOM_STEP_PIXELS });
 
 /** A level as the page writes it: `0.5x`, `1x`, `2x`, `3x`. */
 export const levelWords = (level: number): string => `${level}x`;

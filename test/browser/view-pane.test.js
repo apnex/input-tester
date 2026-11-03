@@ -599,6 +599,28 @@ test("0019's floor, one edit back: with GRID_FLOOR planted back at 4 in a built 
 	}
 });
 
+test("0022: on the local host, settings after #view tune the page: the large pane still, the readouts naming the settings in force and the ones ignored, and the tuned tiers and floor drawn -- at 3x every ninth full, every third half, the quarter tier left out under a floor of 11", TEST, async () => {
+	try {
+		await t.load("?plan=ansi&tune=1#view&floor=11&tiers3=9:1,3:0.5,1:0.25&step=abc");
+		await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+		const p = await pane();
+		assert.ok(p.width > 0.45 * VIEWPORT.width, `the pane large: ${p.width}`);
+		const readouts = await t.page("[...document.querySelectorAll('#view-readouts text tspan')].map((s) => s.textContent).join(' ')");
+		assert.match(readouts, /tuned in the address: floor=11; tiers3=9:1,3:0\.5,1:0\.25/, "the settings in force shown");
+		assert.match(readouts, /ignored in the address: step=abc: not a number of pixels from 10 to 1000/, "the malformed one named");
+		await viewKey("-", "Minus", 189);
+		await viewKey("-", "Minus", 189);
+		const tuned = { 3: [{ every: 9, opacity: 1 }, { every: 3, opacity: 0.5 }, { every: 1, opacity: 0.25 }] };
+		const g = await gridAgainstView(tuned);
+		assert.deepEqual(g.dots.tiers.map((x) => [x.every, x.dropped]), [[9, null], [3, null], [1, "spacing"]], "the tuned tiers at 3x, the quarter under the tuned floor");
+		assert.deepEqual(g.wrong, [], "the tuned tiers drawn whole");
+		assert.deepEqual(g.rows[0].slice(0, 10), [1, null, null, 0.5, null, null, 0.5, null, null, 1], "a row through the origin: full every ninth, half every third");
+	} finally {
+		await t.load("?plan=ansi");
+		await t.chrome.evaluate("window.notReloaded = true");
+	}
+});
+
 test("0018, 0019, draw's reading 10's o:F1: past the listing's bound, a stand-in planted in a built copy, the finest faded tier is left out first by the count, the tiers kept drawn whole -- at 3000, the quarter tier at 3x and the half at 2x -- and where even the full tier would pass it -- at 60 -- every faded tier is left out and the full tier's lattice thinned by inView's own stride doubling, anchored at the origin, the origin always drawn", TEST, async (tc) => {
 	const { GRID_TIERS } = await importBuilt("view-steps.js");
 	const main = t;

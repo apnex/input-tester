@@ -17,8 +17,8 @@ import { PAN_GESTURES, viewKeyVerb } from "./input-bindings.js";
 import type { ViewVerb } from "./input-bindings.js";
 import type { DeliveredFact, ItemUnderPointer, TesterFact } from "./input-bindings.js";
 import type { Verdict, VerdictStep } from "./input-router.js";
-import { DEFAULT_ZOOM_LEVEL, PRECISION_LINES, ZOOM_LEVELS, ZOOM_STEP_PIXELS, centreKeeping, levelWords, normalisedDelta, onPane, paneLaidOut, paneScale, screenDistance, stepZoom } from "./view-steps.js";
-import type { PaneGeometry } from "./view-steps.js";
+import { DEFAULT_TUNING, DEFAULT_ZOOM_LEVEL, PRECISION_LINES, ZOOM_LEVELS, centreKeeping, levelWords, normalisedDelta, onPane, paneLaidOut, paneScale, screenDistance, stepZoom } from "./view-steps.js";
+import type { GridTuning, PaneGeometry } from "./view-steps.js";
 
 /** How many lines the log keeps, newest first. */
 export const LOG_LINES = 14;
@@ -99,6 +99,7 @@ export interface ViewSurface {
 	readonly pagePixels?: number;
 	readonly pane?: PaneGeometry | null;
 	readonly fromPane?: boolean;
+	readonly tuning?: GridTuning;
 }
 
 /** What the person is shown, as one frozen record. */
@@ -232,7 +233,7 @@ const pixelWords = (n: number): string => String(Math.round(n * 10) / 10);
 const pointWords = (p: CapturePoint): string => `${pixelWords(p.x)}, ${pixelWords(p.y)}`;
 
 /** A wheel's view row and its fact: the view after it and the words for what it did. */
-function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly string[], pagePixels: number, pane: PaneGeometry | null): ViewPicture {
+function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly string[], pagePixels: number, pane: PaneGeometry | null, tuning: GridTuning): ViewPicture {
 	if (fact.type !== "wheel") return view;
 	if (hits.includes("scroll-pan")) {
 		const dx = normalisedDelta(fact.deltaX, fact.deltaMode, pagePixels);
@@ -246,7 +247,7 @@ function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly stri
 	if (!hits.includes("pinch-zoom")) return view;
 	const dy = normalisedDelta(fact.deltaY, fact.deltaMode, pagePixels);
 	if (dy === null) return Object.freeze({ ...view, words: "pinch zoom: its unit, or the page's height, not known, so the view kept" });
-	const step = stepZoom(view.level, view.acc, dy);
+	const step = stepZoom(view.level, view.acc, dy, tuning.levels, tuning.step);
 	const keepsPointer = !paneLaidOut(pane) || onPane(pane, fact.screen);
 	const about = keepsPointer ? `about screen ${pointWords(fact.screen)}` : `about the pane's centre, the pointer off the pane at screen ${pointWords(fact.screen)}`;
 	const centre = step.steps > 0 && paneLaidOut(pane) ? Object.freeze(centreKeeping(view.centre, pane, keepsPointer ? fact.screen : { x: pane.left + pane.width / 2, y: pane.top + pane.height / 2 }, paneScale(pane, step.from), paneScale(pane, step.to))) : view.centre;
@@ -255,7 +256,7 @@ function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly stri
 			? `pinch zoom: ${levelWords(step.from)} to ${levelWords(step.to)}, ${step.steps} level${step.steps === 1 ? "" : "s"}, the scale times ${Math.round((step.from / step.to) * 1000) / 1000}, ${about}${step.dropped ? ", the rest dropped at the last level" : `, ${pixelWords(step.acc)} pixels held`}`
 			: step.dropped
 				? `pinch zoom: at ${levelWords(step.to)}, no level lies that way, so dropped`
-				: `pinch zoom: at ${levelWords(step.to)}, ${pixelWords(step.acc)} of ${ZOOM_STEP_PIXELS} pixels held toward the next level`;
+				: `pinch zoom: at ${levelWords(step.to)}, ${pixelWords(step.acc)} of ${tuning.step} pixels held toward the next level`;
 	return Object.freeze({ ...view, centre, level: step.to, acc: step.acc, words });
 }
 
@@ -265,18 +266,18 @@ function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly stri
  * 0, 0 at the default level (PZ7); home, the centre to 0, 0, the level kept. A verb that changes nothing does
  * nothing; one that sets a view sets the pinch's held pixels to 0, the view not the wheel's.
  */
-export function viewAfterVerb(view: ViewPicture, verb: ViewVerb, by: string): ViewPicture {
-	const index = ZOOM_LEVELS.indexOf(view.level);
+export function viewAfterVerb(view: ViewPicture, verb: ViewVerb, by: string, levels: readonly number[] = ZOOM_LEVELS): ViewPicture {
+	const index = levels.indexOf(view.level);
 	const origin = view.centre.x === 0 && view.centre.y === 0;
 	const set = (centre: CapturePoint, level: number, words: string): ViewPicture => Object.freeze({ ...view, centre: Object.freeze({ x: centre.x, y: centre.y }), level, acc: 0, words });
 	const none = (words: string): ViewPicture => Object.freeze({ ...view, words });
 	switch (verb) {
 		case "zoom-in": {
-			const to = ZOOM_LEVELS[index - 1];
+			const to = levels[index - 1];
 			return to === undefined ? none(`${by}, zoom in: at ${levelWords(view.level)}, the nearest level, so nothing`) : set(view.centre, to, `${by}, zoom in: ${levelWords(view.level)} to ${levelWords(to)} about the pane's centre`);
 		}
 		case "zoom-out": {
-			const to = ZOOM_LEVELS[index + 1];
+			const to = levels[index + 1];
 			return to === undefined ? none(`${by}, zoom out: at ${levelWords(view.level)}, the farthest level, so nothing`) : set(view.centre, to, `${by}, zoom out: ${levelWords(view.level)} to ${levelWords(to)} about the pane's centre`);
 		}
 		case "default-level":
@@ -288,7 +289,7 @@ export function viewAfterVerb(view: ViewPicture, verb: ViewVerb, by: string): Vi
 		case "go-million":
 		case "go-two-to-21": {
 			const distance = PRECISION_LINES[verb === "go-million" ? 0 : 1] as number;
-			const nearest = ZOOM_LEVELS[0] as number;
+			const nearest = levels[0] as number;
 			const name = verb === "go-million" ? "1,000,000" : "2^21";
 			return view.centre.x === distance && view.centre.y === 0 && view.level === nearest ? none(`${by}, to the line at ${name}: there already, so nothing`) : set({ x: distance, y: 0 }, nearest, `${by}, to the line at ${name}: the centre to ${distance}, 0 at the nearest level, ${levelWords(nearest)}`);
 		}
@@ -326,6 +327,7 @@ function viewAfterStep(view: ViewPicture, step: VerdictStep, fact: DeliveredFact
  */
 export function applyVerdict(picture: Picture, verdict: Verdict, surface: ViewSurface = {}): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
 	const pagePixels = surface.pagePixels ?? Number.NaN;
+	const tuning = surface.tuning ?? DEFAULT_TUNING;
 	const pane = surface.pane ?? null;
 	const fact = verdict.fact;
 	const details = new Map(picture.heldKeys.map((k) => [k.code, k]));
@@ -363,9 +365,9 @@ export function applyVerdict(picture: Picture, verdict: Verdict, surface: ViewSu
 	let wheel = picture.wheel;
 	let log = picture.log;
 	const hits = hitsOf(verdict.trace);
-	view = viewAfterWheel(view, fact, hits, pagePixels, pane);
+	view = viewAfterWheel(view, fact, hits, pagePixels, pane, tuning);
 	const verb = hits.includes("view-key") ? viewKeyVerb(fact) : null;
-	if (verb !== null) view = viewAfterVerb(view, verb, "a view key");
+	if (verb !== null) view = viewAfterVerb(view, verb, "a view key", tuning.levels);
 	view = withScale(view, pane);
 	if (view !== picture.view && view.words !== null && view.words !== picture.view.words && (fact.type === "wheel" || verdict.steps.some((s) => s.operation !== "pointerMove"))) notes.push(view.words);
 	const newest = log[0];
@@ -412,8 +414,8 @@ export function applyVerdict(picture: Picture, verdict: Verdict, surface: ViewSu
  * precision line (PZ31) -- answering the record and which entries changed; the pane's geometry, when it is laid
  * out, gives the view's scale.
  */
-export function applyPaneButton(picture: Picture, verb: "home" | "go-million" | "go-two-to-21", pane: PaneGeometry | null = null): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
-	const moved = viewAfterVerb(picture.view, verb, verb === "home" ? "the reticle" : "a precision button");
+export function applyPaneButton(picture: Picture, verb: "home" | "go-million" | "go-two-to-21", pane: PaneGeometry | null = null, tuning: GridTuning = DEFAULT_TUNING): { picture: Picture; changed: ReadonlySet<PictureEntry> } {
+	const moved = viewAfterVerb(picture.view, verb, verb === "home" ? "the reticle" : "a precision button", tuning.levels);
 	const view = withScale(moved, pane);
 	const next: Picture = Object.freeze({ ...picture, view });
 	return { picture: next, changed: new Set<PictureEntry>(view === picture.view ? [] : ["view"]) };

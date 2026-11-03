@@ -26,8 +26,8 @@ import { openScene } from "../vendor/vector-scene/index.js";
 import { wrapWords } from "./picture-painter.js";
 import type { ElementSlice, Scene, SceneRoot, SceneView } from "../vendor/vector-scene/index.js";
 import type { ViewPicture } from "./picture-state.js";
-import { GRID_FLOOR, GRID_MAX, GRID_TIERS, PRECISION_LINES, PRECISION_LINE_WIDTH, levelWords, paneLaidOut, paneScale, tierOf, tiersOf } from "./view-steps.js";
-import type { GridTier, PaneGeometry } from "./view-steps.js";
+import { DEFAULT_TUNING, PRECISION_LINES, PRECISION_LINE_WIDTH, levelWords, paneLaidOut, paneScale, tierOf, tiersOf } from "./view-steps.js";
+import type { GridTier, GridTuning, PaneGeometry } from "./view-steps.js";
 
 /** The pane's grid: square, 60 units apart, its origin at 0, 0 -- draw's default grid. */
 export const PANE_GRID = Object.freeze({ shape: "square", pitch: 60, origin: Object.freeze({ x: 0, y: 0 }) });
@@ -64,9 +64,6 @@ export interface PaneTier {
 	readonly dropped: "spacing" | "count" | "spacing and count" | null;
 }
 
-/** How many faded tiers any level has: one path is kept for each, empty where a level has fewer or leaves one out. */
-const FADED_PATHS = Math.max(...Object.values(GRID_TIERS).map((t) => t.length)) - 1;
-
 /** A scene's `visible()` answer, as the pane reads it once a delivery, before anything is put. */
 type Visible = ReturnType<Scene["visible"]>;
 
@@ -98,11 +95,12 @@ const distanceWords = (d: number): string => (d === 2 ** 21 ? "2^21 (2,097,152)"
 /** A number of pixels to a thousandth, signed. */
 const signed = (n: number): string => `${n >= 0 ? "+" : ""}${Math.round(n * 1000) / 1000}`;
 
-/** The readouts' lines for a view and the precision lines' measures, before wrapping. */
-export function readoutWords(view: ViewPicture, scale: number, measures: readonly PrecisionMeasure[]): string[] {
+/** The readouts' lines for a view, the precision lines' measures and the address's tuning, the settings in force and those ignored, before wrapping. */
+export function readoutWords(view: ViewPicture, scale: number, measures: readonly PrecisionMeasure[], notes: readonly string[] = []): string[] {
 	const tenth = (n: number): string => String(Math.round(n * 10) / 10);
 	const lines = [`level ${levelWords(view.level)}, scale ${Math.round(scale * 10000) / 10000} pixels a unit`, `centre ${tenth(view.centre.x)}, ${tenth(view.centre.y)}`, view.words ?? "no view row yet"];
 	for (const m of measures) lines.push(`the line at ${distanceWords(m.distance)}: should be at screen x ${Math.round(m.expected * 1000) / 1000}; hit ${m.hit === null ? "nowhere within 12 pixels" : `${signed(m.hit)} px`}; reported ${m.reported === null ? "not measured here" : `${signed(m.reported)} px`}`);
+	lines.push(...notes);
 	return lines;
 }
 
@@ -129,7 +127,7 @@ export function sceneViewOf(view: ViewPicture, pane: PaneGeometry): SceneView {
 }
 
 /** Opens the pane on its root: its scene declared with a view, its grid, and the cross at the origin; or every problem, the scene or the grid refusing. */
-export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, readoutsRoot?: PaneRoot<E>, boundsOf?: PrecisionBounds): { readonly ok: true; readonly pane: ViewPane<E> } | { readonly ok: false; readonly problems: readonly string[] } {
+export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, readoutsRoot?: PaneRoot<E>, boundsOf?: PrecisionBounds, tuning: GridTuning = DEFAULT_TUNING, notes: readonly string[] = []): { readonly ok: true; readonly pane: ViewPane<E> } | { readonly ok: false; readonly problems: readonly string[] } {
 	const openedScene = openScene({ root, layers: PANE_LAYERS, view: true });
 	if (!openedScene.ok) return { ok: false, problems: [`the view pane's scene refused its declaration: ${JSON.stringify(openedScene.problems)}`] };
 	const openedGrid = openGrid(PANE_GRID);
@@ -139,6 +137,11 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 	}
 	const scene = openedScene.scene;
 	const grid = openedGrid.grid as SquareGrid;
+	// the floor and the bound in force: view-steps.ts's GRID_FLOOR and GRID_MAX, or the lab's address's (0022)
+	const GRID_FLOOR = tuning.floor;
+	const GRID_MAX = tuning.max;
+	/** How many faded tiers any level has: one path is kept for each, empty where a level has fewer or leaves one out. */
+	const FADED_PATHS = Math.max(...Object.values(tuning.tiers).map((t) => t.length), 1) - 1;
 	const openedReadouts = readoutsRoot === undefined ? null : openScene({ root: readoutsRoot, layers: READOUT_LAYERS });
 	if (openedReadouts !== null && !openedReadouts.ok) {
 		scene.close();
@@ -204,7 +207,7 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 	 * reading 10, o:F1). One listing serves: the lattice of the finest tier kept, through the origin.
 	 */
 	const drawGrid = (level: number, visible: Visible): void => {
-		const tiers = tiersOf(level);
+		const tiers = tiersOf(level, tuning.tiers);
 		const spacing = PANE_GRID.pitch * visible.scale;
 		const v = visible.region;
 		const inView = pointsIn(v, PANE_GRID.pitch);
@@ -273,7 +276,7 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 	const drawReadouts = (view: ViewPicture, g: PaneGeometry): void => {
 		if (readouts === null || readoutsRoot === undefined) return;
 		const width = Math.max(20, Math.floor((g.width - 16) / READOUT_ADVANCE));
-		const lines = readoutWords(view, scene.view().scale, measured).flatMap((line) => wrapWords(line, width));
+		const lines = readoutWords(view, scene.view().scale, measured, notes).flatMap((line) => wrapWords(line, width));
 		readouts.put("readouts", "lines", [{ tag: "text", attrs: { x: 8, y: 20, class: "readout" }, children: lines.map((line, i) => ({ tag: "tspan", attrs: { x: 8, y: 20 + i * READOUT_LEADING }, text: line })) }]);
 	};
 	let shownWords: string | null | undefined;

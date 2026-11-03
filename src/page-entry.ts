@@ -4,6 +4,7 @@
  * view pane's `<svg>` and its reticle,
  * and leaves the composed page readable whole at `globalThis.inputTester`, which the gate's proof reads.
  */
+import { asksLargePane } from "./address-tuning.js";
 import { composeTesterPage } from "./composition-root.js";
 import type { BrowserBrands } from "./composition-root.js";
 import type { KeyboardMapSource } from "./key-labels.js";
@@ -25,7 +26,7 @@ const paneReadouts = elementOf("view-readouts", SVGSVGElement, "<svg>");
 // The pane's size is a hidden checkbox the stylesheet reads, set from the address before anything is composed, so
 // the first paint is drawn at the size the address asks: `#view` the large pane
 const large = elementOf("view-large", HTMLInputElement, "<input>");
-large.checked = new URL(document.URL).hash === "#view";
+large.checked = asksLargePane(document.URL);
 const paneSize = { large: (on: boolean): void => void (large.checked = on) };
 const paneLarge = elementOf("pane-large", HTMLButtonElement, "<button>");
 const paneSmall = elementOf("pane-small", HTMLButtonElement, "<button>");
