@@ -727,3 +727,15 @@ The version is `0.6.0`, a new capability under a new ruling; on production it dr
 **Settled by the build.**
 - `test/address-tuning.test.js` holds each setting honoured on the lab's host and a loopback host and taking effect in the composed page, none on the production host, each kind of malformed or out-of-range value ignored and named, and GUIDE section 9's examples read whole; `test/browser/view-pane.test.js` loads the page on the gate's host with settings after `#view` and finds the large pane, the readouts naming the settings in force and the one ignored, and the tuned tiers and floor drawn at 3x.
 - Mutants, each killed: `M113` to `M117`, the settings honoured on any host, the floor and the step read but never reaching the grid or the wheel, a tier not dividing the coarser's honoured, and the large pane lost to settings after `#view`; `M83`'s text follows the large pane's line in `src/page-entry.ts`.
+
+---
+
+## 0023 - Every gesture of the view accepted on the Chromebook
+
+**Ruled by:** the director, 2026-11-03, after the walkthrough of GUIDE section 9 on the Chromebook (draw's `H26-23`, its GR15).\
+**Affects:** nothing built; the record of the walkthrough draw's move 7 waits on.
+
+**Ruling.**\
+The director accepted the view pane's gestures as `v0.6.0` draws them: panning by the two-finger scroll, Space and a left drag, the middle drag and the right drag on open ground ("Panning works pretty well"); the grid at every level as `0020` keeps it ("the updated point grid looks good. approved"); and, asked to accept or return the rest -- the zoom stepping by the pinch and by Ctrl and the wheel, the keys, the reticle home to 0, 0 at the level it was, the line at 1,000,000, and the picture staying still -- "continue".\
+No value was tuned: `ZOOM_LEVELS`, `GRID_TIERS` and the pinch's step stand as `v0.6.0` holds them, and draw takes them as they are.
+

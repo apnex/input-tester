@@ -16,7 +16,7 @@ Every section is derived; each changes when the code, the gate's results or the 
 |---|---|
 | Version | `0.6.0`, its release folder `v0.6.0` |
 | Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 18 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, `0017`, `0018`, `0019`, `0020`, `0021`, `0022`, in `docs/DECISIONS.md` |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, `0017`, `0018`, `0019`, `0020`, `0021`, `0022`, `0023`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -234,3 +234,4 @@ Workarounds open: 0.
 | `0020` | The grid approved as `v0.5.0` draws it |
 | `0021` | The light path: a small change bound for the lab takes the builder's run alone |
 | `0022` | The view's values tuned live in the lab's address, and v0.6.0 |
+| `0023` | Every gesture of the view accepted on the Chromebook |
