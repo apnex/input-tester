@@ -26,7 +26,7 @@ import { openScene } from "../vendor/vector-scene/index.js";
 import { wrapWords } from "./picture-painter.js";
 import type { ElementSlice, Scene, SceneRoot, SceneView } from "../vendor/vector-scene/index.js";
 import type { ViewPicture } from "./picture-state.js";
-import { FADED_DOT_MIN_SPACING, FADED_DOT_OPACITY, PRECISION_LINES, PRECISION_LINE_WIDTH, emphasisOf, isEmphasised, levelWords, paneLaidOut, paneScale } from "./view-steps.js";
+import { GRID_FLOOR, GRID_FADE, PRECISION_LINES, PRECISION_LINE_WIDTH, emphasisOf, isEmphasised, levelWords, paneLaidOut, paneScale } from "./view-steps.js";
 import type { PaneGeometry } from "./view-steps.js";
 
 /** The pane's grid: square, 60 units apart, its origin at 0, 0 -- draw's default grid. */
@@ -51,11 +51,15 @@ export interface PaneDots {
 	readonly spacing: number;
 	readonly inView: number;
 	readonly margin: number;
+	readonly listed: number;
 	readonly full: number;
 	readonly faded: number;
 	readonly floor: "spacing" | "count" | "spacing and count" | null;
 	readonly draws: number;
 }
+
+/** A scene's `visible()` answer, as the pane reads it once a delivery, before anything is put. */
+type Visible = ReturnType<Scene["visible"]>;
 
 /** The pane's layers, back to front, each looked through, so every press on the pane lies on open ground. */
 export const PANE_LAYERS = Object.freeze([
@@ -156,49 +160,81 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 	let drawnDots: PaneDots | null = null;
 	let drawnRegion: { x: number; y: number; w: number; h: number } | null = null;
 	let draws = 0;
-	/** Whether the grid must be drawn again for a level: never drawn, another level or scale, or the view not within what was drawn. */
-	const gridStale = (level: number): boolean => {
+	/** Whether the grid must be drawn again for a level and what is visible: never drawn, another level or scale, or the view not within what was drawn, on any side. */
+	const gridStale = (level: number, { region, scale }: Visible): boolean => {
 		if (drawnDots === null || drawnRegion === null || drawnDots.level !== level) return true;
-		const { region, scale } = scene.visible();
 		if (PANE_GRID.pitch * scale !== drawnDots.spacing) return true;
-		return region.x < drawnRegion.x || region.y < drawnRegion.y || region.x + region.w > drawnRegion.x + drawnRegion.w || region.y + region.h > drawnRegion.y + drawnRegion.h;
+		return (
+			region.x < drawnRegion.x ||
+			region.y < drawnRegion.y ||
+			region.x + region.w > drawnRegion.x + drawnRegion.w ||
+			region.y + region.h > drawnRegion.y + drawnRegion.h
+		);
 	};
-	/** One path of a zero-length stroke at each point, drawn round at a fixed size on screen by its class. */
-	const dotsPath = (points: readonly { readonly x: number; readonly y: number }[]): string => points.map((p) => `M${p.x} ${p.y}h0`).join("");
 	/**
-	 * Draws the grid for what the pane shows now, at a level: every point in view, listed at stride 1, the emphasised
-	 * ones full and the rest at the faded opacity -- unless the points would stand closer than the faded points' least
-	 * spacing on screen, or listing them would pass `inView`'s bound, when the emphasised points alone are drawn.
+	 * One path of a zero-length stroke at each point, drawn round at a fixed size on screen by its class: a point on
+	 * the row or column of the one before is a relative move from it, so a row of the listing is a run of short moves.
 	 */
-	const drawGrid = (level: number): void => {
-		const visible = scene.visible();
+	const dotsPath = (points: readonly { readonly x: number; readonly y: number }[]): string => {
+		let d = "";
+		let px = Number.NaN;
+		let py = Number.NaN;
+		for (const p of points) {
+			d += p.y === py ? `m${p.x - px} 0h0` : p.x === px ? `m0 ${p.y - py}h0` : `M${p.x} ${p.y}h0`;
+			px = p.x;
+			py = p.y;
+		}
+		return d;
+	};
+	/**
+	 * Draws the grid for a level and what is visible: every point in view and up to `PANE_MARGIN_CELLS` beyond, listed
+	 * at stride 1, the emphasised ones full and the rest at `GRID_FADE` -- unless the points would stand closer than
+	 * `GRID_FLOOR` on screen, or listing the view would pass `inView`'s bound, each known before anything is listed;
+	 * then the emphasised lattice alone, a grid of the interval times the pitch through the origin, which `inView`
+	 * thins by its own stride doubling, anchored at the origin, when it too would pass the bound (draw's reading 10, o:F1).
+	 */
+	const drawGrid = (level: number, visible: Visible): void => {
 		const interval = emphasisOf(level);
 		const spacing = PANE_GRID.pitch * visible.scale;
 		const v = visible.region;
+		const inView = pointsIn(v, PANE_GRID.pitch);
 		const grown = (m: number) => ({ kind: "rect" as const, x: v.x - m * PANE_GRID.pitch, y: v.y - m * PANE_GRID.pitch, w: v.w + 2 * m * PANE_GRID.pitch, h: v.h + 2 * m * PANE_GRID.pitch });
 		let margin = PANE_MARGIN_CELLS;
 		while (margin > 0 && pointsIn(grown(margin), PANE_GRID.pitch) > PANE_MAX_DOTS) margin--;
 		const region = grown(margin);
-		const listing = grid.inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
-		const tooMany = listing.stride !== 1;
-		const tooClose = spacing < FADED_DOT_MIN_SPACING;
-		let full: { x: number; y: number }[];
-		let faded: { x: number; y: number }[] = [];
-		if (!tooMany && !tooClose) {
-			full = [];
-			for (const p of listing.positions) (isEmphasised(p.position.col, p.position.row, interval) ? full : faded).push(p.point);
-		} else full = emphasisGrid(interval).inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS }).positions.map((p) => p.point);
+		const tooClose = spacing < GRID_FLOOR;
+		let tooMany = inView > PANE_MAX_DOTS;
+		let listed = 0;
+		let full: { x: number; y: number }[] = [];
+		const faded: { x: number; y: number }[] = [];
+		if (!tooClose && !tooMany) {
+			const listing = grid.inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
+			listed += listing.positions.length;
+			if (listing.stride !== 1) tooMany = true;
+			else for (const p of listing.positions) (isEmphasised(p.position.col, p.position.row, interval) ? full : faded).push(p.point);
+		}
+		if (tooClose || tooMany) {
+			const lattice = emphasisGrid(interval).inView({ region, scale: visible.scale }, { minSpacing: 0, max: PANE_MAX_DOTS });
+			listed += lattice.positions.length;
+			full = lattice.positions.map((p) => p.point);
+			faded.length = 0;
+		}
 		scene.put("grid", "dots", [{ tag: "path", attrs: { d: dotsPath(full), class: "pane-dots" } }]);
-		scene.put("grid", "faded dots", [{ tag: "path", attrs: { d: dotsPath(faded), class: "pane-dots pane-dots-faded", opacity: FADED_DOT_OPACITY } }]);
+		scene.put("grid", "faded dots", [{ tag: "path", attrs: { d: dotsPath(faded), class: "pane-dots pane-dots-faded", opacity: GRID_FADE } }]);
 		drawnRegion = region;
 		draws++;
-		drawnDots = Object.freeze({ level, interval, spacing, inView: pointsIn(v, PANE_GRID.pitch), margin, full: full.length, faded: faded.length, floor: tooMany && tooClose ? "spacing and count" : tooMany ? "count" : tooClose ? "spacing" : null, draws });
+		drawnDots = Object.freeze({ level, interval, spacing, inView, margin, listed, full: full.length, faded: faded.length, floor: tooMany && tooClose ? "spacing and count" : tooMany ? "count" : tooClose ? "spacing" : null, draws });
 	};
-	/** Measures each precision line whose left edge stands in the pane, as the probe did: expected by the view's arithmetic, hit by `itemAt` an eighth of a pixel at a time, reported by the page's geometry where it offers it. */
-	const measure = (g: PaneGeometry): PrecisionMeasure[] => {
+	/**
+	 * Measures each precision line whose left edge stands in what is visible, as the probe did: expected by the view's
+	 * arithmetic, hit by `itemAt` an eighth of a pixel at a time, reported by the page's geometry where it offers it --
+	 * asked before the grid is put, so its reads lay out no new grid inside the delivery.
+	 */
+	const measure = (g: PaneGeometry, { region }: Visible): PrecisionMeasure[] => {
 		const out: PrecisionMeasure[] = [];
 		const y = g.top + g.height / 2;
 		for (const distance of PRECISION_LINES) {
+			if (distance < region.x || distance > region.x + region.w) continue;
 			const expected = scene.toScreen({ x: distance, y: 0 }).x;
 			if (expected < g.left || expected > g.left + g.width) continue;
 			let hit: number | null = null;
@@ -227,8 +263,11 @@ export function openViewPane<E extends ElementSlice<E>>(root: PaneRoot<E>, reado
 			const moved = next.x !== now.x || next.y !== now.y || next.scale !== now.scale;
 			if (moved) {
 				scene.setView(next);
-				if (gridStale(view.level)) drawGrid(view.level);
-				measured = measure(g);
+				// every read -- what is visible, the precision lines' measures -- before any put, so no read inside the
+				// delivery makes the page lay out a grid just put
+				const visible = scene.visible();
+				measured = measure(g, visible);
+				if (gridStale(view.level, visible)) drawGrid(view.level, visible);
 			}
 			if (moved || view.words !== shownWords) {
 				shownWords = view.words;

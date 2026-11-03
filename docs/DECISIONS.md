@@ -574,3 +574,24 @@ The floor never applies in the large pane at the three windows; it applies with 
 - `test/browser/view-pane.test.js` holds at each level the drawn points 60 apart, 60 times the scale on screen and closing up level by level; the full points' cell indices multiples of the level's interval, the faded ones not, the origin full; the opacity drawn and computed the table's; the table equal to the director's values as literals; the floor at a count's case and a spacing's case; the grid drawn again far from where it was; and the readouts as before.
 - Seven mutants, each killed: `M89`, the grid thinned again at 24 pixels; `M90`, the emphasis a cell off the origin; `M91`, the faded opacity 1; `M92`, the view listed past 10,000; `M93`, faded points drawn under 4 pixels apart; `M94`, the table not the director's; `M95`, the grid never drawn again at one level and scale; `M75` names the pane's code as it now stands.
 
+---
+
+## 0017 - The dots' check: the grid whole across its margin and floor, its drawing cheaper, and the constants named as draw's
+
+**Ruled by:** the independent check of `0016`, 2026-11-03, passing it -- the rule drawn exactly at every window, size and level, no gap or stale grid in any pan, resize or jump -- with two findings to fix and four lows; and draw's PAN-ZOOM.md as its drafter now restates PZ24, its reading 10's o:F1 among it.\
+**Affects:** `src/view-pane.ts`, `src/view-steps.ts`; `test/browser/view-pane.test.js`; `tools/run-mutants.mjs`; `docs/GUIDE.md`, `docs/BACKLOG.md`; and `docs/ARCHITECTURE-TARGET.md`, revision 15.
+
+**Ruling.**\
+Six of the check's mutants each broke the grid visibly and passed every test: a vertical pan, or a left or an up one, never counted as leaving the cells drawn; the margin never narrowed, so the listing passed 10,000 and the faded points vanished where they belong; the cells drawn recorded as 3 beyond the view whatever was drawn; at the floor, the full points taken from the thinned listing; no drawing again on a change of scale at one level.\
+Three tests now kill each: a pan across the margin's edge in each of the four directions where the margin is narrowed to 1 cell, the gate's small pane at 2x, the whole grid checked against the view after every move; every emphasised point in view drawn at the count's floor and at the spacing's, nothing listed beyond the lattice; and from the small pane at 2x on a 1093 by 526 window, where the spacing's floor applies, to the large, where it lifts at the same level, and back.\
+The cost `0016` held as `B20` was misnamed: a redraw's cost is its drawing, one path of up to about 10,000 points put whole, not `inView`'s listing; the pane now reads what is visible and measures the precision lines before it puts anything, so no layout of the new path is forced inside the delivery, writes each row of the path as relative moves, about half the string, and asks the spacing and the view's count before listing, so at the floor nothing is listed and thrown away; `B20` is rewritten with the measured figures, before and after, its worst case the small pane at 2x, and a trigger the director's step 8 meets.\
+Where the emphasised lattice itself would pass the listing's bound, at any level and an interval of 1 among them, it is thinned by `inView`'s own stride doubling, anchored at the origin, the origin always drawn (draw's reading 10, o:F1): the pane lists the lattice with the bound and draws what `inView` answers, which the test holds with a stand-in bound of 150 planted in a built copy -- at 1x every fourth point, at 3x every fourteenth.\
+The constants are named as draw's design names them, `GRID_EMPHASIS`, `GRID_FADE` and `GRID_FLOOR`, so one search finds both copies; `0016`'s `FADED_DOT_OPACITY` and `FADED_DOT_MIN_SPACING` are these, renamed.\
+GUIDE section 9's step 2 says a dot is full only where every fifth row meets every fifth column, or seventh; a new step 8 asks the director to pan with the pane small at 2x and large at 3x and say whether it stutters, since the gate's timed run, GT9, never goes past 1x -- its wheels are scrolls and its pinch, to 1.5 times, gathers about 40 of the 100 pixels a level asks.\
+`docs/ARCHITECTURE-TARGET.md`'s Shape row names `opacity`, and its section 6 status names `0016` and `0017`.
+
+**Settled by the build.**
+- Nine mutants, each killed: `M96` to `M101`, the check's y1, y9, y2, y3, y6 and y8; `M102`, the lattice listed past the bound; `M103` and `M104`, the spacing or the count asked only after listing; `M75`, `M92` and `M95` name the code as it now stands, `M92` the bound itself raised, since a listing can no longer pass it.
+- The pan and wheel figures are `B20`'s: two runs each, in headless Chrome, at 1366 by 657 and 1536 by 750, the small pane at 2x and the large at 3x, 81 moves of a middle pan and 40 notches of Ctrl and the wheel.
+- The tests read the dots paths, absolute and relative moves alike, with a parser of their own.
+

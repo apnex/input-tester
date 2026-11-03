@@ -4,15 +4,23 @@
 // and a left drag, a middle drag, a right drag, the view keys and the reticle -- and after each the pane's scene view
 // held to section 3.6: a pan by its distance on screen over the level's scale, each of PZ12's levels reached by every
 // zoom gesture and none between, the drawing point under the pointer kept, home to 0, 0 at the level kept; its grid
-// drawn from what is visible, thinned to 24 screen pixels; and the picture of the keyboard and mouse unmoved throughout.
+// drawn from what is visible, every point at every level with each level's emphasis (0016, 0017), whole after every
+// pan, resize and jump; and the picture of the keyboard and mouse unmoved throughout.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import zlib from "node:zlib";
 
 import { importBuilt, siteRoot } from "../support/built-site.js";
+import { plantedSite } from "../support/planted-site.js";
 import { MODIFIERS, VIEWPORT, openTesterInChrome } from "./tester-in-chrome.js";
 
 const TEST = { timeout: 90000 };
+
+/**
+ * A page-side function, as source, answering the points a dots path draws: `M x y` an absolute move, `m dx dy` a
+ * relative one, `h0` the zero-length stroke that draws a dot where the last move left the pen.
+ */
+const PATH_POINTS = `((d) => { const out = []; let x = 0; let y = 0; for (const m of (d ?? '').matchAll(/([Mm])(-?[0-9.e+-]+) (-?[0-9.e+-]+)h0/g)) { if (m[1] === 'M') { x = Number(m[2]); y = Number(m[3]); } else { x += Number(m[2]); y += Number(m[3]); } out.push([x, y]); } return out; })`;
 let t;
 
 before(async () => {
@@ -40,7 +48,7 @@ test("the pane opens beside the picture at the first opening -- the centre 0, 0 
 	close(p.view.scale, Math.min(p.width / 1920, p.height / 1080), "the default scale");
 	close(p.view.x + p.width / (2 * p.view.scale), 0, "the centre's x");
 	close(p.view.y + p.height / (2 * p.view.scale), 0, "the centre's y");
-	const xs = await t.page("[...new Set([...document.querySelector('#view-pane .pane-dots').getAttribute('d').matchAll(/M(-?[0-9.e+-]+) /g)].map((m) => Number(m[1])))].sort((a, b) => a - b)");
+	const xs = await t.page(`[...new Set(${PATH_POINTS}(document.querySelector('#view-pane .pane-dots').getAttribute('d')).map(([x]) => x))].sort((a, b) => a - b)`);
 	assert.ok(xs.length > 3, `${xs.length} columns of dots`);
 	const spacing = xs[1] - xs[0];
 	assert.equal(spacing, 60, `dots ${spacing} units apart, ${spacing * p.view.scale} screen pixels: every point of the grid of 60, none thinned`);
@@ -274,7 +282,7 @@ test("loaded fresh at #view, as GUIDE section 9 tells the director, the pane is 
 	close(p.view.scale, Math.min(p.width / 1920, p.height / 1080), "the scale before any input");
 	close(p.view.x + p.width / (2 * p.view.scale), 0, "the centre's x before any input");
 	close(p.view.y + p.height / (2 * p.view.scale), 0, "the centre's y before any input");
-	const xs = await t.page("[...document.querySelector('#view-pane .pane-dots').getAttribute('d').matchAll(/M(-?[0-9.e+-]+) /g)].map((m) => Number(m[1]))");
+	const xs = await t.page(`${PATH_POINTS}(document.querySelector('#view-pane .pane-dots').getAttribute('d')).map(([x]) => x)`);
 	const right = p.view.x + p.width / p.view.scale;
 	assert.ok(Math.max(...xs) >= right - 2 * 60 * 8, `the grid reaches the pane's right edge, ${right}: its last column at ${Math.max(...xs)}`);
 	const scaleWords = String(Math.round(p.view.scale * 10000) / 10000);
@@ -367,12 +375,12 @@ test("at the Chromebook's likely windows -- 1366 by 657, 1093 by 526 at 125%, 15
 
 /** The director's starting values (docs/DECISIONS.md 0016), copied as literals and never read from the code under test. */
 const SPEC_EMPHASIS = { 0.5: 1, 1: 1, 2: 5, 3: 7 };
-const SPEC_FADED_OPACITY = 0.5;
-const SPEC_FADED_MIN_SPACING = 4;
+const SPEC_GRID_FADE = 0.5;
+const SPEC_GRID_FLOOR = 4;
 
 /** The pane's drawn grid: its full and its faded points, in drawing units, the faded path's opacity, the pane's dots record, scene view and size. */
 const drawnGrid = () => t.page(`(() => {
-	const points = (sel) => [...(document.querySelector(sel)?.getAttribute('d') ?? '').matchAll(/M(-?[0-9.e+-]+) (-?[0-9.e+-]+)h0/g)].map((m) => [Number(m[1]), Number(m[2])]);
+	const points = (sel) => ${PATH_POINTS}(document.querySelector(sel)?.getAttribute('d'));
 	const r = document.getElementById('view-pane').getBoundingClientRect();
 	const faded = document.querySelector('#view-pane .pane-dots-faded');
 	return { full: points('#view-pane .pane-dots:not(.pane-dots-faded)'), faded: points('#view-pane .pane-dots-faded'), opacity: faded.getAttribute('opacity'), computed: getComputedStyle(faded).opacity, dots: inputTester.paneDots, view: inputTester.paneView, width: r.width, height: r.height, readouts: [...document.querySelectorAll('#view-readouts text tspan')].map((s) => s.textContent) };
@@ -407,9 +415,9 @@ function assertGrid(g, emphasis, where) {
 }
 
 test("0016: every grid point drawn at every level, the dots closing up level by level, 60 times the scale apart; at 2x every fifth and at 3x every seventh point full, anchored at the origin, the rest at 0.5 opacity, by the table held beside the levels; the readouts unchanged", TEST, async (tc) => {
-	const { GRID_EMPHASIS, FADED_DOT_OPACITY, FADED_DOT_MIN_SPACING, ZOOM_LEVELS } = await importBuilt("view-steps.js");
+	const { GRID_EMPHASIS, GRID_FADE, GRID_FLOOR, ZOOM_LEVELS } = await importBuilt("view-steps.js");
 	assert.deepEqual({ ...GRID_EMPHASIS }, SPEC_EMPHASIS, "the emphasis table, the director's starting values");
-	assert.deepEqual([FADED_DOT_OPACITY, FADED_DOT_MIN_SPACING], [SPEC_FADED_OPACITY, SPEC_FADED_MIN_SPACING]);
+	assert.deepEqual([GRID_FADE, GRID_FLOOR], [SPEC_GRID_FADE, SPEC_GRID_FLOOR]);
 	assert.deepEqual(ZOOM_LEVELS.filter((l) => GRID_EMPHASIS[l] === undefined), [], "every level named in the table");
 	await t.load("?plan=ansi&dots=levels#view");
 	await t.chrome.evaluate("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
@@ -423,7 +431,7 @@ test("0016: every grid point drawn at every level, the dots closing up level by 
 		assert.equal(g.dots.level, level);
 		assertGrid(g, GRID_EMPHASIS, `the large pane at ${level}x`);
 		assert.equal(g.dots.floor, null, `the large pane at ${level}x: no floor`);
-		assert.deepEqual([g.opacity, g.computed], [String(FADED_DOT_OPACITY), String(FADED_DOT_OPACITY)], "the faded points' opacity, from its one place");
+		assert.deepEqual([g.opacity, g.computed], [String(GRID_FADE), String(GRID_FADE)], "the faded points' opacity, from its one place");
 		seen.push({ level, spacing: Math.round(g.dots.spacing * 100) / 100, interval: g.dots.interval, full: g.full.length, faded: g.faded.length, inView: g.dots.inView, margin: g.dots.margin });
 	}
 	for (let i = 1; i < seen.length; i++) assert.ok(seen[i].spacing < seen[i - 1].spacing, `the dots close up from ${seen[i - 1].level}x to ${seen[i].level}x: ${seen[i - 1].spacing} then ${seen[i].spacing} pixels`);
@@ -441,7 +449,7 @@ test("0016's floor: the faded points left out, the emphasised alone drawn, only 
 		await viewKey("-", "Minus", 189);
 		let g = await drawnGrid();
 		cases.push({ where: "2080 by 1000, small, 3x", spacing: g.dots.spacing, inView: g.dots.inView, floor: g.dots.floor, full: g.full.length, faded: g.faded.length });
-		assert.ok(g.dots.spacing >= SPEC_FADED_MIN_SPACING && g.dots.inView > 10000, `the case is the count's alone: ${JSON.stringify(g.dots)}`);
+		assert.ok(g.dots.spacing >= SPEC_GRID_FLOOR && g.dots.inView > 10000, `the case is the count's alone: ${JSON.stringify(g.dots)}`);
 		assert.equal(g.dots.floor, "count");
 		assert.equal(g.faded.length, 0, "the faded points left out");
 		assert.ok(g.full.length > 0 && g.full.length <= 10000 && g.full.every(([x, y]) => (x / 60) % 7 === 0 && (y / 60) % 7 === 0), "every seventh point alone");
@@ -450,7 +458,7 @@ test("0016's floor: the faded points left out, the emphasised alone drawn, only 
 		await viewKey("-", "Minus", 189);
 		g = await drawnGrid();
 		cases.push({ where: "1093 by 526, small, 2x", spacing: g.dots.spacing, inView: g.dots.inView, floor: g.dots.floor, full: g.full.length, faded: g.faded.length });
-		assert.ok(g.dots.spacing < SPEC_FADED_MIN_SPACING && g.dots.inView <= 10000, `the case is the spacing's alone: ${JSON.stringify(g.dots)}`);
+		assert.ok(g.dots.spacing < SPEC_GRID_FLOOR && g.dots.inView <= 10000, `the case is the spacing's alone: ${JSON.stringify(g.dots)}`);
 		assert.equal(g.dots.floor, "spacing");
 		assert.equal(g.faded.length, 0, "the faded points left out");
 		assert.ok(g.full.length > 0 && g.full.every(([x, y]) => (x / 60) % GRID_EMPHASIS[2] === 0 && (y / 60) % GRID_EMPHASIS[2] === 0), "every fifth point alone");
@@ -465,6 +473,142 @@ test("0016's floor: the faded points left out, the emphasised alone drawn, only 
 		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
 		await t.load("?plan=ansi");
 		await t.chrome.evaluate("window.notReloaded = true");
+	}
+});
+
+/**
+ * Checks, in the page, the pane's whole grid against its view: every point of the grid in view drawn, once, full or
+ * faded as the level's interval says, the origin full when in view -- or, at the floor, every point of the emphasised
+ * lattice in view drawn and no faded one; answering what is wrong, empty when nothing is, and the dots record.
+ */
+async function gridAgainstView(emphasis) {
+	return t.page(`(() => {
+		const pts = ${PATH_POINTS};
+		const full = pts(document.querySelector('#view-pane .pane-dots:not(.pane-dots-faded)').getAttribute('d'));
+		const faded = pts(document.querySelector('#view-pane .pane-dots-faded').getAttribute('d'));
+		const v = inputTester.paneView; const r = document.getElementById('view-pane').getBoundingClientRect();
+		const dots = inputTester.paneDots; const n = ${JSON.stringify(emphasis)}[dots.level] ?? 1;
+		const step = dots.floor === null ? 1 : n;
+		const key = (x, y) => x + ',' + y;
+		const fullSet = new Set(full.map(([x, y]) => key(x, y))); const fadedSet = new Set(faded.map(([x, y]) => key(x, y)));
+		const wrong = [];
+		if (fullSet.size !== full.length || fadedSet.size !== faded.length) wrong.push('a point drawn twice');
+		const c0 = Math.ceil(v.x / (60 * step)) * step, c1 = Math.floor((v.x + r.width / v.scale) / (60 * step)) * step;
+		const r0 = Math.ceil(v.y / (60 * step)) * step, r1 = Math.floor((v.y + r.height / v.scale) / (60 * step)) * step;
+		let missing = 0, misfiled = 0;
+		for (let c = c0; c <= c1; c += step) for (let w = r0; w <= r1; w += step) {
+			const k = key(c * 60, w * 60); const emphasised = c % n === 0 && w % n === 0;
+			if (dots.floor === null) { if (!(emphasised ? fullSet : fadedSet).has(k)) (fullSet.has(k) || fadedSet.has(k) ? misfiled++ : missing++); }
+			else if (!fullSet.has(k)) missing++;
+		}
+		if (missing) wrong.push(missing + ' points of the view missing');
+		if (misfiled) wrong.push(misfiled + ' points drawn full where faded belongs, or faded where full');
+		if (dots.floor !== null && faded.length) wrong.push(faded.length + ' faded points drawn at the floor');
+		if (c0 <= 0 && c1 >= 0 && r0 <= 0 && r1 >= 0 && !fullSet.has('0,0')) wrong.push('the origin not full');
+		if (full.length + faded.length > 10000) wrong.push((full.length + faded.length) + ' points drawn, past the bound');
+		return { wrong, dots, points: (c1 - c0) / step + 1 };
+	})()`);
+}
+
+/** The pane's centre on screen. */
+const paneCentre = () => t.page("(() => { const r = document.getElementById('view-pane').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()");
+
+test("0017: a pan across the drawn margin's edge in each of the four directions, where the margin is narrowed to keep the listing within 10,000 -- the small pane at 2x here -- leaves the whole grid drawn after every move", TEST, async (tc) => {
+	const { GRID_EMPHASIS } = await importBuilt("view-steps.js");
+	await t.load("?plan=ansi&dots=margin");
+	await viewKey("-", "Minus", 189);
+	let g = await gridAgainstView(GRID_EMPHASIS);
+	assert.deepEqual([g.dots.level, g.dots.floor], [2, null], `at 2x, no floor: ${JSON.stringify(g.dots)}`);
+	assert.ok(g.dots.margin > 0 && g.dots.margin < 3, `the margin narrowed: ${g.dots.margin}`);
+	assert.deepEqual(g.wrong, [], "at the start");
+	const c = await paneCentre();
+	await t.mouse("mouseMoved", c);
+	await t.mouse("mousePressed", c, { button: "middle", buttons: 4 });
+	await t.mouse("mouseMoved", { x: c.x, y: c.y + 6 }, { buttons: 4 });
+	let at = { x: c.x, y: c.y + 6 };
+	const draws = g.dots.draws;
+	for (const [dx, dy, way] of [[10, 0, "right"], [-10, 0, "left"], [0, 10, "down"], [0, -10, "up"]]) {
+		for (let i = 0; i < 6; i++) {
+			at = { x: at.x + dx, y: at.y + dy };
+			await t.mouse("mouseMoved", at, { buttons: 4 });
+			await t.settle();
+			g = await gridAgainstView(GRID_EMPHASIS);
+			assert.deepEqual(g.wrong, [], `after a move ${way}, the ${i + 1}th: the margin ${g.dots.margin}, ${g.dots.draws} drawings`);
+		}
+	}
+	await t.mouse("mouseReleased", at, { button: "middle", buttons: 0 });
+	tc.diagnostic(`margin ${g.dots.margin} cells; ${g.dots.draws - draws} drawings over 24 moves of 10 pixels, ${(60 * (g.dots.spacing / 60)).toFixed(2)} pixels a cell`);
+	await t.load("?plan=ansi");
+	await t.chrome.evaluate("window.notReloaded = true");
+});
+
+test("0017: at the floor every emphasised point in view is drawn and nothing is listed beyond the lattice -- the count's floor here, the spacing's at 1093 by 526 -- and from the small pane at 2x there, a floor of spacing, to the large, where it lifts at the same level, the whole grid is drawn again", TEST, async (tc) => {
+	const { GRID_EMPHASIS } = await importBuilt("view-steps.js");
+	const seen = [];
+	try {
+		await t.load("?plan=ansi&dots=countfloor");
+		await viewKey("-", "Minus", 189);
+		await viewKey("-", "Minus", 189);
+		let g = await gridAgainstView(GRID_EMPHASIS);
+		seen.push(g.dots);
+		assert.equal(g.dots.floor, "count");
+		assert.deepEqual(g.wrong, [], "the count's floor: every seventh point in view drawn");
+		assert.equal(g.dots.listed, g.dots.full, "nothing listed but the lattice drawn");
+		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: 1093, height: 526, deviceScaleFactor: 1, mobile: false });
+		await t.load("?plan=chromebook&dots=spacingfloor");
+		await viewKey("-", "Minus", 189);
+		g = await gridAgainstView(GRID_EMPHASIS);
+		seen.push(g.dots);
+		assert.equal(g.dots.floor, "spacing");
+		assert.deepEqual(g.wrong, [], "the spacing's floor: every fifth point in view drawn");
+		assert.equal(g.dots.listed, g.dots.full, "nothing listed but the lattice drawn");
+		await click("pane-large");
+		g = await gridAgainstView(GRID_EMPHASIS);
+		seen.push(g.dots);
+		assert.deepEqual([g.dots.level, g.dots.floor], [2, null], "the large pane at 2x: the floor lifted");
+		assert.deepEqual(g.wrong, [], "the large pane at 2x: the whole grid, faded points with it");
+		await click("pane-small");
+		g = await gridAgainstView(GRID_EMPHASIS);
+		assert.deepEqual([g.dots.floor, g.wrong], ["spacing", []], "small again: the floor again");
+	} finally {
+		tc.diagnostic(JSON.stringify(seen));
+		await t.chrome.send("Emulation.setDeviceMetricsOverride", { width: VIEWPORT.width, height: VIEWPORT.height, deviceScaleFactor: 1, mobile: false });
+		await t.load("?plan=ansi");
+		await t.chrome.evaluate("window.notReloaded = true");
+	}
+});
+
+test("0017, draw's reading 10's o:F1: where the emphasised lattice itself would pass the listing's bound -- a stand-in bound of 150 planted in a built copy -- it is thinned by inView's own stride doubling, anchored at the origin, the origin always drawn: at 1x every point full and thinned, at 3x every seventh thinned to every fourteenth", TEST, async (tc) => {
+	const { GRID_EMPHASIS } = await importBuilt("view-steps.js");
+	const planted = plantedSite([{ file: "app/view-pane.js", find: "export const PANE_MAX_DOTS = 10000;", replace: "export const PANE_MAX_DOTS = 150;" }]);
+	const main = t;
+	const seen = [];
+	try {
+		t = await openTesterInChrome({ siteDir: planted.dir, query: "?plan=ansi#view" });
+		for (const level of [1, 3]) {
+			if (level === 3) {
+				await viewKey("-", "Minus", 189);
+				await viewKey("-", "Minus", 189);
+			}
+			const g = await t.page(`(() => { const pts = ${PATH_POINTS}; const v = inputTester.paneView; const r = document.getElementById('view-pane').getBoundingClientRect(); return { full: pts(document.querySelector('#view-pane .pane-dots:not(.pane-dots-faded)').getAttribute('d')), faded: pts(document.querySelector('#view-pane .pane-dots-faded').getAttribute('d')), dots: inputTester.paneDots, x0: v.x, x1: v.x + r.width / v.scale, y0: v.y, y1: v.y + r.height / v.scale }; })()`);
+			const n = GRID_EMPHASIS[level];
+			const xs = [...new Set(g.full.map(([x]) => x))].sort((a, b) => a - b);
+			const cells = (xs[1] - xs[0]) / 60;
+			const stride = cells / n;
+			seen.push({ level, inView: g.dots.inView, floor: g.dots.floor, full: g.full.length, cells });
+			assert.equal(g.dots.floor, "count", `at ${level}x, past the stand-in bound`);
+			assert.ok(stride >= 2 && Number.isInteger(Math.log2(stride)), `at ${level}x the lattice of ${n} thinned by a power of two: every ${cells} cells`);
+			assert.ok(g.full.length <= 150 && g.faded.length === 0, `at ${level}x: ${g.full.length} full points, ${g.faded.length} faded`);
+			assert.ok(g.full.every(([x, y]) => (x / 60) % cells === 0 && (y / 60) % cells === 0), `at ${level}x: every point drawn on the thinned lattice through the origin`);
+			assert.ok(g.full.some(([x, y]) => x === 0 && y === 0), `at ${level}x: the origin drawn`);
+			const expected = (Math.floor(g.x1 / (60 * cells)) - Math.ceil(g.x0 / (60 * cells)) + 1) * (Math.floor(g.y1 / (60 * cells)) - Math.ceil(g.y0 / (60 * cells)) + 1);
+			assert.equal(g.full.filter(([x, y]) => x >= g.x0 && x <= g.x1 && y >= g.y0 && y <= g.y1).length, expected, `at ${level}x: every point of the thinned lattice in view drawn`);
+		}
+	} finally {
+		tc.diagnostic(JSON.stringify(seen));
+		await t.close();
+		t = main;
+		planted.remove();
 	}
 });
 
