@@ -5,7 +5,7 @@ instant: current
 # input-tester - system architecture, current
 
 **Instant: current.** input-tester as its code and its gate's last run show it, derived by `tools/generate-architecture.mjs` and never written by hand.\
-Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 14, which this document cites and never restates.\
+Its reasoning -- identity, justification, alignment and decisions -- is the target's, `docs/ARCHITECTURE-TARGET.md` revision 15, which this document cites and never restates.\
 Every section is derived; each changes when the code, the gate's results or the records it is read from change, and `npm run gate` fails while this file differs from what the generator derives.
 
 ---
@@ -15,8 +15,8 @@ Every section is derived; each changes when the code, the gate's results or the 
 | Field | Value |
 |---|---|
 | Version | `0.3.0`, its release folder `v0.3.0` |
-| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 14 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, in `docs/DECISIONS.md` |
+| Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 15 |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, `0017`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -49,7 +49,7 @@ Each part's duty is the first sentence of its module's leading comment; its expo
 | `src/picture-painter.ts` | Painter: describes the picture as shapes, within an allowlist (docs/ARCHITECTURE-TARGET.md sections 5 and 6, P3, P4, P6, GT8) | `PAINTER_TAGS`, `PAINTER_ATTRIBUTES`, `SCENE_LAYERS`, `PageNotices`, `PaintTarget`, `PaintView`, `KEY_NOTE_WORDS`, `NOT_REPORTED_LINES`, `CLAIMS_LINE`, `UNCOVERED_BROWSER_LINE`, `LEFT_COLUMN_CHARACTERS`, `NOTICE_CHARACTERS`, `MOUSE_COLUMN_CHARACTERS`, `LOG_CHARACTERS`, `LEGEND_CHARACTERS`, `legendLines`, `wrapWords`, `factWords`, `logLineWords`, `buttonsHeldWords`, `statusWords`, `HELD_KEY_LINES`, `heldKeyLines`, `keyShapes`, `wheelLines`, `viewLines`, `paintRefusedOpening`, `FlowPlacement`, `flowPlacement`, `paintEveryKey`, `paintWholePage`, `paintPictureChanges` | `../vendor/input-binding/index.js`, `../vendor/vector-scene/index.js`, `./input-bindings.js`, `./key-labels.js`, `./keyboard-plans.js`, `./picture-state.js`, `./view-steps.js` |
 | `src/picture-state.ts` | Picture state: keeps what the person is shown, as data (docs/ARCHITECTURE-TARGET.md sections 5 to 7, P1, P6) | `LOG_LINES`, `HeldKeyPicture`, `WheelPicture`, `GesturePicture`, `LogEntry`, `LegendPicture`, `PanPicture`, `ViewPicture`, `ViewSurface`, `Picture`, `PictureEntry`, `BUTTONS_REPORTED_BY`, `EMPTY_PICTURE`, `timeBetween`, `wheelFactsAlike`, `viewAfterVerb`, `applyVerdict`, `applyPaneButton`, `applyPaneGeometry` | `../vendor/input-capture/index.js`, `../vendor/input-binding/index.js`, `./input-bindings.js`, `./input-router.js`, `./view-steps.js` |
 | `src/view-pane.ts` | View pane: the view the view's rows set, shown (docs/ARCHITECTURE-TARGET.md sections 5 to 7; draw's PAN-ZOOM.md 3.3, PZ24, PZ30): a second scene, on an `<svg>` of its own beside the picture, declared with a view (`vector-scene` 0.3.0, VS14 to VS16), so the picture of the keyboard and mouse never moves | `PANE_GRID`, `PANE_MAX_DOTS`, `PANE_MARGIN_CELLS`, `PaneDots`, `PANE_LAYERS`, `READOUT_LAYERS`, `READOUT_ADVANCE`, `PrecisionMeasure`, `readoutWords`, `PrecisionBounds`, `ViewPane`, `sceneViewOf`, `openViewPane` | `../vendor/snap-grid/index.js`, `../vendor/vector-scene/index.js`, `./picture-painter.js`, `./picture-state.js`, `./view-steps.js` |
-| `src/view-steps.ts` | View steps: what each of the view's rows does to the view, as numbers (docs/ARCHITECTURE-TARGET.md section 6, the view's rows; draw's PAN-ZOOM.md section 3.6, PZ12, PZ17) | `ZOOM_LEVELS`, `GRID_EMPHASIS`, `FADED_DOT_OPACITY`, `FADED_DOT_MIN_SPACING`, `emphasisOf`, `isEmphasised`, `DEFAULT_ZOOM_LEVEL`, `ZOOM_STEP_PIXELS`, `LINE_PIXELS`, `normalisedDelta`, `ZoomStep`, `stepZoom`, `levelWords`, `screenDistance`, `PaneGeometry`, `DEFAULT_FRAME`, `paneLaidOut`, `paneScale`, `onPane`, `centreKeeping`, `PRECISION_LINES`, `PRECISION_LINE_WIDTH` |  |
+| `src/view-steps.ts` | View steps: what each of the view's rows does to the view, as numbers (docs/ARCHITECTURE-TARGET.md section 6, the view's rows; draw's PAN-ZOOM.md section 3.6, PZ12, PZ17) | `ZOOM_LEVELS`, `GRID_EMPHASIS`, `GRID_FADE`, `GRID_FLOOR`, `emphasisOf`, `isEmphasised`, `DEFAULT_ZOOM_LEVEL`, `ZOOM_STEP_PIXELS`, `LINE_PIXELS`, `normalisedDelta`, `ZoomStep`, `stepZoom`, `levelWords`, `screenDistance`, `PaneGeometry`, `DEFAULT_FRAME`, `paneLaidOut`, `paneScale`, `onPane`, `centreKeeping`, `PRECISION_LINES`, `PRECISION_LINE_WIDTH` |  |
 | `page/index.html` | The entry document: its stylesheet and its one module script, both in the release's folder, and the plans to choose | none | `v0.3.0/input-tester.css`, `v0.3.0/app/page-entry.js` |
 
 ---
@@ -157,7 +157,7 @@ What no page can know, shown always:
 | vendoring | vendor/ is the pinned release files, byte for byte (GT3, P7) | pass | -- |
 | build | tsc builds src/ into the site, laid out as a release (IT-D1, section 9) | pass | -- |
 | tests | the worked verdicts, the fixture rows, the overlap check, the plans, the picture state, the allowlist and writes in delivery, the release's layout, the guide's examples and every check able to fail (GT2, GT4, GT5, GT7, GT8) | pass | 88 of 88 passed |
-| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 86 of 86 passed |
+| browser tests | trusted input over every browser-reachable row, containment with planted leaks, the browser rule, immediacy with a planted slow build, and the deploy's sequence (GT2, GT5, GT6, GT9, section 8) | pass | 89 of 89 passed |
 | source check | no network interface, navigation, storage, clock, timer or dynamic import, and no element made but through vector-scene (GT1) | pass | -- |
 | vocabulary check | no word of another application in the tester's own words (GT7, P8) | pass | -- |
 | backlog check | no workaround open while its retiring release is installed; every deferral with a revival trigger (GT4) | pass | -- |
@@ -194,7 +194,7 @@ Workarounds open: 0.
 | B2 | Typing through a native input method is not covered: injected composition reached no listener, which says nothing of a native one's key events (IT-D12) |
 | B5 | Old release folders accumulate in both buckets, since no deploy step deletes |
 | B17 | `tools/serve-site.mjs` passes each connection to its fixed port, byte for byte, to the gate's server, since `headless-chromium`'s `serveStatic` listens only on a port the system gives it |
-| B20 | With every grid point drawn (`0016`), a pan in the large pane at 3x draws the grid again whenever the view leaves the cells drawn, up to 3 beyond it, and each such drawing lists about 9,500 positions through `snap-grid`'s `inView`, which freezes each value it makes (0.1.2, draw's PZ13): measured in headless Chrome at 1366 by 657, a pan's moves take 3.3 ms at the median and 15.2 ms at the 95th percentile, past the 10 ms the gate holds the picture's deliveries to; the cost is the listing's, the part's to make cheaper, not a workaround's here |
+| B20 | Drawing every grid point (`0016`) makes the pane's redraws slow where it holds the most points: a redraw puts one path of up to about 10,000 points whole, and the cost is that drawing -- the path's string and Chrome's taking of it -- not `inView`'s listing, about 1.4 ms of it, as `0016` first held; `0017` read nothing after the put, so no layout of the new path is forced inside the delivery, halved the string with relative moves, and listed nothing at the floor that it would throw away; measured in headless Chrome, two runs each, the 95th percentile of a pan's moves fell from 13.4-16.1 ms to 8.7-12.5 ms in the large pane at 3x and from 11.0-14.7 ms to 8.9-12.2 ms in the small pane at 2x, the worst case, single moves still reaching 25-36 ms there, and Ctrl and the wheel's notches, each a redraw, from 12.3-34.4 ms to 10.4-22.4 ms; the gate's timed run, GT9, never goes past 1x, so it does not see this; drawing the grid in tiles, a pan putting only the tiles it reaches, is the next step if one is needed |
 | B7 | The guide's cold reading is owed: a newcomer, given the guide and this repository alone, builds a small application from the four parts |
 | B8 | Keyboards other than the two plans are not drawn |
 | B9 | Caps Lock's and Num Lock's state is not shown: no shared part carries it |
@@ -227,3 +227,4 @@ Workarounds open: 0.
 | `0014` | Move 6's verification: the large pane right at its first paint, and the precision lines as ground |
 | `0015` | Move 6's re-review: the page never scrolls, whatever the header's height |
 | `0016` | Every grid point drawn at every level, each level's emphasis, and v0.3.0 |
+| `0017` | The dots' check: the grid whole across its margin and floor, its drawing cheaper, and the constants named as draw's |
