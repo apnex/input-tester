@@ -87,26 +87,26 @@ test("worked verdict: the right button pressed mid-drag, the left released, then
 	assert.equal(page.picture.buttons, 0, "the buttons drawn follow the facts' buttons");
 });
 
-test("worked verdict: Ctrl and the wheel -- a pinch zoom, Ctrl and wheel or a touchpad pinch alike; no step; claimed and drawn; short of a step, the level kept and the delta held", () => {
+test("worked verdict: Ctrl and the wheel -- a wheel zoom, Ctrl and wheel or a touchpad pinch alike; no step; claimed and drawn; short of a step, the level kept and the delta held", () => {
 	const { platform, page } = freshPage();
 	const { claimed } = platform.wheel({ ctrlKey: true, deltaY: -12.5 });
-	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["pinch-zoom"]);
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["wheel-zoom"]);
 	assert.deepEqual(stepsOf(page.latestVerdict), []);
 	assert.equal(claimed, true);
 	assert.equal(page.picture.wheel.latest.deltaY, -12.5, "drawn with its delta, exact");
 	assert.deepEqual([page.picture.view.level, page.picture.view.acc], [1, -12.5]);
-	assert.equal(platform.textOf("view-line"), "view: 1x, scale 0.3125\ncentre 0, 0\npinch held -12.5 px\nno pan\npinch zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
+	assert.equal(platform.textOf("view-line"), "view: 1x, scale 0.3125\ncentre 0, 0\nwheel held -12.5 px\nno pan\nwheel zoom: at 1x, -12.5 of 100\npixels held toward the next level", "the view's lines, wrapped to the mouse column");
 });
 
-/** The view's level and the pinch's held pixels, as the picture keeps them. */
+/** The view's level and the wheel's held pixels, as the picture keeps them. */
 const levelAndHeld = (page) => [page.picture.view.level, page.picture.view.acc];
 
-test("worked verdict: a pinch zoom steps one level per 100 pixels -- in to 0.5x about the fact's screen point; one fact of 250 out steps twice, to 2x, keeping 50, and two of 125 step as one; a delta of the other sign starts again; past the farthest level what remains is dropped", () => {
+test("worked verdict: a wheel zoom steps one level per 100 pixels -- in to 0.5x about the fact's screen point; one fact of 250 out steps twice, to 2x, keeping 50, and two of 125 step as one; a delta of the other sign starts again; past the farthest level what remains is dropped", () => {
 	const { platform, page } = freshPage();
 	platform.wheel({ ctrlKey: true, deltaY: -100, clientX: 30, clientY: 40 });
 	assert.deepEqual(levelAndHeld(page), [0.5, 0]);
-	assert.match(page.picture.view.words, /^pinch zoom: 1x to 0\.5x, 1 level, the scale times 2, about screen 30, 40/);
-	assert.match(page.picture.log[0].notes.join("; "), /pinch zoom: 1x to 0\.5x/, "the step logged beside the fact");
+	assert.match(page.picture.view.words, /^wheel zoom: 1x to 0\.5x, 1 level, the scale times 2, about screen 30, 40/);
+	assert.match(page.picture.log[0].notes.join("; "), /wheel zoom: 1x to 0\.5x/, "the step logged beside the fact");
 	platform.wheel({ ctrlKey: true, deltaY: -10 });
 	assert.deepEqual(levelAndHeld(page), [0.5, 0], "no level nearer than 0.5x: dropped");
 	assert.match(page.picture.view.words, /at 0\.5x, no level lies that way, so dropped/);
@@ -127,26 +127,39 @@ test("worked verdict: a pinch zoom steps one level per 100 pixels -- in to 0.5x 
 	assert.deepEqual(levelAndHeld(other.page), [2, 50], "two facts of 125 step as one of 250");
 });
 
-test("worked verdict: a scroll pan leaves the pinch's held pixels as they were, the wheel having set that view -- Ctrl and the wheel 30, a scroll of 40, then Ctrl and the wheel 80, is 2x with 10 pixels held", () => {
+test("worked verdict: every wheel zooms, one accumulator for all (0025, draw's H27-1) -- Ctrl and the wheel 30, a scroll of 40 with no Ctrl, then a pinch of 40, is 2x with 10 pixels held; a sideways scroll is claimed and moves nothing; a scroll of -100 steps back to 1x about its screen point", () => {
 	const { platform, page } = freshPage();
 	platform.wheel({ ctrlKey: true, deltaY: 30 });
 	assert.deepEqual(levelAndHeld(page), [1, 30]);
-	platform.wheel({ deltaY: 40 });
-	assert.deepEqual(levelAndHeld(page), [1, 30], "the scroll pan keeps the 30 held");
-	platform.wheel({ ctrlKey: true, deltaY: 80 });
+	const plain = platform.wheel({ deltaY: 40 });
+	assert.deepEqual([hitsOf(page.latestVerdict.trace), plain.claimed], [["wheel-zoom"], true], "a wheel without Ctrl is the wheel zoom too, claimed");
+	assert.deepEqual(levelAndHeld(page), [1, 70], "held in the same accumulator");
+	platform.wheel({ ctrlKey: true, deltaY: 40 });
 	assert.deepEqual(levelAndHeld(page), [2, 10]);
+	const centre = { ...page.picture.view.centre };
+	const sideways = platform.wheel({ deltaX: 250, deltaY: 0 });
+	assert.deepEqual([hitsOf(page.latestVerdict.trace), sideways.claimed], [["wheel-zoom"], true]);
+	assert.deepEqual([levelAndHeld(page), page.picture.view.centre], [[2, 10], centre], "deltaX moves nothing: no pan, no step");
+	platform.wheel({ deltaY: -100, clientX: 450, clientY: 120 });
+	assert.deepEqual(levelAndHeld(page), [1, 0], "the other sign: the 10 set to 0, then one level in");
+	assert.match(page.picture.view.words, /^wheel zoom: 2x to 1x, 1 level, the scale times 2, about screen 450, 120/);
 });
 
 test("worked verdict: a wheel's delta normalised by its unit -- pixels as given, a line 40 pixels, a page the surface's height; a page of a surface whose height is not known moves no view", () => {
 	const { platform, page } = freshPage();
 	platform.wheel({ deltaX: 3, deltaY: -1, deltaMode: 1 });
-	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["scroll-pan"]);
-	assert.deepEqual(stepsOf(page.latestVerdict), [], "a scroll pan makes no session step");
-	assert.equal(page.picture.view.words, "scroll pan: the centre moved 120, -40 screen pixels, the drawing the other way");
+	assert.deepEqual(hitsOf(page.latestVerdict.trace), ["wheel-zoom"]);
+	assert.deepEqual(stepsOf(page.latestVerdict), [], "a wheel makes no session step");
+	assert.deepEqual(levelAndHeld(page), [1, -40], "a line is 40 pixels; the 3 lines sideways move nothing");
 	platform.wheel({ deltaY: 0.5, deltaMode: 2 });
-	assert.equal(page.picture.view.words, "scroll pan: the centre moved 0, 450 screen pixels, the drawing the other way", "half a page of a surface 900 high");
+	assert.deepEqual(levelAndHeld(page), [3, 0], "half a page of a surface 900 high is 450: the -40 set to 0, two levels out, the rest dropped past 3x");
+	platform.wheel({ deltaY: -3, deltaMode: 1 });
+	assert.deepEqual(levelAndHeld(page), [2, -20], "three lines are 120 pixels: one level in, 20 held");
 	platform.wheel({ ctrlKey: true, deltaY: 3, deltaMode: 1 });
-	assert.deepEqual(levelAndHeld(page), [2, 20], "three lines are 120 pixels: one level out, 20 held");
+	assert.deepEqual(levelAndHeld(page), [3, 0], "three lines of the other sign: the -20 set to 0, one level out, the 20 past 3x dropped");
+	platform.wheel({ ctrlKey: true, deltaY: -3, deltaMode: 1 });
+	platform.wheel({ ctrlKey: true, deltaY: 1.2, deltaMode: 1 });
+	assert.deepEqual(levelAndHeld(page), [2, 48], "the other sign: 1.2 lines, 48 pixels");
 	platform.wheel({ ctrlKey: true, deltaY: 0.25, deltaMode: 2 });
 	assert.deepEqual(levelAndHeld(page), [3, 0], "a quarter of a page of 900 is 225: one step, the rest dropped past 3x");
 
@@ -154,7 +167,7 @@ test("worked verdict: a wheel's delta normalised by its unit -- pixels as given,
 	const unknownPage = composeTesterPage(unknown);
 	unknown.wheel({ ctrlKey: true, deltaY: 1, deltaMode: 2 });
 	assert.deepEqual(levelAndHeld(unknownPage), [1, 0]);
-	assert.equal(unknownPage.picture.view.words, "pinch zoom: its unit, or the page's height, not known, so the view kept");
+	assert.equal(unknownPage.picture.view.words, "wheel zoom: its unit, or the page's height, not known, so the view kept");
 });
 
 test("worked verdict: a middle pan -- a press of button 1, no gesture live, is pan-middle opening press-1, the pointer not taken; 4 screen pixels engage nothing; beyond them becomeGesture: pan-middle, the pointer taken then; the view follows; the release commits pan-middle, a drop, meaning nothing", () => {
@@ -289,16 +302,16 @@ const centreAndLevel = (page) => [page.picture.view.centre.x, page.picture.view.
 /** The fake pane's scale at a level: the 1920 by 1080 frame's fit in its 600 by 600, 0.3125, over the level. */
 const paneScaleAt = (level) => 600 / 1920 / level;
 
-test("move 6a, the view pane: a scroll pan moves the centre by its pixels over the level's scale; a pan by its travel on screen over the scale, the other way; the pane's scene view follows, its centre at the pane's centre", () => {
+test("move 6a, the view pane: a scroll no longer pans (0025) -- its deltas move no centre; a pan by its travel on screen over the scale, the other way; the pane's scene view follows, its centre at the pane's centre", () => {
 	const { platform, page } = freshPage();
 	assert.deepEqual(centreAndLevel(page), [0, 0, 1]);
 	assert.deepEqual(page.paneView, { x: -300 / paneScaleAt(1), y: -300 / paneScaleAt(1), scale: paneScaleAt(1) }, "the first opening: 0, 0 at the pane's centre, at 1x");
 	platform.wheel({ deltaX: 50, deltaY: -25 });
-	assert.deepEqual(centreAndLevel(page), [50 / paneScaleAt(1), -25 / paneScaleAt(1), 1]);
+	assert.deepEqual(centreAndLevel(page), [0, 0, 1], "the scroll short of a level's step: no centre moved, no level stepped");
 	platform.pointer("down", { clientX: 100, clientY: 100, button: 1, buttons: 4 });
 	platform.pointer("move", { clientX: 110, clientY: 100, button: -1, buttons: 4 });
 	platform.pointer("move", { clientX: 140, clientY: 130, button: -1, buttons: 4 });
-	assert.deepEqual(centreAndLevel(page), [50 / paneScaleAt(1) - 30 / paneScaleAt(1), -25 / paneScaleAt(1) - 30 / paneScaleAt(1), 1], "dragged right and down, the drawing follows: the centre moves left and up");
+	assert.deepEqual(centreAndLevel(page), [-30 / paneScaleAt(1), -30 / paneScaleAt(1), 1], "dragged right and down, the drawing follows: the centre moves left and up");
 	const v = page.paneView;
 	assert.deepEqual([v.x + 300 / v.scale, v.y + 300 / v.scale], [page.picture.view.centre.x, page.picture.view.centre.y], "the pane's scene view holds the centre at its centre");
 	platform.pointer("up", { clientX: 140, clientY: 130, button: 1, buttons: 0 });

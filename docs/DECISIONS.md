@@ -739,3 +739,39 @@ The version is `0.6.0`, a new capability under a new ruling; on production it dr
 The director accepted the view pane's gestures as `v0.6.0` draws them: panning by the two-finger scroll, Space and a left drag, the middle drag and the right drag on open ground ("Panning works pretty well"); the grid at every level as `0020` keeps it ("the updated point grid looks good. approved"); and, asked to accept or return the rest -- the zoom stepping by the pinch and by Ctrl and the wheel, the keys, the reticle home to 0, 0 at the level it was, the line at 1,000,000, and the picture staying still -- "continue".\
 No value was tuned: `ZOOM_LEVELS`, `GRID_TIERS` and the pinch's step stand as `v0.6.0` holds them, and draw takes them as they are.
 
+---
+
+## 0024 - A pan's press released where the tester does not hear it ends as a lost pointer
+
+**Ruled by:** the programme, 2026-11-07, draw's `B447`, the tester's half of the root draw closed in its own code (draw's `5e536f9`); built on the light path (`0021`).\
+**Affects:** `src/input-router.ts`; `test/pan-release-unheard.test.js`, new; `tools/run-mutants.mjs`; and `docs/ARCHITECTURE-TARGET.md`, revision 19.
+
+**Ruling.**\
+`v0.6.0` left `pan-right: the view follows` on the next hover after a right press on the pane released above it: a pan row's press takes the pointer only once it travels the threshold, so a press released where the tester does not hear it left the waiting pan and the session's press held, and the next hover, no button down, crossed the threshold and panned.\
+The router now remembers the buttons a pan's press was last heard holding -- its press's, then each heard move's -- and a move of the press's own pointer holding none of them ends the press as a lost pointer, `pointerLost`, before that move is asked of no press, a hover: the waiting pan dropped, a live pan cancelled, the view left where it was.\
+A chord heard keeps IB11: a button that joined and is still held keeps the pan, which ends at the last release.\
+A press no pan row opened is untouched: its pointer is taken at the press, so its release is heard.
+
+**Settled by the build.**
+- `test/pan-release-unheard.test.js`, through the composed page on a fake platform: a right press, a middle press, and a left press with Space held, each on the pane and released unheard, then a hover with no button -- the press ended as a lost pointer, no view moved, no pan shown -- and a heard pan still panning after; a live pan cancelled, the view where the last heard move left it; the heard chord; and the controls, a heard release, a right click and a right press on a key; on `v0.6.0`'s code the five but the controls failed, the first three at the hover's steps, `pointerMove` and `becomeGesture` where `pointerLost` then a hover's `pointerMove` are owed.
+- Mutants, each killed: `M118`, the rule removed; `M119`, a heard chord's buttons not remembered.
+
+---
+
+## 0025 - Every wheel zooms: the scroll's pan deleted, and v0.7.0
+
+**Ruled by:** the director, 2026-11-07, draw's `H27-1`: "lets change mouse/touchpad scroll behavior to "zoom" rather than pan"; draw's change is its `9217d0d`; built on the light path (`0021`).\
+**Affects:** `src/input-bindings.ts`, `src/picture-state.ts`, `src/picture-painter.ts`, `src/view-steps.ts` and `src/address-tuning.ts`; the tests that held the scroll's pan; `tools/run-mutants.mjs`; `docs/GUIDE.md`, sections 1 and 9; `package.json` and its lockfile, now `0.7.0`, with `@apnex/headless-chromium` re-pinned to `0.2.0`; and `docs/ARCHITECTURE-TARGET.md`, revision 19.
+
+**Ruling.**\
+Every wheel fact -- with Ctrl or without, a mouse wheel, a touchpad's two-finger scroll, a pinch -- steps the view's level as the pinch did: its `deltaY` normalised by `deltaMode`, held in one accumulator for every wheel, one level per the step's pixels, about the fact's screen point; its `deltaX` moves nothing, so a sideways scroll is claimed and leaves the view as it was.\
+The two wheel rows, `scroll-pan` and `pinch-zoom`, become one, `wheel-zoom`, "a wheel zoom: the wheel or a two-finger scroll, Ctrl and the wheel, or a pinch; sideways moves nothing", so the table holds 42 rows; the scroll's pan and what only it used are deleted, and the names that said pinch for what every wheel now does say the wheel: the view's line "wheel held", the words "wheel zoom: ...", and the address's `step`, now the wheel's step.\
+The three drag pans are unchanged, and the fixed sentence that Ctrl with a mouse wheel and a touchpad pinch arrive alike stays, since it is still true.\
+`0023`'s acceptance of panning by the two-finger scroll is superseded in that part; the rest of it stands.\
+`@apnex/headless-chromium` is re-pinned to `0.2.0`, which gives Chrome 60 seconds to start and reports how long it took (draw's `B448`); no call site passed a bound, so none changes.\
+The version is `0.7.0`, a change of behaviour under a new ruling, deployed to the lab only.
+
+**Settled by the build.**
+- The worked verdicts hold a wheel without Ctrl as the wheel zoom, claimed, in the same accumulator as Ctrl and the wheel; a sideways scroll claimed and moving nothing; a scroll stepping a level about its screen point; and the units normalised for every wheel; the overlap check holds every wheel fact on `wheel-zoom` alone; in Chrome, the wheel up and down step the level and sideways and still move nothing, no centre moved, and the wheel with Ctrl and without by turns steps every level on the pane, the point under the pointer kept.
+- Mutants, each killed: `MU7`, a sideways scroll left unmatched; `M49`, the wheel zoom only with Ctrl; `M71`, a sideways scroll's `deltaX` taken as the zoom's.
+

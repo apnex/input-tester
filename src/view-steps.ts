@@ -3,7 +3,8 @@
  * the view's rows; draw's PAN-ZOOM.md section 3.6, PZ12, PZ17).
  *
  * A wheel's deltas normalised by their unit -- pixels as given, a line 40 pixels, a page the surface's height --
- * so three lines and 120 pixels mean alike; a pinch's normalised `deltaY` accumulated and the view stepping one
+ * so three lines and 120 pixels mean alike; every wheel's normalised `deltaY` -- the wheel, a two-finger scroll,
+ * Ctrl and the wheel, a pinch (docs/DECISIONS.md 0025) -- accumulated and the view stepping one
  * zoom level per 100 pixels crossed, out for a positive delta and in for a negative, never between levels; and a
  * pan by its travel on screen. The levels are the one place they are held here, so a change is one edit.
  */
@@ -66,7 +67,7 @@ export function tierOf(col: number, row: number, tiers: readonly GridTier[], cou
 /** The level the view opens at: the default, 1x. */
 export const DEFAULT_ZOOM_LEVEL = 1;
 
-/** How many normalised pixels of a pinch make one level's step: 100, to be calibrated on the director's Chromebook. */
+/** How many normalised pixels of any wheel make one level's step: 100, the pinch's, accepted on the director's Chromebook (0023). */
 export const ZOOM_STEP_PIXELS = 100;
 
 /** How many pixels a line of a wheel's delta is: 40. */
@@ -83,7 +84,7 @@ export function normalisedDelta(delta: number, deltaMode: 0 | 1 | 2 | null, page
 	return null;
 }
 
-/** A pinch's step: the level before and after, how many levels it stepped, the accumulator after, and whether what remained past an end level was dropped. */
+/** A wheel's step: the level before and after, how many levels it stepped, the accumulator after, and whether what remained past an end level was dropped. */
 export interface ZoomStep {
 	readonly from: number;
 	readonly to: number;
@@ -93,7 +94,7 @@ export interface ZoomStep {
 }
 
 /**
- * Steps the zoom by one pinch's normalised `deltaY` (section 3.6's accumulator): a delta of the other sign from the
+ * Steps the zoom by one wheel's normalised `deltaY` (section 3.6's accumulator): a delta of the other sign from the
  * accumulator first sets it to 0; the accumulator gains the delta; while it holds at least one step's pixels and a
  * level lies that way, the level steps once and the accumulator loses one step, keeping the remainder; and where
  * no level lies the way the accumulator points, what remains is dropped and it is set to 0.
@@ -119,7 +120,7 @@ export function stepZoom(level: number, acc: number, delta: number, levels: read
 
 /**
  * The values the view and its grid are drawn by, which the address may tune in the lab (docs/DECISIONS.md 0022):
- * the zoom levels, the tiers per level, the floor, the listing's bound and the pinch's step in pixels.
+ * the zoom levels, the tiers per level, the floor, the listing's bound and the wheel's step in pixels.
  */
 export interface GridTuning {
 	readonly levels: readonly number[];

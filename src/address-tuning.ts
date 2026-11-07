@@ -11,7 +11,7 @@
  *   the first full, the last every 1, each finer `every` dividing the coarser and its opacity fainter;
  * - `floor=4` -- `GRID_FLOOR`, from 0 to 50 pixels;
  * - `max=10000` -- `GRID_MAX`, a whole number from 1 to 200,000;
- * - `step=100` -- the pinch's step in pixels, from 10 to 1,000.
+ * - `step=100` -- the wheel's step in pixels, any wheel's, from 10 to 1,000.
  * A value malformed or out of range is ignored and named, with why, in a note the pane's readouts show beside the
  * settings in force.
  */

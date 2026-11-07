@@ -187,9 +187,9 @@ function isChordMove(fact: TesterFact): fact is PointerFact<ItemUnderPointer> {
 	return isMouseFact(fact, "move") && fact.button >= 0 && fact.button <= 4;
 }
 
-/** A wheel fact, with Ctrl held or not. */
-function isWheel(fact: TesterFact, ctrl: boolean): fact is WheelFact<ItemUnderPointer> {
-	return fact.type === "wheel" && fact.ctrlKey === ctrl;
+/** A wheel fact, with Ctrl held or not: every one a zoom (docs/DECISIONS.md 0025, draw's H27-1). */
+function isWheel(fact: TesterFact): fact is WheelFact<ItemUnderPointer> {
+	return fact.type === "wheel";
 }
 
 /** A row pressing button `button` with the mouse, opening the press gesture `gesture`, where `when` holds: where no pan row of that button does. */
@@ -224,7 +224,7 @@ function commitRow(id: string, words: string, gesture: string): TesterRow {
 	return { id, words, on: (f) => f.type === "commit" && f.gesture === gesture, claims: false, proof: ["trusted"] };
 }
 
-/** The tester's rows, in the legend's order: 43 rows, the view's six among them, exclusive over every fact and context (section 6). */
+/** The tester's rows, in the legend's order: 42 rows, the view's five among them, exclusive over every fact and context (section 6). */
 export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	{ id: "key-modifier-press", words: "a modifier press", on: (f) => isFreshPress(f) && isModifierCode(f.code), claims: true, proof: ["trusted"] },
 	{ id: "key-modifier-chord", words: "a modifier chord", on: (f) => isFreshPress(f) && !isModifierCode(f.code) && chordModifierHeld(f), claims: true, proof: ["trusted"] },
@@ -261,8 +261,7 @@ export const TESTER_ROWS: readonly TesterRow[] = Object.freeze([
 	commitRow("button-2-drag", "a drag of button 2", "drag-2"),
 	commitRow("button-3-drag", "a drag of button 3", "drag-3"),
 	commitRow("button-4-drag", "a drag of button 4", "drag-4"),
-	{ id: "scroll-pan", words: "a scroll pan: the wheel or a two-finger scroll, without Ctrl", on: (f) => isWheel(f, false), claims: true, proof: ["trusted"] },
-	{ id: "pinch-zoom", words: "a pinch zoom: Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", on: (f) => isWheel(f, true), claims: true, proof: ["trusted"] },
+	{ id: "wheel-zoom", words: "a wheel zoom: the wheel or a two-finger scroll, Ctrl and the wheel, or a pinch; sideways moves nothing", on: (f) => isWheel(f), claims: true, proof: ["trusted"] },
 	panRow("pan-middle", "a pan with the middle button, no gesture live", 1, panMiddleWhen),
 	panRow("pan-right", "a pan with the right button on open ground, no gesture live", 2, panRightWhen),
 	panRow("pan-space", "a pan with Space held and the left button, no gesture live", 0, panSpaceWhen),

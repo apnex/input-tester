@@ -165,7 +165,7 @@ test("section 6, the view's rows: a mouse's press takes its pan row where sectio
 		const mouseDown = fact.type === "down" && fact.pointerType === "mouse" && fact.button >= 0 && fact.button <= 4;
 		if (!mouseDown && fact.type !== "wheel") continue;
 		for (const context of OVERLAP_PROOF_CONTEXTS.pointer) {
-			const expected = fact.type === "wheel" ? (fact.ctrlKey ? "pinch-zoom" : "scroll-pan") : panBySpec(fact.button, context);
+			const expected = fact.type === "wheel" ? "wheel-zoom" : panBySpec(fact.button, context);
 			assert.deepEqual(hitsOf(fact, context), [expected], `${JSON.stringify(fact)} in ${JSON.stringify(context)}`);
 			checked++;
 		}

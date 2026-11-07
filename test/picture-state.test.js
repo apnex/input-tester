@@ -159,8 +159,8 @@ test("wheel facts with a delta of another sign on any axis start a new line: sid
 	platform.wheel({ deltaX: 40 });
 	platform.wheel({ deltaX: 25 });
 	platform.wheel({ deltaX: -40 });
-	assert.deepEqual(page.picture.log.map((l) => [l.fact.deltaX, l.count, l.hits[0]]), [[-40, 1, "scroll-pan"], [25, 2, "scroll-pan"]]);
-	assert.equal(page.latestVerdict.claimed, true, "a leftward turn is a scroll pan too, claimed");
+	assert.deepEqual(page.picture.log.map((l) => [l.fact.deltaX, l.count, l.hits[0]]), [[-40, 1, "wheel-zoom"], [25, 2, "wheel-zoom"]]);
+	assert.equal(page.latestVerdict.claimed, true, "a leftward turn is the wheel's row too, claimed, moving nothing");
 });
 
 test("the status line is painted again when only the buttons drawn change", () => {

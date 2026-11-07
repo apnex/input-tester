@@ -16,7 +16,7 @@ One stream runs through single-duty parts: a platform event becomes one fact, th
 | Concern | Owned by | In the tester |
 |---|---|---|
 | A platform event turned into one frozen fact, and the application's answer carried back -- claim, take the pointer | `input-capture` | one capture on the page's `<svg>`, the window as key source (`src/composition-root.ts`) |
-| What a fact means: the one row it matches, whether it is claimed, and the phase it makes due for the gesture in progress | `input-binding` | one table of 43 rows and one session (`src/input-bindings.ts`), driven by the router (`src/input-router.ts`) |
+| What a fact means: the one row it matches, whether it is claimed, and the phase it makes due for the gesture in progress | `input-binding` | one table of 42 rows and one session (`src/input-bindings.ts`), driven by the router (`src/input-router.ts`) |
 | Shapes held as data under keys and shown exactly; which item a target or a screen point is over; screen and drawing coordinates | `vector-scene` | four layers on the `<svg>` (`src/picture-painter.ts`), and a second scene declared with a view on the view pane's own `<svg>`, written by `setView` (`src/view-pane.ts`) |
 | Where positions lie on a grid, and the rect a block of them covers | `snap-grid` | one grid a quarter key apart, every key's rect from `span` (`src/keyboard-plans.ts`), and a grid of 60 in the view pane, every position in view listed by `inView` (`src/view-pane.ts`) |
 | Which route a fact takes, what is shown, what it looks like | the application | the composition root's switch, the picture state, the painter and the stylesheet |
@@ -340,9 +340,9 @@ The page is the window's height and never scrolls, the header taking its own hei
 A resize of the window is no input, and the page writes nothing but in answer to one, so after a resize the pane keeps the view it had -- its grid may stop short of its new edges, its origin off its new centre -- until the pointer next moves over it or any key or gesture comes: move the pointer over the pane once after resizing.
 
 Each step, on the pane, then what to report back:
-1. Two-finger scroll on the touchpad, every direction: the grid moves the way the fingers do, as a page scrolls; the centre in the readouts changes by the scroll's pixels over the scale.
+1. Two-finger scroll on the touchpad, every direction: up and down zoom, as a pinch does, one level per 100 pixels of the scroll about the point under the fingers, and sideways moves nothing -- a scroll no longer pans (`docs/DECISIONS.md` 0025); the centre moves only to keep the point under the fingers where it is.
 2. Pinch apart and together on the touchpad: the level steps 0.5x, 1x, 2x and 3x, never between, and the point under the fingers stays under them; report whether one step takes a comfortable pinch -- the step is 100 pixels of the pinch, which headless Chrome sends as a pinch to about 2.7 times. Watch the dots: every one is a grid point, a place a drawing's things may be put, so they close up as the view zooms out, 60 units apart at every level; up close, at 0.5x and 1x, every dot is full; at 2x a dot is full where every fourth row meets every fourth column, and every other dot is at half opacity, so three half dots lie between two full ones; at 3x a grid within a grid: full where every tenth row meets every tenth column, half where every second meets every second, and a quarter elsewhere, so a row through a full dot runs full, quarter, half, quarter, half, ... quarter, full and the odd rows between are all at a quarter, and every second row runs half, quarter, half; the cross at 0, 0 always sits on a full dot. No dot drops out now, at any level, in either size of the pane, as the lab's try asks: with the pane small at 3x the dots stand 2.3 to 3.2 pixels apart, close to 21,000 of them, so the pane reads as a fine, dense texture, its full dots every tenth row and column standing out from it; at 2x on a 1093-pixel window the half dots stand 3.4 pixels apart. Report whether the runs, 4 at 2x and 10 at 3x, and the opacities, half and a quarter, read well, and whether the dense texture should stay or the faint dots drop out again where they crowd: each is one edit beside `ZOOM_LEVELS` in `src/view-steps.ts` -- `GRID_TIERS` the runs and opacities, `GRID_FLOOR` the least spacing at which faint dots are drawn, 0 now and 4 before, and `GRID_MAX` the most dots listed at once, 25,000 now and 10,000 before -- the names draw's design gives them.
-3. Ctrl and the mouse wheel, if a mouse is at hand: the same levels, one notch or a few a step, about the pointer.
+3. The mouse wheel, with Ctrl or without, if a mouse is at hand: the same levels, one notch or a few a step, about the pointer; every wheel, a scroll, a pinch, Ctrl and the wheel, holds its pixels toward the next level in one count.
 4. Space held with a left drag; a middle drag; a right drag, which pans on the precision lines too, since they mark ground: each pans once the pointer has travelled 4 pixels, the grid following the pointer, and a release changes nothing more; report a middle press that starts the browser's own scrolling arrows instead.
 5. The keys, with the page focused: `=` or `+` a level in and `-` a level out, about the pane's centre; Shift and 0 the default level, 1x; Shift and 1 fit, which here is the first opening, 0, 0 at 1x; `h` home.
 6. The reticle, "home 0, 0": the cross comes back to the pane's centre at the level it was.
@@ -399,7 +399,7 @@ Each holds for that page only, and while any is in force the readouts show it, a
 | `tiers` and a level, as `tiers3` | that level's tiers, each `every:opacity`, coarsest first; a level with none draws every point full | 2x `4:1,1:0.5`; 3x `10:1,2:0.5,1:0.25` | up to 4; the first full, the last every point; each finer `every` divides the coarser's and is fainter |
 | `floor` | `GRID_FLOOR`: a faded tier whose dots stand closer than this many pixels is left out | `0`, never | 0 to 50 |
 | `max` | `GRID_MAX`: the most points listed before a faded tier is left out | `25000` | 1 to 200,000 |
-| `step` | the pixels of pinch, or of Ctrl and the wheel, for one level, `ZOOM_STEP_PIXELS` | `100` | 10 to 1,000 |
+| `step` | the pixels of any wheel -- a scroll, a pinch, the wheel with Ctrl or without -- for one level, `ZOOM_STEP_PIXELS` | `100` | 10 to 1,000 |
 
 Paste one into the address bar, press Enter, then reload with Ctrl and R: the address is read once as the page opens, and a change after `#` alone does not reload it.
 
@@ -411,7 +411,7 @@ Every ninth dot full at 3x, not every tenth, every third at half and the rest at
 
 `https://input-lab.apnex.io/?plan=chromebook#view&tiers3=9:1,3:0.5,1:0.25`
 
-A gentler pinch, half as much again for each level:
+A gentler wheel, a scroll or a pinch, half as much again for each level:
 
 `https://input-lab.apnex.io/?plan=chromebook#view&step=150`
 

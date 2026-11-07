@@ -1,6 +1,6 @@
 {
   "name": "input-tester",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Show a person, live and exactly, what their keyboard, mouse and touchpad send and what each gesture is taken to mean, composed only from four published, reusable components.",
   "license": "MIT",
@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@apnex/clean-runner": "https://github.com/apnex/clean-runner/releases/download/v0.2.0/apnex-clean-runner-0.2.0.tgz",
-    "@apnex/headless-chromium": "https://github.com/apnex/headless-chromium/releases/download/v0.1.0/apnex-headless-chromium-0.1.0.tgz",
+    "@apnex/headless-chromium": "https://github.com/apnex/headless-chromium/releases/download/v0.2.0/apnex-headless-chromium-0.2.0.tgz",
     "typescript": "5.9.3"
   }
 }

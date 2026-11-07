@@ -11,10 +11,19 @@
  * of the pan row that opened it, the pointer taken then, or else to its button's drag; a mouse release's `pointerUp`,
  * whose commit gives a derived fact, traced and matched in its turn; a mouse cancel's `pointerLost`; and focus
  * lost's `keysLost` then `pointerLost`. Which route a fact takes is the composition root's switch.
+ *
+ * A pan's press released where the tester does not hear it (docs/DECISIONS.md 0024, draw's B447): a pan row's press
+ * takes no pointer until it travels the threshold, so released over the header its release reaches no listener, and
+ * the press and its waiting pan stayed held, the next hover, no button down, panning the view. So the router
+ * remembers the buttons a pan's press was last heard holding, and a move of the press's own pointer holding none of
+ * them ends the press as a lost pointer, `pointerLost`, before that move is asked of no press: the waiting pan
+ * dropped, a live pan cancelled, the view left where it was. A chord heard keeps IB11: a joined button still held
+ * keeps the pan to the last release.
  */
 import type { BecomeGestureOutcome, BindingEntry, BindingTable, GestureOutcome, GestureSession, KeyOutcome, KeysLostOutcome, PointerMoveOutcome, PointerUpOutcome, ResolvePressOutcome, SessionState, TraceRecord } from "../vendor/input-binding/index.js";
 import type { BlurFact, KeyFact, PointerFact } from "../vendor/input-capture/index.js";
-import { DRAG_OF_PRESS, NO_KEY_CONTEXT, isModifierCode } from "./input-bindings.js";
+import { DRAG_OF_PRESS, NO_KEY_CONTEXT, PAN_GESTURES, isModifierCode } from "./input-bindings.js";
+import { bitOfButton } from "./keyboard-plans.js";
 import type { CommitFact, DeliveredFact, ItemUnderPointer, TesterContext, TesterFact, TesterRow } from "./input-bindings.js";
 
 /** What the router asks of a fact's reply: `input-capture`'s claim and takePointer (IC8). */
@@ -98,6 +107,15 @@ export function openInputRouter(table: BindingTable<TesterFact, TesterContext, T
 	/** The pan gesture a row becomes once its press travels the threshold, by the row's id, for the rows that pan. */
 	const panOfRow = new Map(table.rows.filter((e) => e.row.pans !== undefined).map((e) => [e.id, e.row.pans as string]));
 	const verdictOf = (fact: DeliveredFact, claimed: boolean, trace: readonly TraceRecord[], steps: readonly VerdictStep[]): Verdict => Object.freeze({ fact, claimed, trace, steps: Object.freeze([...steps]) });
+	/** The buttons a pan's press was last heard holding, as `buttons` bits -- its press's, then each heard move's -- or 0 when no pan's press is held (0024). */
+	let panHeld = 0;
+	/** Whether the session holds a pan's press: a pan row's press waiting on the threshold, or a pan live. */
+	const panPressHeld = (state: SessionState): boolean => state.press !== null && state.gesture !== null && (PAN_GESTURES.includes(state.gesture.name) || (state.gesture.row !== null && panOfRow.has(state.gesture.row)));
+	/** Whether a move of the press's own pointer holds none of the buttons its pan's press was last heard holding: its release was not heard (0024). */
+	const panReleasedUnheard = (fact: MouseFact): boolean => {
+		const state = session.state;
+		return panHeld !== 0 && panPressHeld(state) && fact.pointerId === state.press?.pointer && Number.isSafeInteger(fact.buttons) && ((fact.buttons as number) & panHeld) === 0;
+	};
 	const step = <S extends VerdictStep>(s: S): S => Object.freeze(s);
 
 	/** A commit's derived fact, traced and matched in the context of no key. */
@@ -118,12 +136,20 @@ export function openInputRouter(table: BindingTable<TesterFact, TesterContext, T
 			const { trace, match, claimed } = traceMatchAndClaim(fact, reply);
 			if (match === null || !panOfRow.has(match.id)) reply.takePointer();
 			const outcome = session.resolvePress(fact, { match: () => match });
+			if (!outcome.taken) panHeld = panPressHeld(outcome.state) ? (Number.isSafeInteger(fact.buttons) && (fact.buttons as number) > 0 ? (fact.buttons as number) : bitOfButton(fact.button)) : 0;
 			return verdictOf(fact, claimed, trace, [step({ operation: "resolvePress", outcome, derived: null })]);
 		},
 		routeMouseMove: (fact, reply) => {
+			const steps: VerdictStep[] = [];
+			// 0024: a pan's press whose release was not heard ends here, as a lost pointer, and the move is asked of no press, a hover
+			if (panReleasedUnheard(fact)) {
+				panHeld = 0;
+				steps.push(step({ operation: "pointerLost", outcome: session.pointerLost(), derived: null }));
+			}
 			const { trace, claimed } = traceMatchAndClaim(fact, reply);
 			const moved = session.pointerMove(fact);
-			const steps: VerdictStep[] = [step({ operation: "pointerMove", outcome: moved, derived: null })];
+			steps.push(step({ operation: "pointerMove", outcome: moved, derived: null }));
+			if (panHeld !== 0 && !moved.otherPointer && Number.isSafeInteger(fact.buttons) && (fact.buttons as number) > 0) panHeld = fact.buttons as number;
 			const live = moved.state.gesture;
 			const pan = live === null || live.row === null ? undefined : panOfRow.get(live.row);
 			const drag = live === null ? undefined : DRAG_OF_PRESS[live.name];
@@ -136,15 +162,18 @@ export function openInputRouter(table: BindingTable<TesterFact, TesterContext, T
 		routeMouseRelease: (fact, reply) => {
 			const { trace, claimed } = traceMatchAndClaim(fact, reply);
 			const outcome = session.pointerUp(fact);
+			if (outcome.state.press === null) panHeld = 0;
 			return verdictOf(fact, claimed, trace, [step({ operation: "pointerUp", outcome, derived: deriveCommit(outcome) })]);
 		},
 		routeMouseCancel: (fact, reply) => {
 			const { trace, claimed } = traceMatchAndClaim(fact, reply);
+			panHeld = 0;
 			return verdictOf(fact, claimed, trace, [step({ operation: "pointerLost", outcome: session.pointerLost(), derived: null })]);
 		},
 		routeFocusLost: (fact, reply) => {
 			const { trace, claimed } = traceMatchAndClaim(fact, reply);
 			const keys = step({ operation: "keysLost", outcome: session.keysLost(), derived: null });
+			panHeld = 0;
 			const pointer = step({ operation: "pointerLost", outcome: session.pointerLost(), derived: null });
 			return verdictOf(fact, claimed, trace, [keys, pointer]);
 		},

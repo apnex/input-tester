@@ -7,7 +7,7 @@
  * its first observed time, whether it was first seen pressed or already repeating, its repeats observed and its
  * latest fact, exact. Times are the facts' own; a duration is shown as of the latest fact, and no clock is read.
  *
- * It keeps the view the view's rows would set (section 6, the view's rows): the zoom level and the pinch's
+ * It keeps the view the view's rows would set (section 6, the view's rows): the zoom level and the wheel's
  * accumulator, a live pan's travel on screen from where it engaged, and words for what the latest of those rows
  * did -- numbers, with no view drawn: the view pane is a move of its own.
  */
@@ -78,7 +78,7 @@ export interface PanPicture {
 
 /**
  * The view the view's rows set, which the view pane shows: its centre, the drawing point at the pane's centre;
- * its zoom level; the pinch's accumulator in pixels; a live pan or null; and words for what the latest of those
+ * its zoom level; the wheel's accumulator in pixels; a live pan or null; and words for what the latest of those
  * rows did, null before any.
  */
 export interface ViewPicture {
@@ -232,31 +232,26 @@ const pixelWords = (n: number): string => String(Math.round(n * 10) / 10);
 /** A screen point as the page writes it, each coordinate to a tenth. */
 const pointWords = (p: CapturePoint): string => `${pixelWords(p.x)}, ${pixelWords(p.y)}`;
 
-/** A wheel's view row and its fact: the view after it and the words for what it did. */
+/**
+ * The wheel's view row and its fact: the view after it and the words for what it did. Every wheel zooms
+ * (docs/DECISIONS.md 0025, draw's H27-1) -- the wheel or a two-finger scroll, Ctrl and the wheel, a pinch -- its
+ * `deltaY` normalised and accumulated, one level per the step's pixels, about the fact's screen point; its `deltaX`
+ * moves nothing, so a sideways scroll is claimed and leaves the view as it was.
+ */
 function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly string[], pagePixels: number, pane: PaneGeometry | null, tuning: GridTuning): ViewPicture {
-	if (fact.type !== "wheel") return view;
-	if (hits.includes("scroll-pan")) {
-		const dx = normalisedDelta(fact.deltaX, fact.deltaMode, pagePixels);
-		const dy = normalisedDelta(fact.deltaY, fact.deltaMode, pagePixels);
-		if (dx === null || dy === null) return Object.freeze({ ...view, words: "scroll pan: its unit, or the page's height, not known, so the view kept" });
-		const words = `scroll pan: the centre moved ${pixelWords(dx)}, ${pixelWords(dy)} screen pixels, the drawing the other way`;
-		if (!paneLaidOut(pane)) return Object.freeze({ ...view, words });
-		const scale = paneScale(pane, view.level);
-		return Object.freeze({ ...view, centre: Object.freeze({ x: view.centre.x + dx / scale, y: view.centre.y + dy / scale }), words });
-	}
-	if (!hits.includes("pinch-zoom")) return view;
+	if (fact.type !== "wheel" || !hits.includes("wheel-zoom")) return view;
 	const dy = normalisedDelta(fact.deltaY, fact.deltaMode, pagePixels);
-	if (dy === null) return Object.freeze({ ...view, words: "pinch zoom: its unit, or the page's height, not known, so the view kept" });
+	if (dy === null) return Object.freeze({ ...view, words: "wheel zoom: its unit, or the page's height, not known, so the view kept" });
 	const step = stepZoom(view.level, view.acc, dy, tuning.levels, tuning.step);
 	const keepsPointer = !paneLaidOut(pane) || onPane(pane, fact.screen);
 	const about = keepsPointer ? `about screen ${pointWords(fact.screen)}` : `about the pane's centre, the pointer off the pane at screen ${pointWords(fact.screen)}`;
 	const centre = step.steps > 0 && paneLaidOut(pane) ? Object.freeze(centreKeeping(view.centre, pane, keepsPointer ? fact.screen : { x: pane.left + pane.width / 2, y: pane.top + pane.height / 2 }, paneScale(pane, step.from), paneScale(pane, step.to))) : view.centre;
 	const words =
 		step.steps > 0
-			? `pinch zoom: ${levelWords(step.from)} to ${levelWords(step.to)}, ${step.steps} level${step.steps === 1 ? "" : "s"}, the scale times ${Math.round((step.from / step.to) * 1000) / 1000}, ${about}${step.dropped ? ", the rest dropped at the last level" : `, ${pixelWords(step.acc)} pixels held`}`
+			? `wheel zoom: ${levelWords(step.from)} to ${levelWords(step.to)}, ${step.steps} level${step.steps === 1 ? "" : "s"}, the scale times ${Math.round((step.from / step.to) * 1000) / 1000}, ${about}${step.dropped ? ", the rest dropped at the last level" : `, ${pixelWords(step.acc)} pixels held`}`
 			: step.dropped
-				? `pinch zoom: at ${levelWords(step.to)}, no level lies that way, so dropped`
-				: `pinch zoom: at ${levelWords(step.to)}, ${pixelWords(step.acc)} of ${tuning.step} pixels held toward the next level`;
+				? `wheel zoom: at ${levelWords(step.to)}, no level lies that way, so dropped`
+				: `wheel zoom: at ${levelWords(step.to)}, ${pixelWords(step.acc)} of ${tuning.step} pixels held toward the next level`;
 	return Object.freeze({ ...view, centre, level: step.to, acc: step.acc, words });
 }
 
@@ -264,7 +259,7 @@ function viewAfterWheel(view: ViewPicture, fact: TesterFact, hits: readonly stri
  * A view verb, from a view key or the reticle (draw's PAN-ZOOM.md 3.7, PZ6, PZ28): a level nearer or farther, or
  * the default, about the pane's centre, so the centre holds; fit, which with nothing drawn here to fit is the first opening,
  * 0, 0 at the default level (PZ7); home, the centre to 0, 0, the level kept. A verb that changes nothing does
- * nothing; one that sets a view sets the pinch's held pixels to 0, the view not the wheel's.
+ * nothing; one that sets a view sets the wheel's held pixels to 0, the view not the wheel's.
  */
 export function viewAfterVerb(view: ViewPicture, verb: ViewVerb, by: string, levels: readonly number[] = ZOOM_LEVELS): ViewPicture {
 	const index = levels.indexOf(view.level);
@@ -316,7 +311,7 @@ function viewAfterStep(view: ViewPicture, step: VerdictStep, fact: DeliveredFact
 	if (step.operation === "pointerLost" && pan !== null && step.outcome.gesture?.name === pan.gesture) {
 		return Object.freeze({ ...view, pan: null, words: `${pan.gesture} cancelled after ${pixelWords(pan.distance)} screen pixels: its release not reported` });
 	}
-	if (step.operation === "keysLost" && view.acc !== 0) return Object.freeze({ ...view, acc: 0, words: "focus lost: the pinch's held pixels set to 0" });
+	if (step.operation === "keysLost" && view.acc !== 0) return Object.freeze({ ...view, acc: 0, words: "focus lost: the wheel's held pixels set to 0" });
 	return view;
 }
 

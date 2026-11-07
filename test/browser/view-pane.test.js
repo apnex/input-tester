@@ -61,30 +61,29 @@ test("every gesture on the pane moves its view as section 3.6 says, the picture 
 	const mid = { x: Math.round(p.left + p.width / 2), y: Math.round(p.top + p.height / 2) };
 	const at = (fx, fy) => ({ x: Math.round(p.left + p.width * fx), y: Math.round(p.top + p.height * fy) });
 
-	// a two-finger scroll: the centre moves by the pixels over the scale
+	// a sideways scroll: claimed, and nothing moves -- every wheel zooms, by its deltaY alone (0025)
 	let before = p;
 	await t.mouse("mouseMoved", mid);
-	await t.wheel(mid, 120, -60);
+	await t.wheel(mid, 120, 0);
 	await t.settle();
 	p = await pane();
-	close(p.centre.x - before.centre.x, 120 / p.view.scale, "a scroll's x");
-	close(p.centre.y - before.centre.y, -60 / p.view.scale, "a scroll's y");
+	assert.deepEqual([p.centre, p.level], [before.centre, before.level], "a sideways scroll moves no centre and steps no level");
 
-	// Ctrl and the wheel, then a pinch: every level, none between, the point under the pointer kept
+	// the wheel and Ctrl and the wheel by turns, then a pinch: every level, none between, the point under the pointer kept
 	const q = at(0.3, 0.25);
 	await t.mouse("mouseMoved", q);
 	const levels = [];
 	const kept = under(p, q);
-	for (const dy of [-100, 100, 100, 100]) {
-		await t.wheel(q, 0, dy, MODIFIERS.ctrl);
+	for (const [i, dy] of [-100, 100, 100, 100].entries()) {
+		await t.wheel(q, 0, dy, i % 2 === 0 ? 0 : MODIFIERS.ctrl);
 		await t.settle();
 		p = await pane();
 		levels.push(p.level);
 		const now = under(p, q);
-		close(now.x, kept.x, `Ctrl and the wheel at ${p.level}x keeps the point's x`);
-		close(now.y, kept.y, `Ctrl and the wheel at ${p.level}x keeps the point's y`);
+		close(now.x, kept.x, `the wheel at ${p.level}x keeps the point's x`);
+		close(now.y, kept.y, `the wheel at ${p.level}x keeps the point's y`);
 	}
-	assert.deepEqual(levels, [0.5, 1, 2, 3], "Ctrl and the wheel steps through each level, none between");
+	assert.deepEqual(levels, [0.5, 1, 2, 3], "the wheel, with Ctrl or without, steps through each level, none between");
 	const pinchLevels = [];
 	for (const scaleFactor of [3, 3, 3, 1 / 3, 1 / 3, 1 / 3]) {
 		before = await pane();

@@ -3,7 +3,7 @@
 // produce -- keys held, repeated and released, a media key with no code, the browser's own keys, every button's
 // press, click and drag, presses travelling exactly the threshold and just beyond, the view's pans with the
 // middle button, the right on open ground and the left with Space held, chords in both release orders, double
-// clicks, wheels of every direction and of no distance, a scroll pan and a pinch zoom, a synthesized touchpad pinch, the context
+// clicks, wheels of every direction and of no distance, each a wheel zoom, a synthesized touchpad pinch, the context
 // menu, a pen's and a touch's pointers, and focus lost by opening a second tab, once during a captured drag
 // released in the other tab and returned to with no up or cancel -- and after each input the verdict, the
 // picture record and the page held to section 6. A claimed pinch leaves `visualViewport.scale` 1, and a planted
@@ -77,8 +77,8 @@ test("the page composes: no problem, the full-size ANSI plan, a Chromium browser
 	assert.equal(await t.chrome.evaluate("document.querySelector('#input-surface .uncovered') === null"), true);
 	const shown = await t.chrome.evaluate("[...document.querySelectorAll('#input-surface text')].flatMap((e) => { const spans = [...e.querySelectorAll('tspan')]; return spans.length === 0 ? [e.textContent] : spans.map((s) => s.textContent); }).join(' ')");
 	for (const line of [...NOT_REPORTED_LINES, CLAIMS_LINE]) assert.ok(shown.includes(line), `the page shows: ${line}`);
-	const pinchRow = await t.page("[...document.querySelectorAll('#input-surface g.legend-row text.legend-words')].map((e) => [...e.querySelectorAll('tspan')].map((s) => s.textContent)).find((lines) => lines.join(' ').includes('touchpad pinch'))");
-	assert.deepEqual(pinchRow, ["a pinch zoom: Ctrl and wheel, or a touchpad pinch:", "the browser does not tell them apart"], "the Ctrl row's sentence beside it in the legend, IT-D8's sentence whole on a line of its own (0009)");
+	const wheelRow = await t.page("[...document.querySelectorAll('#input-surface g.legend-row text.legend-words')].map((e) => { const spans = [...e.querySelectorAll('tspan')]; return spans.length === 0 ? [e.textContent] : spans.map((s) => s.textContent); }).find((lines) => lines.join(' ').includes('wheel zoom'))");
+	assert.equal(wheelRow.join(" "), "a wheel zoom: the wheel or a two-finger scroll, Ctrl and the wheel, or a pinch; sideways moves nothing", "the wheel's one row in the legend: the wheel, Ctrl and the wheel, and a pinch zoom (0025)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
@@ -500,29 +500,31 @@ test("a double click: one double, matching its row, claimed", TEST, async () => 
 	assert.match(await t.newestLogLine(), /^double no pointer type button 0/, "the platform's double click carries no pointer type");
 });
 
-test("wheels: up, down, sideways and still, each a scroll pan, claimed, in the unit the browser gave, the centre moved by its pixels; Ctrl and the wheel a pinch zoom, one level out per 100 pixels about the pointer", TEST, async () => {
+test("wheels: up, down, sideways and still, each the wheel zoom, claimed, in the unit the browser gave -- up and down step the level about the pointer, one level per 100 pixels, sideways and still move nothing, no centre moved; Ctrl and the wheel the same row and the same accumulator (0025)", TEST, async () => {
 	await t.load("?plan=ansi");
 	const at = t.keyCentre("KeyB");
 	await t.mouse("mouseMoved", at);
-	for (const [dx, dy] of [[0, -120], [0, 120], [60, 0], [-60, 0], [0, 0]]) {
+	const want = [[0.5, 0], [1, 20], [1, 20], [1, 20], [1, 20]];
+	for (const [i, [dx, dy]] of [[0, -120], [0, 120], [60, 0], [-60, 0], [0, 0]].entries()) {
 		await t.wheel(at, dx, dy);
 		await t.settle();
 		const v = await verdict();
-		assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["scroll-pan"], true], `deltas ${dx}, ${dy}`);
+		assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["wheel-zoom"], true], `deltas ${dx}, ${dy}`);
 		assert.deepEqual(await t.page("[inputTester.picture.wheel.latest.deltaX, inputTester.picture.wheel.latest.deltaY, inputTester.picture.wheel.latest.deltaMode]"), [dx, dy, 0]);
-		assert.equal(await t.page("inputTester.picture.view.words"), `scroll pan: the centre moved ${dx}, ${dy} screen pixels, the drawing the other way`);
+		assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.centre.x, inputTester.picture.view.centre.y]"), [...want[i], 0, 0], `deltas ${dx}, ${dy}: the level and the pixels held, no centre moved`);
 	}
+	assert.equal(await t.page("inputTester.picture.view.words"), "wheel zoom: at 1x, 20 of 100 pixels held toward the next level", "sideways and still: nothing stepped");
 	await t.wheel(at, 0, 120, MODIFIERS.ctrl);
 	await t.settle();
 	const v = await verdict();
-	assert.deepEqual([v.hits, v.claimed], [["pinch-zoom"], true]);
-	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 20, `pinch zoom: 1x to 2x, 1 level, the scale times 0.5, about the pane's centre, the pointer off the pane at screen ${at.x}, ${at.y}, 20 pixels held`]);
-	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, scale [0-9.]+centre 0, 0pinch held 20 pxno panpinch zoom: 1x to 2x/, "the view's lines drawn");
+	assert.deepEqual([v.hits, v.claimed], [["wheel-zoom"], true]);
+	assert.deepEqual(await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.view.words]"), [2, 40, `wheel zoom: 1x to 2x, 1 level, the scale times 0.5, about the pane's centre, the pointer off the pane at screen ${at.x}, ${at.y}, 40 pixels held`]);
+	assert.match(await t.chrome.evaluate("document.querySelector('#input-surface .view-line').textContent"), /^view: 2x, scale [0-9.]+centre 0, 0wheel held 40 pxno panwheel zoom: 1x to 2x/, "the view's lines drawn");
 	assert.equal(await t.chrome.evaluate("visualViewport.scale"), 1, "Ctrl and a mouse wheel make no page zoom in headless Chrome, claimed or not (section 10, row 9)");
 	await t.chrome.evaluate("window.notReloaded = true");
 });
 
-test("a touchpad pinch synthesized over the protocol arrives as wheel facts with Ctrl, matching the pinch zoom, claimed, stepping the view in, and visualViewport.scale stays 1", TEST, async (tc) => {
+test("a touchpad pinch synthesized over the protocol arrives as wheel facts with Ctrl, matching the wheel zoom, claimed, stepping the view in, and visualViewport.scale stays 1", TEST, async (tc) => {
 	await t.load("?plan=ansi");
 	const at = t.keyCentre("KeyN");
 	await t.mouse("mouseMoved", at);
@@ -532,9 +534,9 @@ test("a touchpad pinch synthesized over the protocol arrives as wheel facts with
 	const after = await t.settle();
 	assert.ok(after - before >= 5, `${after - before} facts`);
 	const v = await verdict();
-	assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["pinch-zoom"], true]);
+	assert.deepEqual([v.type, v.hits, v.claimed], ["wheel", ["wheel-zoom"], true]);
 	const line = (await logHits())[0];
-	assert.deepEqual(line.slice(0, 3), ["wheel", ["pinch-zoom"], true]);
+	assert.deepEqual(line.slice(0, 3), ["wheel", ["wheel-zoom"], true]);
 	const [level, acc, total] = await t.page("[inputTester.picture.view.level, inputTester.picture.view.acc, inputTester.picture.log.filter((l) => l.fact.type === 'wheel').length]");
 	tc.diagnostic(`a synthesized pinch to twice the scale, in ${after - before} facts over ${total} log lines, left the view at ${level}x with ${acc} pixels held`);
 	assert.ok(level < 1 || acc < 0, "a pinch outward, apart, steps the view in, toward 0.5x: its deltas negative");

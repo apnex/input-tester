@@ -40,9 +40,8 @@ export const SPEC_ROW_CLAIMS = Object.freeze([
 	["a drag of button 2", false],
 	["a drag of button 3", false],
 	["a drag of button 4", false],
-	["a scroll pan: the wheel or a two-finger scroll, without Ctrl", true],
-	// the row's words, with IT-D8's sentence beside them, as section 6 has it
-	["a pinch zoom: Ctrl and wheel, or a touchpad pinch: the browser does not tell them apart", true],
+	// every wheel a zoom (0025, draw's H27-1): one row where the scroll pan and the pinch zoom were two
+	["a wheel zoom: the wheel or a two-finger scroll, Ctrl and the wheel, or a pinch; sideways moves nothing", true],
 	["a pan with the middle button, no gesture live", true],
 	["a pan with the right button on open ground, no gesture live", true],
 	["a pan with Space held and the left button, no gesture live", true],

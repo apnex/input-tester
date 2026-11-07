@@ -140,7 +140,7 @@ test("the picture's text as one layout: every line -- the mouse column's, the lo
 	await t.mouse("mouseMoved", pinchAt);
 	await t.chrome.send("Input.synthesizePinchGesture", { x: pinchAt.x, y: pinchAt.y, scaleFactor: 2, relativeSpeed: 800, gestureSourceType: "mouse" });
 	await t.settle();
-	assert.deepEqual(await t.page("inputTester.picture.log[0].hits"), ["pinch-zoom"]);
+	assert.deepEqual(await t.page("inputTester.picture.log[0].hits"), ["wheel-zoom"]);
 	await assertEveryLineClear("a synthesized touchpad pinch");
 
 	await t.wheel(pinchAt, 0, 120, MODIFIERS.ctrl);
