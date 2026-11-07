@@ -775,3 +775,17 @@ The version is `0.7.0`, a change of behaviour under a new ruling, deployed to th
 - The worked verdicts hold a wheel without Ctrl as the wheel zoom, claimed, in the same accumulator as Ctrl and the wheel; a sideways scroll claimed and moving nothing; a scroll stepping a level about its screen point; and the units normalised for every wheel; the overlap check holds every wheel fact on `wheel-zoom` alone; in Chrome, the wheel up and down step the level and sideways and still move nothing, no centre moved, and the wheel with Ctrl and without by turns steps every level on the pane, the point under the pointer kept.
 - Mutants, each killed: `MU7`, a sideways scroll left unmatched; `M49`, the wheel zoom only with Ctrl; `M71`, a sideways scroll's `deltaX` taken as the zoom's.
 
+
+---
+
+## 0026 - v0.7.0 deployed to production
+
+**Ruled by:** the director, 2026-11-07, approving draw's H27 batch and this release together ("continue", to "release both to production").\
+**Affects:** `input.apnex.io`.
+
+**Ruling.**\
+`v0.7.0`, in the lab at `input-lab.apnex.io`, is deployed to production at `input.apnex.io`, which had served `v0.1.0` since `0003`.
+
+**Why.**\
+Every gesture of the view was accepted on the director's Chromebook at `v0.6.0` (`0023`), and `v0.7.0` changes only what `0024` and `0025` rule: a pan's press released unheard ends as a lost pointer, and every wheel zooms.\
+The deploy ran as section 9 states, the lab first, every file read back through both hosts and the smoke run passing on each; it ran under the application-default credential, the operator's `gcloud` login having expired.

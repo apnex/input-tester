@@ -16,7 +16,7 @@ Every section is derived; each changes when the code, the gate's results or the 
 |---|---|
 | Version | `0.7.0`, its release folder `v0.7.0` |
 | Target it builds | `docs/ARCHITECTURE-TARGET.md`, revision 19 |
-| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, `0017`, `0018`, `0019`, `0020`, `0021`, `0022`, `0023`, `0024`, `0025`, in `docs/DECISIONS.md` |
+| Rulings recorded | `0001`, `0002`, `0003`, `0004`, `0005`, `0006`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, `0013`, `0014`, `0015`, `0016`, `0017`, `0018`, `0019`, `0020`, `0021`, `0022`, `0023`, `0024`, `0025`, `0026`, in `docs/DECISIONS.md` |
 | The gate's last run | every one of its 9 steps passed |
 
 ---
@@ -236,3 +236,4 @@ Workarounds open: 0.
 | `0023` | Every gesture of the view accepted on the Chromebook |
 | `0024` | A pan's press released where the tester does not hear it ends as a lost pointer |
 | `0025` | Every wheel zooms: the scroll's pan deleted, and v0.7.0 |
+| `0026` | v0.7.0 deployed to production |
